@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
 get_project_root() {
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-    echo "$(dirname "$script_dir")"
+    # Desde env-loader.sh (scripts/common/) necesitamos subir 2 niveles para llegar a la raíz
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(dirname "$(dirname "$script_dir")")"
+    echo "$project_root"
 }
 
 get_private_dir() {
