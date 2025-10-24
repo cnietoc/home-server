@@ -11,7 +11,7 @@ log() {
     echo "[$(date '+%H:%M:%S')] $*"
 }
 
-link_secrets() {
+link_config() {
     if [[ $# -ne 1 ]]; then
         echo "Uso: $0 <ruta-absoluta-a-configuracion-privada>"
         echo ""
@@ -91,4 +91,4 @@ copy_templates_if_needed() {
     fi
 }
 
-link_secrets "$@"
+link_config "$@"
