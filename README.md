@@ -43,6 +43,33 @@ mkdir -p ~/secrets/home-server
 ./scripts/link-secrets.sh ~/secrets/home-server
 ```
 
+### 2. Instalar y configurar OneDrive (opcional)
+
+Si necesitas sincronizar archivos con OneDrive, puedes instalar y configurar rclone para montarlo automáticamente:
+
+```bash
+# Instalar rclone y configurar OneDrive
+./scripts/install-onedrive.sh
+
+# Una vez configurado, usar comandos directos:
+# Montar OneDrive manualmente
+rclone mount onedrive: ~/OneDrive --daemon --vfs-cache-mode writes
+
+# Desmontar OneDrive
+fusermount -u ~/OneDrive
+
+# Gestionar servicios systemd
+systemctl --user start onedrive-rclone.service
+systemctl --user status onedrive-rclone.service
+```
+
+**Lo que hace el script:**
+- Instala rclone automáticamente en Linux (apt/yum/dnf)
+- Guía interactiva para configurar OneDrive Personal
+- Configura servicio systemd para montaje automático al arranque
+- Configuración optimizada para rendimiento
+- Completamente idempotente (se puede ejecutar múltiples veces)
+
 ### 2. Configurar SSH (opcional)
 
 Configura el acceso SSH para gestionar tu servidor de forma segura, por defecto el script configura el acceso con claves públicas de GitHub de los usuarios definidos en `GITHUB_SSH_USERS` en el archivo `common.env`.
@@ -51,29 +78,6 @@ Configura el acceso SSH para gestionar tu servidor de forma segura, por defecto 
 # Configurar acceso SSH
 ./scripts/setup-ssh.sh
 ```
-
-### 3. Instalar y configurar OneDrive (opcional)
-
-Si necesitas sincronizar archivos con OneDrive, puedes instalar y configurar rclone para montarlo automáticamente:
-
-```bash
-# Instalar rclone y configurar OneDrive
-./scripts/install-onedrive.sh
-
-# Una vez configurado, usar los scripts generados:
-# Montar OneDrive
-./scripts/mount-onedrive.sh
-
-# Desmontar OneDrive
-./scripts/unmount-onedrive.sh
-```
-
-**Lo que hace el script:**
-- Instala rclone automáticamente según tu sistema operativo
-- Guía interactiva para configurar OneDrive Personal
-- Crea scripts de montaje y desmontaje automáticos
-- Configuración optimizada para rendimiento
-- Servicio systemd automático (Linux)
 
 ### 4. Configurar variables de entorno
 

@@ -297,13 +297,10 @@ show_final_info() {
     log "   ✅ Dependencias básicas (curl, git, jq, etc.)"
     log "   ✅ Optimizaciones del sistema"
     echo ""
-    log "🚀 Próximos pasos:"
-    log "   1. Reinicia la sesión o ejecuta: newgrp docker"
-    log "   2. Verifica Docker: docker run hello-world"
-    log "   3. Clona tu repositorio home-server"
-    log "   4. Configura tus secretos y despliega los stacks"
-    echo ""
     warn "⚠️ IMPORTANTE: Reinicia tu sesión SSH para que los cambios del grupo docker tengan efecto"
+    log "  O ejecuta: newgrp docker"
+    echo ""
+    log "🚀 Puedes verificar la instalación ejecutando: docker run hello-world"
 }
 
 # Función de ayuda
