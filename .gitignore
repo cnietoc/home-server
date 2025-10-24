@@ -3,3 +3,4 @@
 config/private
 
 data/
+docker/**/.env
