@@ -70,19 +70,27 @@ copy_templates_if_needed() {
 
     log "Verificando plantillas..."
 
-    # Copiar todas las plantillas directamente en la raíz
-    for template in "$TEMPLATES_DIR"/*.env.template; do
-        if [[ -f "$template" ]]; then
-            local filename="$(basename "$template" .template)"
-            local target="$config_path/$filename"
+    # Verificar que el directorio de plantillas existe
+    if [[ ! -d "$TEMPLATES_DIR" ]]; then
+        log "❌ Directorio de plantillas no encontrado: $TEMPLATES_DIR"
+        return 1
+    fi
 
-            if [[ ! -f "$target" ]]; then
-                cp "$template" "$target"
-                log "✅ Copiado: $filename"
-                ((copied++))
-            fi
+    # Copiar todas las plantillas directamente en la raíz
+    shopt -s nullglob  # Hacer que los globs que no coinciden se expandan a nada
+    for template in "$TEMPLATES_DIR"/*.env.template; do
+        local filename="$(basename "$template" .template)"
+        local target="$config_path/$filename"
+
+        if [[ ! -f "$target" ]]; then
+            cp "$template" "$target"
+            log "✅ Copiado: $filename"
+            ((copied++))
+        else
+            log "📄 Ya existe: $filename"
         fi
     done
+    shopt -u nullglob  # Restaurar comportamiento normal
 
     if [[ $copied -gt 0 ]]; then
         log "📝 Se copiaron $copied archivos de configuración. Edítalos antes de usar los scripts."
