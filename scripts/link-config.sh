@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -76,33 +76,39 @@ copy_templates_if_needed() {
         return 1
     fi
 
-    # Debug: mostrar qué archivos template existen
-    log "🔍 DEBUG: Directorio de plantillas: $TEMPLATES_DIR"
-    log "🔍 DEBUG: Archivos en directorio:"
-    ls -la "$TEMPLATES_DIR" || log "❌ No se pudo listar el directorio"
+    # Debug: verificar qué encuentra find
+    log "🔍 DEBUG: Buscando archivos en: $TEMPLATES_DIR"
+    local find_output
+    find_output=$(find "$TEMPLATES_DIR" -name "*.env.template" 2>/dev/null)
+    log "🔍 DEBUG: Find encontró:"
+    echo "$find_output" | while read -r line; do
+        log "🔍 DEBUG:   - $line"
+    done
 
-    # Copiar todas las plantillas directamente en la raíz
-    shopt -s nullglob  # Hacer que los globs que no coinciden se expandan a nada
-
-    local templates=("$TEMPLATES_DIR"/*.env.template)
-    log "🔍 DEBUG: Archivos template encontrados: ${#templates[@]}"
-
-    for template in "${templates[@]}"; do
+    # Usar find en lugar de glob para mayor confiabilidad
+    log "🔍 DEBUG: Iniciando bucle de copia..."
+    while IFS= read -r -d '' template; do
         log "🔍 DEBUG: Procesando template: $template"
-        local filename="$(basename "$template" .template)"
+        local filename
+        filename="$(basename "$template" .template)"
         local target="$config_path/$filename"
-
-        log "🔍 DEBUG: Archivo destino: $target"
+        log "🔍 DEBUG: Target: $target"
 
         if [[ ! -f "$target" ]]; then
-            cp "$template" "$target"
-            log "✅ Copiado: $filename"
-            ((copied++))
+            log "🔍 DEBUG: Archivo no existe, copiando..."
+            if cp "$template" "$target" 2>/dev/null; then
+                log "✅ Copiado: $filename"
+                ((copied++))
+            else
+                log "❌ Error copiando: $filename"
+            fi
         else
             log "📄 Ya existe: $filename"
         fi
-    done
-    shopt -u nullglob  # Restaurar comportamiento normal
+        log "🔍 DEBUG: Terminado procesamiento de $filename"
+    done < <(find "$TEMPLATES_DIR" -name "*.env.template" -print0 2>/dev/null)
+
+    log "🔍 DEBUG: Bucle terminado, archivos copiados: $copied"
 
     if [[ $copied -gt 0 ]]; then
         log "📝 Se copiaron $copied archivos de configuración. Edítalos antes de usar los scripts."
