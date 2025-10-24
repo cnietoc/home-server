@@ -159,7 +159,7 @@ RestartSec=10
 Environment=PATH=/usr/bin:/bin
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
 
     # Habilitar el servicio
