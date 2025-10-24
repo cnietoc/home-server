@@ -45,16 +45,16 @@ load_common_config() {
     load_env "$private_dir/common.env" || true
 }
 
-# Cargar secretos específicos
-load_secrets() {
-    local secret_types=("$@")
+# Cargar configuraciones específicas
+load_config() {
+    local config_types=("$@")
     local private_dir
     if ! private_dir="$(get_private_dir)"; then
         return 1
     fi
 
-    for secret_type in "${secret_types[@]}"; do
-        load_env "$private_dir/$secret_type.env" || true
+    for config_type in "${config_types[@]}"; do
+        load_env "$private_dir/$config_type.env" || true
     done
 }
 

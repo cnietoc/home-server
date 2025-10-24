@@ -57,7 +57,7 @@ run_dns_update() {
     cron_log "🔄 Iniciando actualización automática de DNS..."
 
     # Cargar configuración
-    if ! load_common_config || ! load_secrets "cloudflare"; then
+    if ! load_common_config || ! load_config "cloudflare"; then
         cron_log "❌ Error cargando configuración"
         return 1
     fi
