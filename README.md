@@ -6,7 +6,7 @@ Este proyecto configura un servidor doméstico con:
 - **Traefik** como proxy inverso con SSL automático
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
 - **Hello World** como aplicación de prueba
-- **Gestión centralizada de configuración y secretos**
+- **Gestión centralizada de configuración y variables de entorno**
 
 ## 📁 Estructura del Proyecto
 
@@ -14,8 +14,8 @@ Este proyecto configura un servidor doméstico con:
 home-server/
 ├── config/
 │   ├── templates/           # Plantillas de configuración
-│   ├── stack-envs.conf      # Configuración de secretos por stack
-│   └── private -> /ruta/secretos  # Enlace a tus secretos (crear)
+│   ├── stack-envs.conf      # Configuración de variables por stack
+│   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
 │   ├── network/            # Stack de infraestructura (Traefik)
 │   └── helloworld/         # Stack de aplicación de prueba
@@ -31,16 +31,16 @@ home-server/
 
 ## ⚙️ Configuración Inicial
 
-### 1. Configurar carpeta de secretos
+### 1. Configurar carpeta de entorno
 
-Crea una carpeta fuera del repositorio para almacenar tus secretos sensibles (API keys, contraseñas, etc.) y enlázala al proyecto. En el caso de que no existan previamente el script los creará automáticamente a partir de las plantillas.
+Crea una carpeta fuera del repositorio para almacenar tus archivos de configuración de entorno (API keys, contraseñas, etc.) y enlázala al proyecto. En el caso de que no existan previamente el script los creará automáticamente a partir de las plantillas.
 
 ```bash
-# Crear carpeta de secretos donde quieras (fuera del repo)
-mkdir -p ~/secrets/home-server
+# Crear carpeta de configuración donde quieras (fuera del repo)
+mkdir -p ~/config/home-server
 
-# Enlazar la carpeta de secretos
-./scripts/link-secrets.sh ~/secrets/home-server
+# Enlazar la carpeta de configuración
+./scripts/link-config.sh ~/config/home-server
 ```
 
 ### 2. Instalar y configurar OneDrive (opcional)
@@ -51,26 +51,49 @@ Si necesitas sincronizar archivos con OneDrive, puedes instalar y configurar rcl
 # Instalar rclone y configurar OneDrive
 ./scripts/install-onedrive.sh
 
-# Una vez configurado, usar comandos directos:
+# Diagnosticar problemas del servicio
+./scripts/install-onedrive.sh diagnose
+
+# Reparar configuración si hay problemas
+./scripts/install-onedrive.sh repair
+```
+
+**Gestión del servicio systemd:**
+```bash
+# Iniciar servicio
+sudo systemctl start onedrive-rclone@$(whoami).service
+
+# Ver estado del servicio
+sudo systemctl status onedrive-rclone@$(whoami).service
+
+# Ver logs en tiempo real
+journalctl -u onedrive-rclone@$(whoami).service -f
+
+# Deshabilitar montaje automático
+sudo systemctl disable onedrive-rclone@$(whoami).service
+```
+
+**Comandos manuales (sin servicio):**
+```bash
 # Montar OneDrive manualmente
-rclone mount onedrive: ~/OneDrive --daemon --vfs-cache-mode writes
+rclone mount onedrive: ~/OneDrive --daemon --vfs-cache-mode writes --allow-other
 
 # Desmontar OneDrive
 fusermount -u ~/OneDrive
 
-# Gestionar servicios systemd
-systemctl --user start onedrive-rclone.service
-systemctl --user status onedrive-rclone.service
+# Ver configuración actual
+rclone config show
 ```
 
 **Lo que hace el script:**
 - Instala rclone automáticamente en Linux (apt/yum/dnf)
-- Detecta entornos sin navegador automáticamente
-- Configura servicio systemd para montaje automático al arranque
-- Configuración optimizada para rendimiento
+- Configura automáticamente `/etc/fuse.conf` para permitir `--allow-other`
+- Crea servicio de sistema (no de usuario) para mayor estabilidad
+- Montaje automático al arrancar usando systemd
+- Incluye funciones de diagnóstico y reparación
 - Completamente idempotente (se puede ejecutar múltiples veces)
 
-### 2. Configurar SSH (opcional)
+### 3. Configurar SSH (opcional)
 
 Configura el acceso SSH para gestionar tu servidor de forma segura, por defecto el script configura el acceso con claves públicas de GitHub de los usuarios definidos en `GITHUB_SSH_USERS` en el archivo `common.env`.
 
@@ -90,7 +113,42 @@ nano config/private/cloudflare.env
 ...
 ```
 
-### 5. Instalar Docker y Docker Compose (Ubuntu Server)
+### 5. Configurar seguridad del servidor (Opcional)
+
+Para servidores en producción, configura protecciones adicionales:
+
+```bash
+# Configuración completa de seguridad
+./scripts/setup-security.sh
+
+# Solo Fail2Ban (protección SSH)
+./scripts/setup-security.sh --fail2ban-only
+
+# Solo actualizaciones automáticas
+./scripts/setup-security.sh --auto-updates-only
+
+# Ver estado de seguridad
+./scripts/setup-security.sh --status
+```
+
+### 6. Configurar DNS automático (Opcional)
+
+Revisar la sección de configuración de Cloudflare al final de este documento para obtener tu API Key/Token y configurar los registros DNS necesarios.
+
+Si tienes IP dinámica o quieres automatizar la configuración DNS:
+
+```bash
+# Actualizar DNS de Cloudflare automáticamente
+./scripts/update-dns.sh
+
+# Ver qué cambios haría sin aplicarlos
+./scripts/update-dns.sh --dry-run
+
+# Ver registros DNS actuales
+./scripts/update-dns.sh --list
+```
+
+### 7. Instalar Docker y Docker Compose (Ubuntu Server)
 
 Si no tienes Docker y Docker Compose instalados, puedes usar el siguiente script para instalarlos en Ubuntu Server:
 
@@ -113,38 +171,6 @@ Si no tienes Docker y Docker Compose instalados, puedes usar el siguiente script
 **Después de la instalación:**
 - Verifica Docker: `docker run hello-world`
 
-### 6. Configurar seguridad del servidor (Opcional)
-
-Para servidores en producción, configura protecciones adicionales:
-
-```bash
-# Configuración completa de seguridad
-./scripts/setup-security.sh
-
-# Solo Fail2Ban (protección SSH)
-./scripts/setup-security.sh --fail2ban-only
-
-# Solo actualizaciones automáticas
-./scripts/setup-security.sh --auto-updates-only
-
-# Ver estado de seguridad
-./scripts/setup-security.sh --status
-```
-
-### 7. Configurar DNS automático (Opcional)
-
-Si tienes IP dinámica o quieres automatizar la configuración DNS:
-
-```bash
-# Actualizar DNS de Cloudflare automáticamente
-./scripts/update-dns.sh
-
-# Ver qué cambios haría sin aplicarlos
-./scripts/update-dns.sh --dry-run
-
-# Ver registros DNS actuales
-./scripts/update-dns.sh --list
-```
 
 ## 🚢 Despliegue de Servicios
 
@@ -298,7 +324,7 @@ El sistema incluye deployment automático que se ejecuta cada vez que haces comm
 
 2. **Configurar GitHub Secrets:**
    - Ve a tu repositorio → Settings → Secrets and variables → Actions
-   - Añade estos secrets:
+   - Añade estas variables de entorno:
      - `SSH_PRIVATE_KEY`: Contenido de `~/.ssh/github-actions`
      - `SSH_HOST`: IP o dominio de tu servidor
      - `SSH_USER`: Tu usuario SSH
@@ -346,7 +372,7 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 ### Gestión de configuración
 
 ```bash
-# Ver configuración actual de secretos por stack
+# Ver configuración actual de variables por stack
 ./scripts/generate-docker-envs.sh --list
 
 # Regenerar archivos .env manualmente
@@ -462,7 +488,7 @@ Una vez que tengas funcionando el stack Hello World, puedes:
 
 ## 📝 Notas Importantes
 
-- Los secretos nunca se suben al repositorio (están en `config/private/`)
+- La configuración privada nunca se sube al repositorio (está en `config/private/`)
 - Los archivos `.env` en `docker/*/` se generan automáticamente
 - Los datos persistentes se guardan en `data/`
 - Traefik maneja automáticamente los certificados SSL

@@ -11,7 +11,7 @@ get_private_dir() {
 
     if [[ ! -L "$private_dir" ]]; then
         echo "❌ Error: Enlace simbólico no encontrado: $private_dir" >&2
-        echo "Crea el enlace: ./scripts/link-secrets.sh /ruta/a/tus/secretos" >&2
+        echo "Crea el enlace: ./scripts/link-config.sh /ruta/a/tu/configuracion" >&2
         return 1
     fi
 

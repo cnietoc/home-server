@@ -7,7 +7,7 @@ Este documento explica cómo configurar el deployment automático desde GitHub u
 - Servidor con acceso SSH configurado
 - Repositorio de GitHub con el código del home server
 - Docker instalado en el servidor
-- Configuración de secretos ya enlazada (`config/private/`)
+- Configuración de entorno ya enlazada (`config/private/`)
 
 ## 🔧 Configuración en el Servidor
 
@@ -56,7 +56,7 @@ sudo chmod 600 /home/github-deploy/.ssh/authorized_keys
 
 # Clonar el repositorio en la home del usuario
 sudo -u github-deploy git clone <tu-repo-url> /home/github-deploy/home-server
-sudo -u github-deploy ln -sf /ruta/a/tus/secretos /home/github-deploy/home-server/config/private
+sudo -u github-deploy ln -sf /ruta/a/tu/configuracion /home/github-deploy/home-server/config/private
 ```
 
 ### 4. Probar conexión SSH
@@ -72,7 +72,7 @@ ssh -i ~/.ssh/github-actions usuario@tu-servidor "echo 'Conexión SSH exitosa'"
 
 Ve a tu repositorio en GitHub → Settings → Secrets and variables → Actions
 
-Añade estos secrets:
+Añade estas variables de entorno:
 
 | Secret Name | Descripción | Valor |
 |-------------|-------------|-------|
@@ -88,7 +88,7 @@ Añade estos secrets:
 cat ~/.ssh/github-actions
 
 # Copiar TODO el contenido (incluyendo -----BEGIN y -----END)
-# y pegarlo en el secret SSH_PRIVATE_KEY de GitHub
+# y pegarlo en la variable SSH_PRIVATE_KEY de GitHub
 ```
 
 ### 3. Configurar valores específicos

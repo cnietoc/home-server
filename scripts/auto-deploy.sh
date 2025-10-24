@@ -39,7 +39,7 @@ log_with_timestamp "📝 Git commit: $(git rev-parse HEAD 2>/dev/null || echo 'u
 # Verificar que el enlace de configuración privada existe
 if [[ ! -L "$PROJECT_ROOT/config/private" ]]; then
     log_with_timestamp "⚠️ Warning: config/private symlink not found"
-    log_with_timestamp "   Make sure you have configured: ./scripts/link-secrets.sh"
+    log_with_timestamp "   Make sure you have configured: ./scripts/link-config.sh"
 fi
 
 # Parsear argumentos

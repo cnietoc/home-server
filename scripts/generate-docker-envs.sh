@@ -8,8 +8,8 @@ STACK_CONFIG="$PROJECT_ROOT/config/stack-envs.conf"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
 
-# Leer configuración de secretos desde archivo
-load_stack_secrets_config() {
+# Leer configuración de variables desde archivo
+load_stack_config() {
     declare -gA STACK_SECRETS
 
     if [[ ! -f "$STACK_CONFIG" ]]; then
@@ -17,7 +17,7 @@ load_stack_secrets_config() {
         return 1
     fi
 
-    while IFS='=' read -r stack secrets || [[ -n "$stack" ]]; do
+    while IFS='=' read -r stack config_vars || [[ -n "$stack" ]]; do
         # Ignorar líneas vacías y comentarios
         [[ -z "$stack" || "$stack" =~ ^[[:space:]]*# ]] && continue
 
@@ -125,7 +125,7 @@ generate_all_stack_envs() {
 # Función principal
 main() {
     # Cargar configuración de secretos
-    if ! load_stack_secrets_config; then
+    if ! load_stack_config; then
         log "❌ Error cargando configuración de secretos"
         exit 1
     fi

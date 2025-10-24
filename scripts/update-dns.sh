@@ -327,7 +327,7 @@ main() {
 
     # Cargar configuración
     log "📂 Cargando configuración..."
-    if ! load_common_config || ! load_secrets "cloudflare"; then
+    if ! load_common_config || ! load_config "cloudflare"; then
         log "❌ Error cargando configuración"
         exit 1
     fi

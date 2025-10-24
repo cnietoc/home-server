@@ -6,7 +6,6 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CONFIG_DIR="$PROJECT_ROOT/config"
 TEMPLATES_DIR="$CONFIG_DIR/templates"
 PRIVATE_LINK="$CONFIG_DIR/private"
-PRIVATE_LINK="$CONFIG_DIR/private"
 
 log() {
     echo "[$(date '+%H:%M:%S')] $*"
@@ -14,27 +13,27 @@ log() {
 
 link_secrets() {
     if [[ $# -ne 1 ]]; then
-        echo "Uso: $0 <ruta-absoluta-a-secretos>"
+        echo "Uso: $0 <ruta-absoluta-a-configuracion-privada>"
         echo ""
         echo "Ejemplos:"
-        echo "  $0 /home/usuario/secrets"
-        echo "  $0 ~/Documents/home-server-secrets"
-        echo "  $0 /mnt/encrypted/secrets"
+        echo "  $0 /home/usuario/home-server-config"
+        echo "  $0 ~/Documents/home-server-envs"
+        echo "  $0 /mnt/encrypted/config"
         exit 1
     fi
 
-    local secrets_path="$1"
-    secrets_path="${secrets_path/#\~/$HOME}"
+    local config_path="$1"
+    config_path="${config_path/#\~/$HOME}"
 
     # Convertir a ruta absoluta
-    if [[ ! "$secrets_path" = /* ]]; then
-        secrets_path="$(cd "$(dirname "$secrets_path")" && pwd)/$(basename "$secrets_path")"
+    if [[ ! "$config_path" = /* ]]; then
+        config_path="$(cd "$(dirname "$config_path")" && pwd)/$(basename "$config_path")"
     fi
 
     # Verificar que existe
-    if [[ ! -d "$secrets_path" ]]; then
-        log "❌ La carpeta no existe: $secrets_path"
-        log "Crea la carpeta primero: mkdir -p '$secrets_path'"
+    if [[ ! -d "$config_path" ]]; then
+        log "❌ La carpeta no existe: $config_path"
+        log "Crea la carpeta primero: mkdir -p '$config_path'"
         exit 1
     fi
 
@@ -49,8 +48,8 @@ link_secrets() {
     fi
 
     # Crear enlace
-    ln -sf "$secrets_path" "$PRIVATE_LINK"
-    log "✅ Enlace creado: config/private -> $secrets_path"
+    ln -sf "$config_path" "$PRIVATE_LINK"
+    log "✅ Enlace creado: config/private -> $config_path"
 
     # Verificar
     if [[ -d "$PRIVATE_LINK" ]]; then
@@ -61,12 +60,12 @@ link_secrets() {
     fi
 
     # Copiar plantillas si no existen
-    copy_templates_if_needed "$secrets_path"
+    copy_templates_if_needed "$config_path"
     log "🎉 Configuración completada"
 }
 
 copy_templates_if_needed() {
-    local secrets_path="$1"
+    local config_path="$1"
     local copied=0
 
     log "Verificando plantillas..."
@@ -75,7 +74,7 @@ copy_templates_if_needed() {
     for template in "$TEMPLATES_DIR"/*.env.template; do
         if [[ -f "$template" ]]; then
             local filename="$(basename "$template" .template)"
-            local target="$secrets_path/$filename"
+            local target="$config_path/$filename"
 
             if [[ ! -f "$target" ]]; then
                 cp "$template" "$target"
@@ -86,9 +85,9 @@ copy_templates_if_needed() {
     done
 
     if [[ $copied -gt 0 ]]; then
-        log "📝 Se copiaron $copied archivos. Edítalos antes de usar los scripts."
+        log "📝 Se copiaron $copied archivos de configuración. Edítalos antes de usar los scripts."
     else
-        log "📝 Todos los archivos ya existen."
+        log "📝 Todos los archivos de configuración ya existen."
     fi
 }
 
