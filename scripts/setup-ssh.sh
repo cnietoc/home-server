@@ -120,11 +120,11 @@ TEMP_CONFIG="/tmp/sshd_config_test_$$"
 sudo cp "$SSHD_CONFIG" "$TEMP_CONFIG"
 if sudo sshd -t -f "$TEMP_CONFIG"; then
     log "✅ Configuración SSH validada correctamente."
-    rm -f "$TEMP_CONFIG"
+    sudo rm -f "$TEMP_CONFIG"
 else
     log "❌ Error en configuración SSH, restaurando backup..."
     sudo cp "$BACKUP_CONFIG" "$SSHD_CONFIG"
-    rm -f "$TEMP_CONFIG"
+    sudo rm -f "$TEMP_CONFIG"
     exit 1
 fi
 
