@@ -76,11 +76,23 @@ copy_templates_if_needed() {
         return 1
     fi
 
+    # Debug: mostrar qué archivos template existen
+    log "🔍 DEBUG: Directorio de plantillas: $TEMPLATES_DIR"
+    log "🔍 DEBUG: Archivos en directorio:"
+    ls -la "$TEMPLATES_DIR" || log "❌ No se pudo listar el directorio"
+
     # Copiar todas las plantillas directamente en la raíz
     shopt -s nullglob  # Hacer que los globs que no coinciden se expandan a nada
-    for template in "$TEMPLATES_DIR"/*.env.template; do
+
+    local templates=("$TEMPLATES_DIR"/*.env.template)
+    log "🔍 DEBUG: Archivos template encontrados: ${#templates[@]}"
+
+    for template in "${templates[@]}"; do
+        log "🔍 DEBUG: Procesando template: $template"
         local filename="$(basename "$template" .template)"
         local target="$config_path/$filename"
+
+        log "🔍 DEBUG: Archivo destino: $target"
 
         if [[ ! -f "$target" ]]; then
             cp "$template" "$target"
