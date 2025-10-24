@@ -63,20 +63,6 @@ systemctl --user start onedrive-rclone.service
 systemctl --user status onedrive-rclone.service
 ```
 
-**⚠️ Importante para servidores sin navegador:**
-
-El script detecta automáticamente que es un servidor sin navegador y ofrece 2 opciones:
-
-1. **Configuración remota (RECOMENDADA):**
-   - Configuras rclone en tu PC local (con navegador)
-   - Copias el archivo `rclone.conf` al servidor
-   - Método más fácil y confiable
-
-2. **Configuración manual:**
-   - Se usa autenticación sin auto-config
-   - Copias URLs manualmente a tu navegador
-   - Pegas códigos de autorización en el terminal
-
 **Lo que hace el script:**
 - Instala rclone automáticamente en Linux (apt/yum/dnf)
 - Detecta entornos sin navegador automáticamente
