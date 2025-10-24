@@ -120,30 +120,16 @@ setup_systemd_service() {
 
     # Verificar si el servicio ya existe
     if [[ -f "$service_file" ]]; then
-        info "Servicio systemd ya existe, verificando configuración..."
-
-        # Verificar si está habilitado
-        if systemctl --user is-enabled onedrive-rclone.service >/dev/null 2>&1; then
-            info "Servicio ya está habilitado"
-        else
-            log "Habilitando servicio existente..."
-            systemctl --user enable onedrive-rclone.service
-        fi
-
-        # Verificar si está corriendo
-        if systemctl --user is-active onedrive-rclone.service >/dev/null 2>&1; then
-            info "Servicio ya está activo"
-        else
-            info "Para iniciar el servicio: systemctl --user start onedrive-rclone.service"
-        fi
-
-        return 0
+        info "Servicio systemd existe, actualizando configuración..."
+    else
+        log "📝 Creando servicio systemd..."
     fi
-
-    log "📝 Creando servicio systemd..."
 
     # Crear directorio para servicios de usuario
     mkdir -p "$HOME/.config/systemd/user"
+
+    local current_user=$(whoami)
+    local current_group=$(id -gn)
 
     cat > "$service_file" << EOF
 [Unit]
@@ -153,10 +139,12 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
+Type=simple
+User=$current_user
+Group=$current_group
 ExecStartPre=/bin/mkdir -p $mount_dir
 ExecStart=/usr/bin/rclone mount onedrive: $mount_dir \\
-    --config=%h/.config/rclone/rclone.conf \\
+    --config=$HOME/.config/rclone/rclone.conf \\
     --vfs-cache-mode writes \\
     --vfs-cache-max-age 100h \\
     --vfs-cache-max-size 10G \\
@@ -171,7 +159,7 @@ RestartSec=10
 Environment=PATH=/usr/bin:/bin
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
 
     # Habilitar el servicio
@@ -204,8 +192,115 @@ show_summary() {
     echo
 }
 
+# Función para diagnosticar el servicio
+diagnose_service() {
+    log "🔍 Diagnosticando el servicio OneDrive..."
+    echo
+
+    # Verificar si el servicio existe
+    local service_file="$HOME/.config/systemd/user/onedrive-rclone.service"
+    if [[ ! -f "$service_file" ]]; then
+        error "Servicio no encontrado en $service_file"
+        return 1
+    fi
+    log "✅ Archivo de servicio existe"
+
+    # Verificar estado del servicio
+    echo
+    info "📊 Estado del servicio:"
+    if systemctl --user is-enabled onedrive-rclone.service >/dev/null 2>&1; then
+        log "✅ Servicio habilitado"
+    else
+        warn "❌ Servicio NO habilitado"
+        info "Ejecuta: systemctl --user enable onedrive-rclone.service"
+    fi
+
+    if systemctl --user is-active onedrive-rclone.service >/dev/null 2>&1; then
+        log "✅ Servicio activo"
+    else
+        warn "❌ Servicio NO activo"
+        info "Ejecuta: systemctl --user start onedrive-rclone.service"
+    fi
+
+    # Verificar si el directorio está montado
+    echo
+    info "📁 Estado del montaje:"
+    local mount_dir="$HOME/OneDrive"
+    if mountpoint -q "$mount_dir" 2>/dev/null; then
+        log "✅ OneDrive está montado en $mount_dir"
+        local file_count
+        file_count=$(ls -1 "$mount_dir" 2>/dev/null | wc -l)
+        info "Archivos disponibles: $file_count"
+    else
+        warn "❌ OneDrive NO está montado en $mount_dir"
+    fi
+
+    # Mostrar logs recientes
+    echo
+    info "📝 Logs del servicio (últimas 10 líneas):"
+    journalctl --user -u onedrive-rclone.service --no-pager -n 10
+
+    # Verificar configuración rclone
+    echo
+    info "🔧 Configuración rclone:"
+    if rclone listremotes 2>/dev/null | grep -q "onedrive:"; then
+        log "✅ OneDrive configurado en rclone"
+        if rclone about onedrive: >/dev/null 2>&1; then
+            log "✅ Conexión a OneDrive OK"
+        else
+            warn "❌ No se puede conectar a OneDrive (token expirado?)"
+        fi
+    else
+        error "❌ OneDrive no configurado en rclone"
+        info "Ejecuta: rclone config"
+    fi
+
+    # Verificar dependencias
+    echo
+    info "🔍 Verificando dependencias:"
+    if command -v fusermount >/dev/null 2>&1; then
+        log "✅ fusermount disponible"
+    else
+        error "❌ fusermount no encontrado (instala: sudo apt install fuse)"
+    fi
+
+    # Sugerencias de reparación
+    echo
+    info "🛠️  Comandos para reparar:"
+    echo "  systemctl --user daemon-reload"
+    echo "  systemctl --user enable onedrive-rclone.service"
+    echo "  systemctl --user start onedrive-rclone.service"
+    echo "  systemctl --user status onedrive-rclone.service"
+}
+
+# Función para reparar el servicio
+repair_service() {
+    log "🔧 Reparando servicio OneDrive..."
+
+    systemctl --user daemon-reload
+    systemctl --user enable onedrive-rclone.service
+
+    info "¿Iniciar el servicio ahora? (y/n)"
+    read -r start_now
+
+    if [[ "$start_now" =~ ^[Yy]$ ]]; then
+        systemctl --user start onedrive-rclone.service
+        sleep 2
+        diagnose_service
+    fi
+}
+
 # Función principal
 main() {
+    # Si se pasa argumento 'diagnose' o 'repair'
+    if [[ "${1:-}" == "diagnose" ]]; then
+        diagnose_service
+        return
+    elif [[ "${1:-}" == "repair" ]]; then
+        repair_service
+        return
+    fi
+
     log "🚀 Instalando rclone y configurando OneDrive..."
 
     # Verificar/instalar rclone
