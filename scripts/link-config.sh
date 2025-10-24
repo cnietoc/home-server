@@ -76,39 +76,22 @@ copy_templates_if_needed() {
         return 1
     fi
 
-    # Debug: verificar qué encuentra find
-    log "🔍 DEBUG: Buscando archivos en: $TEMPLATES_DIR"
-    local find_output
-    find_output=$(find "$TEMPLATES_DIR" -name "*.env.template" 2>/dev/null)
-    log "🔍 DEBUG: Find encontró:"
-    echo "$find_output" | while read -r line; do
-        log "🔍 DEBUG:   - $line"
-    done
-
-    # Usar find en lugar de glob para mayor confiabilidad
-    log "🔍 DEBUG: Iniciando bucle de copia..."
+    # Copiar todas las plantillas
     while IFS= read -r -d '' template; do
-        log "🔍 DEBUG: Procesando template: $template"
         local filename
         filename="$(basename "$template" .template)"
         local target="$config_path/$filename"
-        log "🔍 DEBUG: Target: $target"
 
         if [[ ! -f "$target" ]]; then
-            log "🔍 DEBUG: Archivo no existe, copiando..."
             if cp "$template" "$target" 2>/dev/null; then
                 log "✅ Copiado: $filename"
                 ((copied++))
             else
                 log "❌ Error copiando: $filename"
             fi
-        else
-            log "📄 Ya existe: $filename"
         fi
-        log "🔍 DEBUG: Terminado procesamiento de $filename"
     done < <(find "$TEMPLATES_DIR" -name "*.env.template" -print0 2>/dev/null)
 
-    log "🔍 DEBUG: Bucle terminado, archivos copiados: $copied"
 
     if [[ $copied -gt 0 ]]; then
         log "📝 Se copiaron $copied archivos de configuración. Edítalos antes de usar los scripts."
