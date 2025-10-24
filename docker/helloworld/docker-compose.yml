@@ -1,0 +1,22 @@
+version: '3.8'
+
+networks:
+  proxy:
+    external: true
+
+services:
+
+  hello-world:
+    image: nginx:alpine
+    container_name: hello-world
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello.rule=Host(`${HELLO_WORLD_SUBDOMAIN}.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.hello.tls=true"
+      - "traefik.http.routers.hello.tls.certresolver=cloudflare"
+      - "traefik.http.services.hello.loadbalancer.server.port=80"

@@ -1,0 +1,76 @@
+name: Deploy Home Server
+
+on:
+  # push:
+  #   branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy all stacks'
+        required: false
+        default: false
+        type: boolean
+      recreate_containers:
+        description: 'Recreate containers completely'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.2.2
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT || '22' }}
+        timeout: 300s
+        command_timeout: 30m
+        script: |
+          set -e
+          
+          # Navigate to project directory
+          cd ${{ secrets.PROJECT_PATH || '~/home-server' }}
+          
+          # Pull latest changes
+          echo "🔄 Pulling latest changes from GitHub..."
+          git fetch origin
+          git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
+          
+          # Make scripts executable
+          chmod +x scripts/*.sh
+          
+          # Prepare deploy command arguments
+          DEPLOY_ARGS=""
+          
+          # Add flags based on workflow inputs
+          if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            DEPLOY_ARGS="$DEPLOY_ARGS --force"
+          fi
+          
+          if [[ "${{ github.event.inputs.recreate_containers }}" == "true" ]]; then
+            DEPLOY_ARGS="$DEPLOY_ARGS --recreate"
+          fi
+          
+          # Execute deployment using the auto-deploy wrapper
+          echo "🚀 Executing deployment with args: $DEPLOY_ARGS"
+          ./scripts/auto-deploy.sh $DEPLOY_ARGS
+          
+          echo "✅ Deployment completed successfully"
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [[ "${{ job.status }}" == "success" ]]; then
+          echo "✅ Deployment completed successfully"
+        else
+          echo "❌ Deployment failed"
+          exit 1
+        fi

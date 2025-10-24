@@ -1,0 +1,26 @@
+http:
+  middlewares:
+    # Middleware de seguridad básico - Headers de seguridad HTTP
+    default-headers:
+      headers:
+        frameDeny: true
+        sslRedirect: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: SAMEORIGIN
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+
+    # Middleware de compresión - Mejora rendimiento
+    default-compress:
+      compress: {}
+
+    # Rate limiting básico - Protección contra abuso
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
