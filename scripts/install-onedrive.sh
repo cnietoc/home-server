@@ -96,6 +96,31 @@ configure_onedrive() {
 
 
 
+# Configurar fuse para permitir allow_other
+configure_fuse() {
+    log "🔧 Configurando FUSE..."
+
+    local fuse_conf="/etc/fuse.conf"
+
+    # Verificar si fuse.conf existe y tiene user_allow_other
+    if [[ -f "$fuse_conf" ]] && grep -q "^user_allow_other" "$fuse_conf"; then
+        log "✅ FUSE ya configurado correctamente"
+        return 0
+    fi
+
+    info "Habilitando 'user_allow_other' en $fuse_conf..."
+
+    # Crear backup si el archivo existe
+    if [[ -f "$fuse_conf" ]]; then
+        sudo cp "$fuse_conf" "${fuse_conf}.backup"
+    fi
+
+    # Añadir user_allow_other
+    echo "user_allow_other" | sudo tee -a "$fuse_conf" >/dev/null
+
+    log "✅ FUSE configurado correctamente"
+}
+
 # Configurar montaje automático al arranque (Linux)
 setup_auto_mount() {
     log "🔧 Configurando montaje automático al arranque..."
@@ -105,6 +130,9 @@ setup_auto_mount() {
         error "Este script solo funciona en Linux"
         return 1
     fi
+
+    # Configurar FUSE primero
+    configure_fuse
 
     # Crear directorio de montaje si no existe
     local mount_dir="$HOME/OneDrive"
@@ -262,6 +290,15 @@ diagnose_service() {
         log "✅ fusermount disponible"
     else
         error "❌ fusermount no encontrado (instala: sudo apt install fuse)"
+    fi
+
+    # Verificar configuración FUSE
+    local fuse_conf="/etc/fuse.conf"
+    if [[ -f "$fuse_conf" ]] && grep -q "^user_allow_other" "$fuse_conf"; then
+        log "✅ FUSE configurado (user_allow_other habilitado)"
+    else
+        warn "❌ FUSE no configurado - falta 'user_allow_other' en $fuse_conf"
+        info "Ejecuta el script de nuevo para configurar automáticamente"
     fi
 
     # Sugerencias de reparación
