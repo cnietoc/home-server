@@ -144,35 +144,26 @@ setup_auto_mount() {
 # Crear servicio systemd para Linux
 setup_systemd_service() {
     local mount_dir="$1"
-    local service_file="$HOME/.config/systemd/user/onedrive-rclone.service"
-
-    # Verificar si el servicio ya existe
-    if [[ -f "$service_file" ]]; then
-        info "Servicio systemd existe, actualizando configuración..."
-    else
-        log "📝 Creando servicio systemd..."
-    fi
-
-    # Crear directorio para servicios de usuario
-    mkdir -p "$HOME/.config/systemd/user"
-
     local current_user=$(whoami)
-    local current_group=$(id -gn)
+    local user_home=$(eval echo "~$current_user")
+    local service_file="/etc/systemd/system/onedrive-rclone@.service"
 
-    cat > "$service_file" << EOF
+    log "📝 Creando servicio systemd de sistema..."
+
+    # Crear servicio de sistema con plantilla de usuario
+    sudo tee "$service_file" > /dev/null << EOF
 [Unit]
-Description=OneDrive (rclone)
-AssertPathIsDirectory=$mount_dir
+Description=OneDrive (rclone) for %i
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=$current_user
-Group=$current_group
-ExecStartPre=/bin/mkdir -p $mount_dir
-ExecStart=/usr/bin/rclone mount onedrive: $mount_dir \\
-    --config=$HOME/.config/rclone/rclone.conf \\
+User=%i
+Group=%i
+ExecStartPre=/bin/mkdir -p /home/%i/OneDrive
+ExecStart=/usr/bin/rclone mount onedrive: /home/%i/OneDrive \\
+    --config=/home/%i/.config/rclone/rclone.conf \\
     --vfs-cache-mode writes \\
     --vfs-cache-max-age 100h \\
     --vfs-cache-max-size 10G \\
@@ -181,22 +172,22 @@ ExecStart=/usr/bin/rclone mount onedrive: $mount_dir \\
     --poll-interval 15s \\
     --umask 002 \\
     --allow-other
-ExecStop=/bin/fusermount -u $mount_dir
+ExecStop=/bin/fusermount -u /home/%i/OneDrive
 Restart=always
 RestartSec=10
 Environment=PATH=/usr/bin:/bin
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
 
-    # Habilitar el servicio
-    systemctl --user daemon-reload
-    systemctl --user enable onedrive-rclone.service
+    # Habilitar el servicio para el usuario actual
+    sudo systemctl daemon-reload
+    sudo systemctl enable "onedrive-rclone@${current_user}.service"
 
-    log "✅ Servicio systemd creado y habilitado"
-    info "Para iniciar ahora: systemctl --user start onedrive-rclone.service"
-    info "Para ver logs: journalctl --user -u onedrive-rclone.service -f"
+    log "✅ Servicio systemd creado y habilitado para $current_user"
+    info "Para iniciar ahora: sudo systemctl start onedrive-rclone@${current_user}.service"
+    info "Para ver logs: journalctl -u onedrive-rclone@${current_user}.service -f"
 }
 
 
@@ -213,10 +204,10 @@ show_summary() {
     info "  • Gestionar: rclone config"
     echo
     info "🚀 Servicio systemd configurado:"
-    info "  • Iniciar servicio: systemctl --user start onedrive-rclone.service"
-    info "  • Ver estado: systemctl --user status onedrive-rclone.service"
-    info "  • Ver logs: journalctl --user -u onedrive-rclone.service -f"
-    info "  • Deshabilitar: systemctl --user disable onedrive-rclone.service"
+    info "  • Iniciar servicio: sudo systemctl start onedrive-rclone@$(whoami).service"
+    info "  • Ver estado: sudo systemctl status onedrive-rclone@$(whoami).service"
+    info "  • Ver logs: journalctl -u onedrive-rclone@$(whoami).service -f"
+    info "  • Deshabilitar: sudo systemctl disable onedrive-rclone@$(whoami).service"
     echo
 }
 
@@ -225,8 +216,11 @@ diagnose_service() {
     log "🔍 Diagnosticando el servicio OneDrive..."
     echo
 
+    local current_user=$(whoami)
+    local service_name="onedrive-rclone@${current_user}.service"
+    local service_file="/etc/systemd/system/onedrive-rclone@.service"
+
     # Verificar si el servicio existe
-    local service_file="$HOME/.config/systemd/user/onedrive-rclone.service"
     if [[ ! -f "$service_file" ]]; then
         error "Servicio no encontrado en $service_file"
         return 1
@@ -236,18 +230,18 @@ diagnose_service() {
     # Verificar estado del servicio
     echo
     info "📊 Estado del servicio:"
-    if systemctl --user is-enabled onedrive-rclone.service >/dev/null 2>&1; then
+    if sudo systemctl is-enabled "$service_name" >/dev/null 2>&1; then
         log "✅ Servicio habilitado"
     else
         warn "❌ Servicio NO habilitado"
-        info "Ejecuta: systemctl --user enable onedrive-rclone.service"
+        info "Ejecuta: sudo systemctl enable $service_name"
     fi
 
-    if systemctl --user is-active onedrive-rclone.service >/dev/null 2>&1; then
+    if sudo systemctl is-active "$service_name" >/dev/null 2>&1; then
         log "✅ Servicio activo"
     else
         warn "❌ Servicio NO activo"
-        info "Ejecuta: systemctl --user start onedrive-rclone.service"
+        info "Ejecuta: sudo systemctl start $service_name"
     fi
 
     # Verificar si el directorio está montado
@@ -266,7 +260,7 @@ diagnose_service() {
     # Mostrar logs recientes
     echo
     info "📝 Logs del servicio (últimas 10 líneas):"
-    journalctl --user -u onedrive-rclone.service --no-pager -n 10
+    sudo journalctl -u "$service_name" --no-pager -n 10
 
     # Verificar configuración rclone
     echo
@@ -304,24 +298,27 @@ diagnose_service() {
     # Sugerencias de reparación
     echo
     info "🛠️  Comandos para reparar:"
-    echo "  systemctl --user daemon-reload"
-    echo "  systemctl --user enable onedrive-rclone.service"
-    echo "  systemctl --user start onedrive-rclone.service"
-    echo "  systemctl --user status onedrive-rclone.service"
+    echo "  sudo systemctl daemon-reload"
+    echo "  sudo systemctl enable $service_name"
+    echo "  sudo systemctl start $service_name"
+    echo "  sudo systemctl status $service_name"
 }
 
 # Función para reparar el servicio
 repair_service() {
     log "🔧 Reparando servicio OneDrive..."
 
-    systemctl --user daemon-reload
-    systemctl --user enable onedrive-rclone.service
+    local current_user=$(whoami)
+    local service_name="onedrive-rclone@${current_user}.service"
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable "$service_name"
 
     info "¿Iniciar el servicio ahora? (y/n)"
     read -r start_now
 
     if [[ "$start_now" =~ ^[Yy]$ ]]; then
-        systemctl --user start onedrive-rclone.service
+        sudo systemctl start "$service_name"
         sleep 2
         diagnose_service
     fi
