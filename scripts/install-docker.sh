@@ -286,8 +286,6 @@ EOF
     log "✅ Optimizaciones aplicadas"
 }
 
-
-
 # Función para mostrar información final
 show_final_info() {
     log "🎉 Instalación completada exitosamente!"

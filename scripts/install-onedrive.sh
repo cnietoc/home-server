@@ -97,26 +97,112 @@ configure_onedrive() {
         log "Configurando OneDrive por primera vez..."
     fi
 
-    info "Se abrirá el configurador interactivo de rclone."
-    info "Sigue estos pasos:"
+    warn "⚠️  SERVIDOR SIN NAVEGADOR DETECTADO"
     echo
-    info "1. Si hay configuraciones existentes, elige 'n' para nueva configuración"
-    info "2. Nombre: 'onedrive' (o el que prefieras)"
+    info "Para configurar OneDrive en un servidor sin navegador tienes 2 opciones:"
+    echo
+    info "📋 OPCIÓN 1 - Configuración remota (RECOMENDADA):"
+    info "1. Configura rclone en tu PC local con navegador"
+    info "2. Copia el archivo de configuración al servidor"
+    echo
+    info "📋 OPCIÓN 2 - Configuración manual en el servidor:"
+    info "1. Usaremos autenticación manual sin auto-config"
+    echo
+    info "¿Qué opción prefieres?"
+    info "1) Configuración remota (necesitas acceso a un PC con navegador)"
+    info "2) Configuración manual en el servidor"
+    info "3) Salir y configurar más tarde"
+    echo
+    read -p "Opción (1/2/3): " option
+
+    case $option in
+        1)
+            configure_onedrive_remote
+            ;;
+        2)
+            configure_onedrive_manual
+            ;;
+        3|*)
+            info "Puedes configurar OneDrive más tarde con: rclone config"
+            return 1
+            ;;
+    esac
+
+    log "✅ Configuración de OneDrive completada"
+}
+
+# Configuración remota (desde PC local)
+configure_onedrive_remote() {
+    log "🔧 Configuración remota de OneDrive..."
+    echo
+    info "PASO 1 - En tu PC LOCAL (con navegador):"
+    info "1. Instala rclone: curl https://rclone.org/install.sh | sudo bash"
+    info "2. Ejecuta: rclone config"
+    info "3. Configura OneDrive normalmente (con auto-config)"
+    info "4. Encuentra el archivo de configuración:"
+    echo
+    info "   Linux/macOS: ~/.config/rclone/rclone.conf"
+    info "   Windows: %APPDATA%\\rclone\\rclone.conf"
+    echo
+    info "PASO 2 - Copia la configuración al servidor:"
+    info "1. Copia el contenido del archivo rclone.conf"
+    info "2. Pégalo en este servidor"
+    echo
+    warn "⚠️  Presiona ENTER cuando tengas lista la configuración de tu PC local..."
+    read -r
+
+    local config_dir="$HOME/.config/rclone"
+    local config_file="$config_dir/rclone.conf"
+
+    mkdir -p "$config_dir"
+
+    info "Pega aquí el contenido completo de tu archivo rclone.conf:"
+    info "(Termina con una línea vacía y luego Ctrl+D)"
+    echo
+
+    cat > "$config_file"
+
+    if [[ -s "$config_file" ]]; then
+        log "✅ Configuración copiada correctamente"
+
+        # Verificar que funciona
+        if rclone listremotes | grep -q "onedrive:"; then
+            log "✅ OneDrive configurado y detectado"
+        else
+            warn "⚠️  No se detectó configuración de OneDrive. Verifica el contenido."
+        fi
+    else
+        error "❌ No se recibió configuración. Usa: rclone config para configurar manualmente"
+        return 1
+    fi
+}
+
+# Configuración manual (sin navegador)
+configure_onedrive_manual() {
+    log "🔧 Configuración manual de OneDrive..."
+    echo
+    warn "⚠️  IMPORTANTE: Esta opción requiere pasos manuales adicionales"
+    echo
+    info "Sigue estos pasos en el configurador:"
+    echo
+    info "1. Elige 'n' para nueva configuración remota"
+    info "2. Nombre: 'onedrive'"
     info "3. Tipo: Busca 'Microsoft OneDrive' y selecciona el número"
-    info "4. client_id: Presiona Enter (vacío para usar el predeterminado)"
-    info "5. client_secret: Presiona Enter (vacío para usar el predeterminado)"
+    info "4. client_id: Presiona Enter (predeterminado)"
+    info "5. client_secret: Presiona Enter (predeterminado)"
     info "6. region: Elige '1' para Microsoft Cloud Global"
     info "7. Editar configuración avanzada: 'n' (no)"
-    info "8. Auto config: 'y' (sí) - Se abrirá el navegador para autenticación"
-    info "9. Tipo de configuración: Elige '1' para OneDrive Personal"
-    info "10. Confirma con 'y' (sí) para mantener la configuración"
+    info "8. Auto config: 'n' (NO - importante para servidores)"
+    info "9. Se mostrará una URL - CÓPIALA y ábrela en tu navegador"
+    info "10. Autoriza la aplicación y copia el código de respuesta"
+    info "11. Pega el código en el terminal"
+    info "12. Tipo de configuración: '1' para OneDrive Personal"
+    info "13. Confirma con 'y' para guardar"
     echo
     warn "⚠️  Presiona ENTER cuando estés listo para continuar..."
     read -r
 
     rclone config
-
-    log "✅ Configuración de OneDrive completada"
 }
 
 # Configurar montaje automático al arranque (Linux)
