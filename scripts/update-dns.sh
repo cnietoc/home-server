@@ -43,7 +43,7 @@ EOF
 get_public_ip() {
     local ip
 
-    log "🔍 Detectando IP pública..."
+    log "🔍 Detectando IP pública..." >&2
 
     # Intentar varios servicios para obtener la IP
     local ip_services=(
@@ -57,14 +57,14 @@ get_public_ip() {
         if ip=$(curl -s --max-time 10 "$service" 2>/dev/null); then
             # Validar que sea una IP válida
             if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-                log "✅ IP detectada: $ip (desde $(basename "$service"))"
+                log "✅ IP detectada: $ip (desde $(basename "$service"))" >&2
                 echo "$ip"
                 return 0
             fi
         fi
     done
 
-    log "❌ No se pudo detectar la IP pública"
+    log "❌ No se pudo detectar la IP pública" >&2
     return 1
 }
 
@@ -73,25 +73,25 @@ get_zone_id() {
     local domain="$1"
     local zone_id
 
-    log "🔍 Obteniendo Zone ID para $domain..."
+    log "🔍 Obteniendo Zone ID para $domain..." >&2
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$domain" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null); then
-        log "❌ Error conectando con Cloudflare API"
+        log "❌ Error conectando con Cloudflare API" >&2
         return 1
     fi
 
     zone_id=$(echo "$response" | jq -r '.result[0].id // empty' 2>/dev/null)
 
     if [[ -z "$zone_id" || "$zone_id" == "null" ]]; then
-        log "❌ No se encontró el dominio $domain en Cloudflare"
-        log "Respuesta: $response"
+        log "❌ No se encontró el dominio $domain en Cloudflare" >&2
+        log "Respuesta: $response" >&2
         return 1
     fi
 
-    log "✅ Zone ID obtenido: $zone_id"
+    log "✅ Zone ID obtenido: $zone_id" >&2
     echo "$zone_id"
 }
 
