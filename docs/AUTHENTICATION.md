@@ -24,6 +24,11 @@ Usa el script de ayuda para generar el hash:
 ./scripts/generate-auth-password.sh
 ```
 
+O directamente con Docker (comando actualizado):
+```bash
+docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'tu-contraseña'
+```
+
 ### 3. Configurar Variables de Entorno
 
 Edita el archivo de configuración:
@@ -160,6 +165,7 @@ docker compose -f docker/auth/docker-compose.yml exec authelia env | grep AUTHEL
 ```bash
 # 1. Generar nuevo hash
 ./scripts/generate-auth-password.sh
+# O directamente: docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'nueva-contraseña'
 
 # 2. Editar config/private/auth.env
 # Reemplazar el hash en AUTHELIA_USERS_DATABASE

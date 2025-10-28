@@ -4,6 +4,7 @@
 
 Este proyecto configura un servidor doméstico con:
 - **Traefik** como proxy inverso con SSL automático
+- **Authelia** para autenticación centralizada con 2FA opcional
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
 - **Hello World** como aplicación de prueba
 - **Gestión centralizada de configuración y variables de entorno**
@@ -18,6 +19,7 @@ home-server/
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
 │   ├── network/            # Stack de infraestructura (Traefik)
+│   ├── auth/              # Stack de autenticación (Authelia)
 │   └── helloworld/         # Stack de aplicación de prueba
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
@@ -113,7 +115,48 @@ nano config/private/cloudflare.env
 ...
 ```
 
-### 5. Configurar seguridad del servidor (Opcional)
+### 5. Configurar autenticación (Nuevo)
+
+El sistema incluye **Authelia** para proteger tus servicios con autenticación robusta. Configura un usuario administrador:
+
+```bash
+# 1. Generar secretos de seguridad (JWT, Session, Storage)
+openssl rand -hex 32  # Ejecutar 3 veces para obtener 3 secretos diferentes
+
+# 2. Generar hash de contraseña de forma segura
+./scripts/generate-auth-password.sh
+
+# 3. Configurar autenticación
+nano config/private/auth.env
+```
+
+**Ejemplo de configuración en `auth.env`:**
+```bash
+# Secretos de seguridad (usar los generados arriba)
+AUTHELIA_JWT_SECRET=tu-jwt-secret-de-64-caracteres
+AUTHELIA_SESSION_SECRET=tu-session-secret-de-64-caracteres
+AUTHELIA_STORAGE_ENCRYPTION_KEY=tu-storage-key-de-64-caracteres
+
+# Base de datos de usuarios (reemplazar hash con el generado)
+AUTHELIA_USERS_DATABASE="users:
+  admin:
+    displayname: Administrator
+    password: \$argon2id\$v=19\$m=65536,t=3,p=4\$TU_HASH_GENERADO
+    email: admin@tu-dominio.com
+    groups:
+      - admins"
+```
+
+**Características del sistema de autenticación:**
+- 🔐 **Login seguro** con usuario/contraseña
+- 🔒 **2FA opcional** (Google Authenticator, etc.)
+- 👥 **Gestión de usuarios y grupos**
+- 🛡️ **Políticas de acceso granulares**
+- ⏱️ **Sesiones persistentes** con Redis
+
+Ver documentación completa: [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)
+
+### 6. Configurar seguridad del servidor (Opcional)
 
 Para servidores en producción, configura protecciones adicionales:
 
@@ -131,7 +174,7 @@ Para servidores en producción, configura protecciones adicionales:
 ./scripts/setup-security.sh --status
 ```
 
-### 6. Configurar DNS automático (Opcional)
+### 7. Configurar DNS automático (Opcional)
 
 Revisar la sección de configuración de Cloudflare al final de este documento para obtener tu API Key/Token y configurar los registros DNS necesarios.
 
@@ -148,7 +191,7 @@ Si tienes IP dinámica o quieres automatizar la configuración DNS:
 ./scripts/update-dns.sh --list
 ```
 
-### 7. Instalar Docker y Docker Compose (Ubuntu Server)
+### 8. Instalar Docker y Docker Compose (Ubuntu Server)
 
 Si no tienes Docker y Docker Compose instalados, puedes usar el siguiente script para instalarlos en Ubuntu Server:
 
@@ -224,16 +267,37 @@ Si necesitas control granular sobre el proceso:
 ./scripts/generate-docker-envs.sh
 
 # 3. Levantar stacks individualmente
-cd docker/network && docker-compose up -d      # Traefik primero
-cd ../helloworld && docker-compose up -d       # Servicios después
+cd docker/network && docker compose up -d      # Traefik primero
+cd ../auth && docker compose up -d             # Autenticación segundo
+cd ../helloworld && docker compose up -d       # Servicios después
 ```
 
 ## 🌐 Acceso a los Servicios
 
 Una vez desplegado, podrás acceder a:
 
+### 🔓 **Servicios Públicos (sin autenticación)**
 - **Hello World App**: `https://hello.tu-dominio.com`
+
+### 🔒 **Servicios Protegidos (requieren login)**
 - **Traefik Dashboard**: `https://traefik.tu-dominio.com`
+- **Panel de Autenticación**: `https://auth.tu-dominio.com`
+
+### 🔐 **Flujo de Autenticación**
+
+1. **Acceso a servicio protegido** (ej: Traefik Dashboard)
+2. **Redirección automática** a `https://auth.tu-dominio.com`
+3. **Login** con las credenciales configuradas
+4. **Redirección de vuelta** al servicio original
+5. **Acceso concedido** con sesión persistente
+
+### 🛡️ **Configurar Más Servicios Protegidos**
+
+Para proteger cualquier servicio nuevo, agrega esta etiqueta a su `docker-compose.yml`:
+```yaml
+labels:
+  - "traefik.http.routers.tu-servicio.middlewares=authelia@docker"
+```
 
 > **Nota**: Asegúrate de que tu dominio esté configurado en Cloudflare y apunte a tu servidor.
 
@@ -360,13 +424,16 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 ./scripts/deploy.sh
 
 # Redesplegar solo servicios específicos
-./scripts/deploy.sh network helloworld
+./scripts/deploy.sh network auth helloworld
 
 # Forzar regeneración de archivos .env
 ./scripts/deploy.sh --force-envs
 
 # Ver estado de los servicios
 ./scripts/deploy.sh --list
+
+# Generar hash para contraseñas de Authelia
+./scripts/generate-auth-password.sh
 ```
 
 ### Gestión de configuración
@@ -389,13 +456,14 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 
 ```bash
 # Ver logs en tiempo real de un stack específico
-docker-compose -f docker/network/docker-compose.yml logs -f
+docker compose -f docker/network/docker-compose.yml logs -f
+docker compose -f docker/auth/docker-compose.yml logs -f
 
 # Reiniciar servicios manualmente
-docker-compose -f docker/helloworld/docker-compose.yml restart
+docker compose -f docker/helloworld/docker-compose.yml restart
 
 # Parar stack específico
-docker-compose -f docker/network/docker-compose.yml down
+docker compose -f docker/network/docker-compose.yml down
 
 # Verificar redes Docker
 docker network ls | grep proxy
@@ -479,12 +547,14 @@ sudo chown -R 1000:1000 /var/lib/docker/volumes/traefik_*
 
 ## 🔄 Próximos Pasos
 
-Una vez que tengas funcionando el stack Hello World, puedes:
+Una vez que tengas funcionando el stack completo con autenticación, puedes:
 
-1. **Añadir más servicios** al stack helloworld
-2. **Crear nuevos stacks** (multimedia, monitoring, etc.)
-3. **Configurar backup automático** de la carpeta `data/`
-4. **Añadir autenticación** usando los middlewares de Traefik
+1. **Añadir más usuarios** al sistema de autenticación
+2. **Proteger servicios adicionales** con el middleware de Authelia
+3. **Crear nuevos stacks** (multimedia, monitoring, etc.)
+4. **Configurar backup automático** de la carpeta `data/`
+5. **Habilitar 2FA** desde el panel de Authelia
+6. **Personalizar políticas de acceso** por grupos de usuarios
 
 ## 📝 Notas Importantes
 

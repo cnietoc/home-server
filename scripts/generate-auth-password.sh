@@ -35,7 +35,7 @@ generate_password_hash() {
     fi
 
     local hash
-    if hash=$(docker run --rm authelia/authelia:latest authelia hash-password "$password" 2>/dev/null); then
+    if hash=$(docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password "$password" 2>/dev/null); then
         echo "✅ Hash generado exitosamente:"
         echo ""
         echo "   $hash"
