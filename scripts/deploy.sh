@@ -397,7 +397,7 @@ redeploy_stack() {
     else
         log "🔃 Reiniciando con nueva configuración..."
         # Parar y volver a levantar para tomar nuevas variables
-        docker compose down
+        docker compose down --remove-orphans
         docker compose up -d
     fi
 
