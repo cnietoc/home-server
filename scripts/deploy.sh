@@ -653,6 +653,9 @@ main() {
                     auth)
                         log "   🔐 Panel de Autenticación: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
                         ;;
+                    watchtower)
+                        log "   🔄 Watchtower: Actualizaciones automáticas de imágenes Docker"
+                        ;;
                 esac
             done
         fi

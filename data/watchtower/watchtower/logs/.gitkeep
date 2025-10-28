@@ -1,0 +1,5 @@
+# Esta carpeta contiene logs y datos de Watchtower
+# Watchtower actualiza automáticamente las imágenes Docker
+#
+# Estructura esperada:
+# - watchtower/logs/: Logs de actualizaciones y operaciones
