@@ -19,5 +19,4 @@ services:
       - "traefik.http.routers.tinyauth.rule=Host(`tinyauth.${BASE_DOMAIN}`)"
       - "traefik.http.routers.tinyauth.tls=true"
       - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
-      - "traefik.http.services.tinyauth.loadbalancer.server.port=8080"
       - "traefik.http.middlewares.tinyauth.forwardauth.address: http://tinyauth:3000/api/auth/traefik"
