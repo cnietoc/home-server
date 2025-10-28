@@ -497,8 +497,10 @@ main() {
         [[ "$verbose" == "false" ]] && log "✅ Archivos .env regenerados"
     fi
 
+    echo "test"
     # Determinar qué stacks desplegar
     if [[ ${#stacks_to_deploy[@]} -eq 0 ]]; then
+      echo "entra"
         # Si no se especificaron stacks específicos
         if [[ "$force_deploy" == "true" ]]; then
             # Forzar despliegue de todos los stacks
@@ -522,6 +524,7 @@ main() {
             fi
         fi
     else
+        echo "sale"
         # Se especificaron stacks específicos, verificar si han cambiado
         local specified_changed=()
         local specified_unchanged=()
