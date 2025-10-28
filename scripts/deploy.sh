@@ -498,7 +498,6 @@ main() {
         [[ "$verbose" == "false" ]] && log "✅ Archivos .env regenerados"
     fi
 
-    echo "test"
     # Determinar qué stacks desplegar
     if [[ ${#stacks_to_deploy[@]} -eq 0 ]]; then
         # Si no se especificaron stacks específicos
@@ -650,6 +649,9 @@ main() {
                         ;;
                     helloworld)
                         log "   👋 Hello World: https://hello.${BASE_DOMAIN:-tu-dominio.com}"
+                        ;;
+                    auth)
+                        log "   🔐 Panel de Autenticación: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
                         ;;
                 esac
             done

@@ -58,6 +58,4 @@ services:
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=cloudflare"
       - "traefik.http.routers.dashboard.service=api@internal"
-
-
-
+      - "traefik.http.routers.dashboard.middlewares=authelia@docker"

@@ -1,0 +1,4 @@
+# Esta carpeta contiene datos de Redis para sesiones de Authelia
+# - dump.rdb: Respaldo automático de Redis
+# - appendonly.aof: Log de transacciones de Redis
+
