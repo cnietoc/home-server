@@ -16,8 +16,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config:/etc/traefik:ro
-      - traefik_certs:/certs
-      - traefik_logs:/logs
+      - ../../data/network/certs:/certs
+      - ../../data/network/logs:/logs
     command:
       # API y Dashboard
       - --api.dashboard=true
@@ -57,9 +57,5 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=cloudflare"
       - "traefik.http.routers.dashboard.service=api@internal"
 
-volumes:
-  traefik_certs:
-    name: traefik_certs
-  traefik_logs:
-    name: traefik_logs
+
 

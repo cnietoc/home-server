@@ -1,0 +1,9 @@
+# Ignorar todo el contenido de data/
+*
+
+# Permitir directorios (necesario para navegar subdirectorios)
+!*/
+
+# Permitir archivos .gitkeep y .gitignore en cualquier nivel
+!**/.gitkeep
+!**/.gitignore

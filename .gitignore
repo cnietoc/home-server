@@ -3,5 +3,5 @@
 .deployment-state
 config/private
 
-data/
+# Permitir estructura de data/ pero el contenido se controla con data/.gitignore
 docker/**/.env
