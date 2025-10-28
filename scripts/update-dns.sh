@@ -87,7 +87,6 @@ get_zone_id() {
 
     if [[ -z "$zone_id" || "$zone_id" == "null" ]]; then
         log "❌ No se encontró el dominio $domain en Cloudflare" >&2
-        log "Respuesta: $response" >&2
         return 1
     fi
 
@@ -134,34 +133,26 @@ get_dns_record() {
         full_name="*.$domain"
     fi
 
-    log "🔍 Buscando registro DNS: $full_name" >&2
-
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$full_name" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json"); then
-        log "❌ Error en llamada API para $full_name" >&2
+        log "❌ Error conectando con API de Cloudflare" >&2
         return 1
     fi
 
     # Verificar que la respuesta sea JSON válido
     if ! echo "$response" | jq . >/dev/null 2>&1; then
-        log "❌ Respuesta no es JSON válido para $full_name" >&2
-        log "🔍 Respuesta cruda: ${response:0:200}..." >&2
+        log "❌ Error: respuesta inválida de Cloudflare API" >&2
         return 1
     fi
 
     local result
     if ! result=$(echo "$response" | jq -r '.result[0] // empty' 2>/dev/null); then
-        log "❌ Error procesando JSON para $full_name" >&2
+        log "❌ Error procesando respuesta DNS" >&2
         return 1
     fi
 
-    if [[ -z "$result" || "$result" == "null" || "$result" == "empty" ]]; then
-        log "📝 Registro $full_name no encontrado (se creará)" >&2
-    else
-        log "✅ Registro $full_name encontrado" >&2
-    fi
 
     echo "$result"
 }
@@ -187,7 +178,7 @@ update_dns_record() {
 
     local existing_record
     if ! existing_record=$(get_dns_record "$zone_id" "$record_name" "$domain"); then
-        log "❌ Error obteniendo información del registro $full_name"
+        log "❌ Error obteniendo registro DNS"
         return 1
     fi
 
@@ -197,7 +188,7 @@ update_dns_record() {
 
         # Verificar que el registro sea JSON válido antes de procesarlo
         if ! echo "$existing_record" | jq . >/dev/null 2>&1; then
-            log "❌ Registro devuelto no es JSON válido para $full_name"
+            log "❌ Error procesando registro DNS"
             return 1
         fi
 
@@ -206,18 +197,14 @@ update_dns_record() {
 
         # Verificar que obtuvimos los datos necesarios
         if [[ -z "$current_ip" || -z "$record_id" ]]; then
-            log "❌ No se pudieron extraer datos del registro $full_name"
+            log "❌ Registro DNS incompleto"
             return 1
         fi
 
-        # Validar que las IPs sean válidas
-        if [[ ! "$current_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            log "❌ IP actual inválida para $full_name: '$current_ip'"
-            return 1
-        fi
-
-        if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            log "❌ IP objetivo inválida: '$ip'"
+        # Validar formato de IPs
+        if [[ ! "$current_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || \
+           [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            log "❌ Formato de IP inválido"
             return 1
         fi
 
@@ -434,20 +421,17 @@ main() {
     # Obtener IP objetivo
     if [[ -z "$target_ip" ]]; then
         if ! target_ip=$(get_public_ip); then
-            log "❌ No se pudo obtener IP pública"
             exit 1
         fi
     else
         log "🎯 Usando IP especificada: $target_ip"
     fi
 
-    # Validar que la IP sea válida antes de continuar
+    # Validar formato de IP
     if [[ ! "$target_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        log "❌ IP obtenida no es válida: '$target_ip'"
+        log "❌ IP inválida: $target_ip"
         exit 1
     fi
-
-    log "🎯 IP objetivo confirmada: $target_ip"
 
     # Obtener Zone ID
     local zone_id
@@ -463,15 +447,11 @@ main() {
     log "🚀 Actualizando registros DNS..."
 
     for record in "${records[@]}"; do
-        log "🔍 Procesando registro: $record"
         local record_result=0
         update_dns_record "$zone_id" "$record" "$target_ip" "$target_domain" "$dry_run" "$force" || record_result=$?
 
         if [[ $record_result -eq 0 ]]; then
             ((success++))
-            log "✅ Registro $record procesado exitosamente"
-        else
-            log "❌ Error procesando registro $record (código: $record_result)"
         fi
     done
 

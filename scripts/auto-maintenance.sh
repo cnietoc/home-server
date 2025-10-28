@@ -88,14 +88,7 @@ run_dns_update() {
             cron_log "✅ DNS procesado exitosamente"
         fi
     else
-        cron_log "❌ Error actualizando DNS (código: $dns_exit_code)"
-        # Mostrar las últimas líneas del log de error para diagnóstico
-        if [[ -f "$temp_log" ]]; then
-            cron_log "📋 Últimas líneas del error:"
-            tail -3 "$temp_log" | while read -r line; do
-                cron_log "   $line"
-            done
-        fi
+        cron_log "❌ Error actualizando DNS"
         rm -f "$temp_log" 2>/dev/null || true
         return 1
     fi
