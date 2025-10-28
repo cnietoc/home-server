@@ -113,12 +113,52 @@ list_stack_config() {
 
 # Generar .env para todos los stacks
 generate_all_stack_envs() {
+    local private_dir
+    if ! private_dir="$(get_private_dir)"; then
+        return 1
+    fi
+
     for stack_dir in "$DOCKER_DIR"/*/; do
         if [[ -d "$stack_dir" ]]; then
             local stack_name="$(basename "$stack_dir")"
+            # Asegurar que el archivo .env específico del stack existe
+            ensure_env_file_exists "$stack_name" "$private_dir"
+            # También asegurar archivos de configuración adicional
+            local additional_config=$(get_stack_config "$stack_name")
+            if [[ -n "$additional_config" ]]; then
+                IFS=',' read -ra config_array <<< "$additional_config"
+                for config_type in "${config_array[@]}"; do
+                    config_type=$(echo "$config_type" | xargs)
+                    ensure_env_file_exists "$config_type" "$private_dir"
+                done
+            fi
             generate_stack_env "$stack_name"
         fi
     done
+}
+
+# Generar archivo .env desde template si no existe
+ensure_env_file_exists() {
+    local env_name="$1"
+    local private_dir="$2"
+    local env_file="$private_dir/$env_name.env"
+    local template_file="$PROJECT_ROOT/config/templates/$env_name.env.template"
+
+    # Si el archivo ya existe, no hacer nada
+    if [[ -f "$env_file" ]]; then
+        return 0
+    fi
+
+    # Si no existe template, no podemos generarlo
+    if [[ ! -f "$template_file" ]]; then
+        return 1
+    fi
+
+    # Generar archivo desde template
+    log "📄 Generando $env_name.env desde template..."
+    cp "$template_file" "$env_file"
+    log "✅ Creado: config/private/$env_name.env (edítalo para configurar)"
+    return 0
 }
 
 # Función principal
@@ -149,6 +189,8 @@ main() {
             else
                 for stack in "$@"; do
                     if [[ -d "$DOCKER_DIR/$stack" ]]; then
+                        # Asegurarse de que el archivo .env existe antes de procesar
+                        ensure_env_file_exists "$stack" "$(get_private_dir)"
                         generate_stack_env "$stack"
                     else
                         log "⚠️ Stack no encontrado: $stack"
