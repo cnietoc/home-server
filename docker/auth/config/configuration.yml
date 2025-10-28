@@ -1,0 +1,11 @@
+---
+# Configuración mínima - La configuración real se hace por variables de entorno
+# Este archivo es necesario para que Authelia no falle al arrancar
+
+# Configuración básica requerida - se sobrescribe con variables de entorno
+server:
+  host: 0.0.0.0
+  port: 9091
+
+log:
+  level: info

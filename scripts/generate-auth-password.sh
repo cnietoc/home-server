@@ -47,7 +47,7 @@ generate_password_hash() {
         echo "📋 Instrucciones:"
         echo "1. Copia el HASH ESCAPADO de arriba (con \\$$)"
         echo "2. Edita: config/private/auth.env"
-        echo "3. Reemplaza 'your-password-hash-here' en AUTHELIA_USERS_DATABASE con el hash escapado"
+        echo "3. Reemplaza 'your-password-hash-here' en AUTHELIA_ADMIN_PASSWORD_HASH con el hash escapado"
         echo "4. Guarda el archivo"
         echo "5. Regenera y despliega con:"
         echo "   ./scripts/deploy.sh --force-envs"

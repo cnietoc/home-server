@@ -10,6 +10,7 @@ services:
     networks:
       - proxy
     volumes:
+      - ./config:/config:ro
       - ../../data/auth/authelia/data:/data
     environment:
       # Configuración del servidor
@@ -23,13 +24,17 @@ services:
       # Secretos de seguridad
       - AUTHELIA_JWT_SECRET=${AUTHELIA_JWT_SECRET}
       - AUTHELIA_SESSION_SECRET=${AUTHELIA_SESSION_SECRET}
+
+      # Datos del usuario administrador
+      - AUTHELIA_ADMIN_PASSWORD_HASH=${AUTHELIA_ADMIN_PASSWORD_HASH}
+      - AUTHELIA_ADMIN_EMAIL=${AUTHELIA_ADMIN_EMAIL}
       - AUTHELIA_STORAGE_ENCRYPTION_KEY=${AUTHELIA_STORAGE_ENCRYPTION_KEY}
 
       # URLs y dominio
       - AUTHELIA_DEFAULT_REDIRECTION_URL=https://${BASE_DOMAIN}
       - AUTHELIA_TOTP_ISSUER=${BASE_DOMAIN}
-
-      # Base de datos de usuarios en línea
+      # Base de datos de usuarios desde variables de entorno
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PATH=/config/users_database.yml
       - AUTHELIA_AUTHENTICATION_BACKEND_FILE_USERS=${AUTHELIA_USERS_DATABASE}
       - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_ALGORITHM=argon2id
       - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_ITERATIONS=1
