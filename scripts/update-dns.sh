@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common/env-loader.sh"
@@ -43,7 +43,7 @@ EOF
 get_public_ip() {
     local ip
 
-    log "🔍 Detectando IP pública..." >&2
+    log "🔍 Detectando IP pública..."
 
     # Intentar varios servicios para obtener la IP
     local ip_services=(
@@ -57,14 +57,14 @@ get_public_ip() {
         if ip=$(curl -s --max-time 10 "$service" 2>/dev/null); then
             # Validar que sea una IP válida
             if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-                log "✅ IP detectada: $ip (desde $(basename "$service"))" >&2
+                log "✅ IP detectada: $ip (desde $(basename "$service"))"
                 echo "$ip"
                 return 0
             fi
         fi
     done
 
-    log "❌ No se pudo detectar la IP pública" >&2
+    log "❌ No se pudo detectar la IP pública"
     return 1
 }
 
@@ -73,25 +73,25 @@ get_zone_id() {
     local domain="$1"
     local zone_id
 
-    log "🔍 Obteniendo Zone ID para $domain..." >&2
+    log "🔍 Obteniendo Zone ID para $domain..."
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$domain" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null); then
-        log "❌ Error conectando con Cloudflare API" >&2
+        log "❌ Error conectando con Cloudflare API"
         return 1
     fi
 
     zone_id=$(echo "$response" | jq -r '.result[0].id // empty' 2>/dev/null)
 
     if [[ -z "$zone_id" || "$zone_id" == "null" ]]; then
-        log "❌ No se encontró el dominio $domain en Cloudflare" >&2
-        log "Respuesta: $response" >&2
+        log "❌ No se encontró el dominio $domain en Cloudflare"
+        log "Respuesta: $response"
         return 1
     fi
 
-    log "✅ Zone ID obtenido: $zone_id" >&2
+    log "✅ Zone ID obtenido: $zone_id"
     echo "$zone_id"
 }
 
@@ -134,14 +134,26 @@ get_dns_record() {
         full_name="*.$domain"
     fi
 
+    log "🔍 Buscando registro DNS: $full_name"
+
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$full_name" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json"); then
+        log "❌ Error en llamada API para $full_name"
         return 1
     fi
 
-    echo "$response" | jq -r '.result[0] // empty'
+    local result
+    result=$(echo "$response" | jq -r '.result[0] // empty' 2>/dev/null)
+
+    if [[ -z "$result" || "$result" == "null" || "$result" == "empty" ]]; then
+        log "📝 Registro $full_name no encontrado (se creará)"
+    else
+        log "✅ Registro $full_name encontrado"
+    fi
+
+    echo "$result"
 }
 
 # Crear o actualizar registro DNS
@@ -405,8 +417,15 @@ main() {
     log "🚀 Actualizando registros DNS..."
 
     for record in "${records[@]}"; do
-        if update_dns_record "$zone_id" "$record" "$target_ip" "$target_domain" "$dry_run" "$force"; then
+        log "🔍 Procesando registro: $record"
+        local record_result=0
+        update_dns_record "$zone_id" "$record" "$target_ip" "$target_domain" "$dry_run" "$force" || record_result=$?
+
+        if [[ $record_result -eq 0 ]]; then
             ((success++))
+            log "✅ Registro $record procesado exitosamente"
+        else
+            log "❌ Error procesando registro $record (código: $record_result)"
         fi
     done
 
