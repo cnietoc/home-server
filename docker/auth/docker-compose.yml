@@ -9,11 +9,14 @@ services:
     restart: unless-stopped
     networks:
       - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - APP_URL=https://tinyauth.${BASE_DOMAIN}
       - PROVIDERS_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - PROVIDERS_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - OAUTH_WHITELIST=${OAUTH_WHITELIST}
+      - LOG_LEVEL=trace
     labels:
       traefik.enable: "true"
       traefik.http.routers.tinyauth.rule: "Host(`tinyauth.${BASE_DOMAIN}`)"
