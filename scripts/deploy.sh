@@ -243,8 +243,8 @@ verify_stack_health() {
     sleep 3
 
     # Verificar que todos los contenedores están corriendo
-    local running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
-    local expected_containers=$(docker-compose config --services 2>/dev/null | wc -l)
+    local running_containers=$(docker compose ps -q 2>/dev/null | wc -l)
+    local expected_containers=$(docker compose config --services 2>/dev/null | wc -l)
 
     if [[ $running_containers -eq $expected_containers && $running_containers -gt 0 ]]; then
         return 0
@@ -312,7 +312,7 @@ list_stacks() {
             local status="⏹️"
 
             # Verificar si está corriendo (básico)
-            if docker-compose -f "$stack_dir/docker-compose.yml" ps -q 2>/dev/null | grep -q .; then
+            if docker compose -f "$stack_dir/docker-compose.yml" ps -q 2>/dev/null | grep -q .; then
                 status="🟢"
             fi
 
@@ -342,22 +342,22 @@ redeploy_stack() {
 
     if [[ "$force_recreate" == "true" ]]; then
         log "♻️ Recreando contenedores completamente..."
-        docker-compose up -d --force-recreate
+        docker compose up -d --force-recreate
     else
         log "🔃 Reiniciando con nueva configuración..."
         # Parar y volver a levantar para tomar nuevas variables
-        docker-compose down
-        docker-compose up -d
+        docker compose down
+        docker compose up -d
     fi
 
     # Verificar estado
     sleep 2
-    if docker-compose ps -q | grep -q .; then
+    if docker compose ps -q | grep -q .; then
         log "✅ Stack $stack_name desplegado correctamente"
-        docker-compose ps
+        docker compose ps
     else
         log "⚠️ Posible problema con stack $stack_name"
-        docker-compose logs --tail=20
+        docker compose logs --tail=20
         return 1
     fi
 }
@@ -558,7 +558,7 @@ main() {
         log "💡 Para diagnosticar problemas:"
         for failed in "${failed_stacks[@]}"; do
             local stack_name="${failed%% *}"
-            log "   docker-compose -f docker/$stack_name/docker-compose.yml logs"
+            log "   docker compose -f docker/$stack_name/docker-compose.yml logs"
         done
     fi
 
