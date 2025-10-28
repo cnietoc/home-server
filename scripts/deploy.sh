@@ -11,9 +11,7 @@ source "$SCRIPT_DIR/common/env-loader.sh"
 
 # Inicializar infraestructura necesaria
 initialize_infrastructure() {
-    echo "hola"
     local verbose="$1"
-    echo "adios"
 
     [[ "$verbose" == "true" ]] && log "🔧 Inicializando infraestructura..."
 
@@ -22,7 +20,6 @@ initialize_infrastructure() {
         error "Docker no está instalado. Ejecuta: ./scripts/install-docker.sh"
         return 1
     fi
-    echo "hola2"
 
     if ! docker info >/dev/null 2>&1; then
         error "Docker no está corriendo. Inicia Docker Desktop o ejecuta: sudo systemctl start docker"
@@ -38,7 +35,7 @@ initialize_infrastructure() {
     fi
 
     [[ "$verbose" == "true" ]] && log "✅ Redes Docker inicializadas"
-    echo "adios2"
+    return 0
 }
 
 # Calcular hash de toda la carpeta del stack
