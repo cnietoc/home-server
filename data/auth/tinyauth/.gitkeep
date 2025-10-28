@@ -1,2 +1,5 @@
-
-
+# Esta carpeta contiene la bbdd de sesiones de TinyAuth
+# TinyAuth utiliza esta base de datos para almacenar las sesiones de usuario
+#
+# Estructura esperada:
+# - sessions.db: Base de datos SQLite de sesiones de TinyAuth

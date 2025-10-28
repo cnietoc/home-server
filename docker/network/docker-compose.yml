@@ -53,9 +53,9 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
     labels:
-      traefik.enable: "true"
-      traefik.http.routers.traefik.rule: "Host(`traefik.${BASE_DOMAIN}`)"
-      traefik.http.routers.traefik.tls: "true"
-      traefik.http.routers.traefik.tls.certresolver: "cloudflare"
-      traefik.http.routers.traefik.service: "api@internal"
+      traefik.enable: true
+      traefik.http.routers.traefik.rule: Host(`traefik.${BASE_DOMAIN}`)
+      traefik.http.routers.traefik.tls: true
+      traefik.http.routers.traefik.tls.certresolver: cloudflare
+      traefik.http.routers.traefik.service: api@internal
       traefik.http.routers.traefik.middlewares: tinyauth

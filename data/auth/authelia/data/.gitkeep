@@ -1,4 +1,0 @@
-# Esta carpeta contiene datos persistentes de Authelia
-# - db.sqlite3: Base de datos de configuración y sesiones
-# - notification.txt: Log de notificaciones
-
