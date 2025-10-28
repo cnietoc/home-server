@@ -36,14 +36,18 @@ generate_password_hash() {
 
     local hash
     if hash=$(docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password "$password" 2>/dev/null); then
+        # Escapar caracteres $ para uso en archivos .env
+        local escaped_hash="${hash//$/\\$\\$}"
+
         echo "✅ Hash generado exitosamente:"
         echo ""
-        echo "   $hash"
+        echo "   Hash original: $hash"
+        echo "   Hash escapado: $escaped_hash"
         echo ""
         echo "📋 Instrucciones:"
-        echo "1. Copia el hash de arriba"
+        echo "1. Copia el HASH ESCAPADO de arriba (con \\$$)"
         echo "2. Edita: config/private/auth.env"
-        echo "3. Reemplaza 'your-password-hash-here' en AUTHELIA_USERS_DATABASE con el hash copiado"
+        echo "3. Reemplaza 'your-password-hash-here' en AUTHELIA_USERS_DATABASE con el hash escapado"
         echo "4. Guarda el archivo"
         echo "5. Regenera y despliega con:"
         echo "   ./scripts/deploy.sh --force-envs"
