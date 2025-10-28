@@ -154,12 +154,32 @@ config_sources_have_changed() {
         config_files+=("$CONFIG_DIR/private")
     fi
 
-    local current_hash
-    current_hash=$(find "${config_files[@]}" -type f 2>/dev/null | sort | xargs cat 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+    # Calcular hash de manera más robusta
+    local current_hash=""
+    local temp_content=""
+
+    for config_path in "${config_files[@]}"; do
+        if [[ -e "$config_path" ]]; then
+            # Usar find con -follow para seguir enlaces simbólicos
+            temp_content+=$(find "$config_path" -follow -type f 2>/dev/null | sort | while read -r file; do
+                echo "FILE:$file"
+                cat "$file" 2>/dev/null || true
+            done)
+        fi
+    done
+
+    current_hash=$(echo "$temp_content" | shasum -a 256 | cut -d' ' -f1)
 
     local stored_hash=""
     if [[ -f "$DEPLOYMENT_STATE" ]]; then
         stored_hash=$(grep "^config_sources_hash=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "")
+    fi
+
+    # Debug información (temporal)
+    if [[ "${DEPLOY_DEBUG:-}" == "true" ]]; then
+        log "🔍 DEBUG: Config hash actual: $current_hash"
+        log "🔍 DEBUG: Config hash almacenado: $stored_hash"
+        log "🔍 DEBUG: Archivos incluidos: ${config_files[*]}"
     fi
 
     [[ "$current_hash" != "$stored_hash" ]]
@@ -176,8 +196,20 @@ save_config_sources_hash() {
         config_files+=("$CONFIG_DIR/private")
     fi
 
-    local current_hash
-    current_hash=$(find "${config_files[@]}" -type f 2>/dev/null | sort | xargs cat 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+    # Usar la misma lógica que config_sources_have_changed
+    local current_hash=""
+    local temp_content=""
+
+    for config_path in "${config_files[@]}"; do
+        if [[ -e "$config_path" ]]; then
+            temp_content+=$(find "$config_path" -follow -type f 2>/dev/null | sort | while read -r file; do
+                echo "FILE:$file"
+                cat "$file" 2>/dev/null || true
+            done)
+        fi
+    done
+
+    current_hash=$(echo "$temp_content" | shasum -a 256 | cut -d' ' -f1)
 
     # Crear archivo de estado si no existe
     touch "$DEPLOYMENT_STATE"
@@ -284,9 +316,11 @@ OPCIONES:
   -r, --recreate       Recrear contenedores completamente
   -f, --force          Forzar despliegue sin detección de cambios
   --force-envs         Forzar regeneración de .env files
+  --reset-state        Resetear estado de detección de cambios
   --skip-infrastructure Saltar inicialización de infraestructura
   -l, --list           Listar stacks disponibles
   -v, --verbose        Mostrar información detallada
+  --debug              Mostrar información de debug para troubleshooting
   -h, --help           Mostrar esta ayuda
 
 EJEMPLOS:
@@ -374,6 +408,7 @@ main() {
     local force_envs=false
     local skip_infrastructure=false
     local verbose=false
+    local debug=false
     local stacks_to_deploy=()
 
     # Parsear argumentos
@@ -391,12 +426,23 @@ main() {
                 force_envs=true
                 shift
                 ;;
+            --reset-state)
+                log "🔄 Reseteando estado de detección de cambios..."
+                rm -f "$DEPLOYMENT_STATE"
+                log "✅ Estado reseteado. Próximo despliegue detectará todos como cambios."
+                exit 0
+                ;;
             --skip-infrastructure)
                 skip_infrastructure=true
                 shift
                 ;;
             -v|--verbose)
                 verbose=true
+                shift
+                ;;
+            --debug)
+                debug=true
+                export DEPLOY_DEBUG=true
                 shift
                 ;;
             -l|--list)
