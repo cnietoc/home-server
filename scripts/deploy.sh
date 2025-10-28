@@ -60,6 +60,17 @@ stack_config_has_changed() {
         stored_hash=$(grep "^${stack_name}_hash=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "")
     fi
 
+    # Debug información (temporal)
+    if [[ "${DEPLOY_DEBUG:-}" == "true" ]]; then
+        log "🔍 DEBUG Stack $stack_name - Hash actual: ${current_hash:0:16}..."
+        log "🔍 DEBUG Stack $stack_name - Hash almacenado: ${stored_hash:0:16}..."
+        if [[ "$current_hash" != "$stored_hash" ]]; then
+            log "🔍 DEBUG Stack $stack_name - ✅ CAMBIO DETECTADO"
+        else
+            log "🔍 DEBUG Stack $stack_name - ⏭️ Sin cambios"
+        fi
+    fi
+
     [[ "$current_hash" != "$stored_hash" ]]
 }
 
