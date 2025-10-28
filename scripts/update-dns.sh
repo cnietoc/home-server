@@ -43,7 +43,7 @@ EOF
 get_public_ip() {
     local ip
 
-    log "🔍 Detectando IP pública..."
+    log "🔍 Detectando IP pública..." >&2
 
     # Intentar varios servicios para obtener la IP
     local ip_services=(
@@ -57,14 +57,14 @@ get_public_ip() {
         if ip=$(curl -s --max-time 10 "$service" 2>/dev/null); then
             # Validar que sea una IP válida
             if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-                log "✅ IP detectada: $ip (desde $(basename "$service"))"
+                log "✅ IP detectada: $ip (desde $(basename "$service"))" >&2
                 echo "$ip"
                 return 0
             fi
         fi
     done
 
-    log "❌ No se pudo detectar la IP pública"
+    log "❌ No se pudo detectar la IP pública" >&2
     return 1
 }
 
@@ -73,25 +73,25 @@ get_zone_id() {
     local domain="$1"
     local zone_id
 
-    log "🔍 Obteniendo Zone ID para $domain..."
+    log "🔍 Obteniendo Zone ID para $domain..." >&2
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$domain" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null); then
-        log "❌ Error conectando con Cloudflare API"
+        log "❌ Error conectando con Cloudflare API" >&2
         return 1
     fi
 
     zone_id=$(echo "$response" | jq -r '.result[0].id // empty' 2>/dev/null)
 
     if [[ -z "$zone_id" || "$zone_id" == "null" ]]; then
-        log "❌ No se encontró el dominio $domain en Cloudflare"
-        log "Respuesta: $response"
+        log "❌ No se encontró el dominio $domain en Cloudflare" >&2
+        log "Respuesta: $response" >&2
         return 1
     fi
 
-    log "✅ Zone ID obtenido: $zone_id"
+    log "✅ Zone ID obtenido: $zone_id" >&2
     echo "$zone_id"
 }
 
@@ -134,23 +134,33 @@ get_dns_record() {
         full_name="*.$domain"
     fi
 
-    log "🔍 Buscando registro DNS: $full_name"
+    log "🔍 Buscando registro DNS: $full_name" >&2
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$full_name" \
         -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
         -H "Content-Type: application/json"); then
-        log "❌ Error en llamada API para $full_name"
+        log "❌ Error en llamada API para $full_name" >&2
+        return 1
+    fi
+
+    # Verificar que la respuesta sea JSON válido
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
+        log "❌ Respuesta no es JSON válido para $full_name" >&2
+        log "🔍 Respuesta cruda: ${response:0:200}..." >&2
         return 1
     fi
 
     local result
-    result=$(echo "$response" | jq -r '.result[0] // empty' 2>/dev/null)
+    if ! result=$(echo "$response" | jq -r '.result[0] // empty' 2>/dev/null); then
+        log "❌ Error procesando JSON para $full_name" >&2
+        return 1
+    fi
 
     if [[ -z "$result" || "$result" == "null" || "$result" == "empty" ]]; then
-        log "📝 Registro $full_name no encontrado (se creará)"
+        log "📝 Registro $full_name no encontrado (se creará)" >&2
     else
-        log "✅ Registro $full_name encontrado"
+        log "✅ Registro $full_name encontrado" >&2
     fi
 
     echo "$result"
@@ -176,13 +186,40 @@ update_dns_record() {
     log "🔍 Verificando registro: $full_name"
 
     local existing_record
-    existing_record=$(get_dns_record "$zone_id" "$record_name" "$domain")
+    if ! existing_record=$(get_dns_record "$zone_id" "$record_name" "$domain"); then
+        log "❌ Error obteniendo información del registro $full_name"
+        return 1
+    fi
 
-    if [[ -n "$existing_record" && "$existing_record" != "null" ]]; then
+    if [[ -n "$existing_record" && "$existing_record" != "null" && "$existing_record" != "empty" ]]; then
         local current_ip
-        current_ip=$(echo "$existing_record" | jq -r '.content')
         local record_id
-        record_id=$(echo "$existing_record" | jq -r '.id')
+
+        # Verificar que el registro sea JSON válido antes de procesarlo
+        if ! echo "$existing_record" | jq . >/dev/null 2>&1; then
+            log "❌ Registro devuelto no es JSON válido para $full_name"
+            return 1
+        fi
+
+        current_ip=$(echo "$existing_record" | jq -r '.content // ""')
+        record_id=$(echo "$existing_record" | jq -r '.id // ""')
+
+        # Verificar que obtuvimos los datos necesarios
+        if [[ -z "$current_ip" || -z "$record_id" ]]; then
+            log "❌ No se pudieron extraer datos del registro $full_name"
+            return 1
+        fi
+
+        # Validar que las IPs sean válidas
+        if [[ ! "$current_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            log "❌ IP actual inválida para $full_name: '$current_ip'"
+            return 1
+        fi
+
+        if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            log "❌ IP objetivo inválida: '$ip'"
+            return 1
+        fi
 
         if [[ "$current_ip" == "$ip" && "$force" != "true" ]]; then
             log "⏭️ $full_name ya apunta a $ip (sin cambios)"
@@ -397,11 +434,20 @@ main() {
     # Obtener IP objetivo
     if [[ -z "$target_ip" ]]; then
         if ! target_ip=$(get_public_ip); then
+            log "❌ No se pudo obtener IP pública"
             exit 1
         fi
     else
         log "🎯 Usando IP especificada: $target_ip"
     fi
+
+    # Validar que la IP sea válida antes de continuar
+    if [[ ! "$target_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        log "❌ IP obtenida no es válida: '$target_ip'"
+        exit 1
+    fi
+
+    log "🎯 IP objetivo confirmada: $target_ip"
 
     # Obtener Zone ID
     local zone_id

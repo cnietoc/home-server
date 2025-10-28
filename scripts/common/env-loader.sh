@@ -62,4 +62,6 @@ load_config() {
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    # Forzar flush del buffer para evitar logs desordenados
+    exec 1>&1
 }
