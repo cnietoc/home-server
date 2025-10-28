@@ -37,7 +37,7 @@ services:
       # Certificados SSL con Let's Encrypt
       - --certificatesresolvers.cloudflare.acme.dnschallenge=true
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
+      - --certificatesresolvers.cloudflare.acme.email=${CLOUDFLARE_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/certs/acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
 

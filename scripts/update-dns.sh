@@ -77,7 +77,7 @@ get_zone_id() {
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$domain" \
-        -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
+        -H "Authorization: Bearer $CLOUDFLARE_DNS_API_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null); then
         log "❌ Error conectando con Cloudflare API" >&2
         return 1
@@ -107,7 +107,7 @@ list_dns_records() {
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A" \
-        -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
+        -H "Authorization: Bearer $CLOUDFLARE_DNS_API_TOKEN" \
         -H "Content-Type: application/json"); then
         log "❌ Error obteniendo registros DNS"
         return 1
@@ -135,7 +135,7 @@ get_dns_record() {
 
     local response
     if ! response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$full_name" \
-        -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
+        -H "Authorization: Bearer $CLOUDFLARE_DNS_API_TOKEN" \
         -H "Content-Type: application/json"); then
         log "❌ Error conectando con API de Cloudflare" >&2
         return 1
@@ -234,7 +234,7 @@ update_dns_record() {
         local curl_exit_code=0
         response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
             -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
-            -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
+            -H "Authorization: Bearer $CLOUDFLARE_DNS_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$update_data" 2>&1) || curl_exit_code=$?
 
@@ -283,7 +283,7 @@ update_dns_record() {
         local curl_exit_code=0
         response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
             -X POST "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" \
-            -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
+            -H "Authorization: Bearer $CLOUDFLARE_DNS_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$create_data" 2>&1) || curl_exit_code=$?
 
@@ -394,8 +394,8 @@ main() {
     fi
 
     # Verificar variables necesarias
-    if [[ -z "${CF_DNS_API_TOKEN:-}" ]]; then
-        log "❌ CF_DNS_API_TOKEN no configurado"
+    if [[ -z "${CLOUDFLARE_DNS_API_TOKEN:-}" ]]; then
+        log "❌ CLOUDFLARE_DNS_API_TOKEN no configurado"
         log "Configura el token en config/private/cloudflare.env"
         exit 1
     fi
