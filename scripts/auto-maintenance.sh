@@ -62,13 +62,40 @@ run_dns_update() {
         return 1
     fi
 
-    # Ejecutar actualización
-    if "$SCRIPT_DIR/update-dns.sh" >> "$CRON_LOG" 2>&1; then
-        cron_log "✅ DNS actualizado correctamente"
+    # Ejecutar actualización y capturar la salida
+    local dns_output
+    local dns_exit_code=0
+
+    # Crear un archivo temporal para la salida del DNS
+    local temp_log="/tmp/dns_update_$$.log"
+
+    if dns_output=$("$SCRIPT_DIR/update-dns.sh" 2>&1); then
+        dns_exit_code=0
     else
-        cron_log "❌ Error actualizando DNS"
+        dns_exit_code=$?
+    fi
+
+    # Agregar la salida del DNS al log (ya tiene formato consistente de timestamp)
+    if [[ -n "$dns_output" ]]; then
+        echo "$dns_output" >> "$CRON_LOG"
+    fi
+
+    # Evaluar el resultado
+    if [[ $dns_exit_code -eq 0 ]]; then
+        # Verificar si hubo cambios o no
+        if echo "$dns_output" | grep -q "sin cambios"; then
+            cron_log "✅ DNS verificado - sin cambios necesarios"
+        elif echo "$dns_output" | grep -q "DNS actualizado correctamente"; then
+            cron_log "✅ DNS actualizado correctamente"
+        else
+            cron_log "✅ DNS procesado exitosamente"
+        fi
+    else
+        cron_log "❌ Error actualizando DNS (código: $dns_exit_code)"
         return 1
     fi
+
+    rm -f "$temp_log" 2>/dev/null || true
 }
 
 # Verificar que los servicios estén corriendo

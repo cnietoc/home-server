@@ -193,13 +193,10 @@ update_dns_record() {
             "proxied": false
         }'
 
-        log "🔍 DEBUG: Datos de actualización: $update_data"
-        log "🔍 DEBUG: URL: https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id"
-        log "🔍 DEBUG: Token: ${CF_DNS_API_TOKEN:0:10}...${CF_DNS_API_TOKEN: -10}"
 
         local response
         local curl_exit_code=0
-        response=$(curl -s -w "\nHTTP_CODE:%{http_code}\nTIME_TOTAL:%{time_total}" \
+        response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
             -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
             -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
             -H "Content-Type: application/json" \
@@ -208,11 +205,7 @@ update_dns_record() {
         if [[ $curl_exit_code -eq 0 ]]; then
             # Separar respuesta de metadatos
             local http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
-            local time_total=$(echo "$response" | grep "TIME_TOTAL:" | cut -d: -f2)
             local json_response=$(echo "$response" | sed '/HTTP_CODE:/,$d')
-
-            log "🔍 DEBUG: HTTP Code: $http_code, Tiempo: ${time_total}s"
-            log "🔍 DEBUG: Respuesta JSON: $json_response"
 
             if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
                 local success
@@ -223,17 +216,14 @@ update_dns_record() {
                     local errors
                     errors=$(echo "$json_response" | jq -r '.errors[]?.message' 2>/dev/null || echo "Error desconocido")
                     log "❌ Error API actualizando $full_name: $errors"
-                    log "🔍 DEBUG: Respuesta completa: $json_response"
                     return 1
                 fi
             else
                 log "❌ Error HTTP actualizando $full_name (código: $http_code)"
-                log "🔍 DEBUG: Respuesta: $json_response"
                 return 1
             fi
         else
-            log "❌ Error de conectividad actualizando $full_name (exit code: $curl_exit_code)"
-            log "🔍 DEBUG: Salida curl: $response"
+            log "❌ Error de conectividad actualizando $full_name"
             return 1
         fi
     else
@@ -253,13 +243,9 @@ update_dns_record() {
             "proxied": false
         }'
 
-        log "🔍 DEBUG: Datos de creación: $create_data"
-        log "🔍 DEBUG: URL: https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records"
-        log "🔍 DEBUG: Token: ${CF_DNS_API_TOKEN:0:10}...${CF_DNS_API_TOKEN: -10}"
-
         local response
         local curl_exit_code=0
-        response=$(curl -s -w "\nHTTP_CODE:%{http_code}\nTIME_TOTAL:%{time_total}" \
+        response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
             -X POST "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" \
             -H "Authorization: Bearer $CF_DNS_API_TOKEN" \
             -H "Content-Type: application/json" \
@@ -268,11 +254,7 @@ update_dns_record() {
         if [[ $curl_exit_code -eq 0 ]]; then
             # Separar respuesta de metadatos
             local http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
-            local time_total=$(echo "$response" | grep "TIME_TOTAL:" | cut -d: -f2)
             local json_response=$(echo "$response" | sed '/HTTP_CODE:/,$d')
-
-            log "🔍 DEBUG: HTTP Code: $http_code, Tiempo: ${time_total}s"
-            log "🔍 DEBUG: Respuesta JSON: $json_response"
 
             if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
                 local success
@@ -283,17 +265,14 @@ update_dns_record() {
                     local errors
                     errors=$(echo "$json_response" | jq -r '.errors[]?.message' 2>/dev/null || echo "Error desconocido")
                     log "❌ Error API creando $full_name: $errors"
-                    log "🔍 DEBUG: Respuesta completa: $json_response"
                     return 1
                 fi
             else
                 log "❌ Error HTTP creando $full_name (código: $http_code)"
-                log "🔍 DEBUG: Respuesta: $json_response"
                 return 1
             fi
         else
-            log "❌ Error de conectividad creando $full_name (exit code: $curl_exit_code)"
-            log "🔍 DEBUG: Salida curl: $response"
+            log "❌ Error de conectividad creando $full_name"
             return 1
         fi
     fi

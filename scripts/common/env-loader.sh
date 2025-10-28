@@ -61,5 +61,5 @@ load_config() {
 }
 
 log() {
-    echo "[$(date '+%H:%M:%S')] $*"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
