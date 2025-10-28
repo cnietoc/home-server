@@ -48,13 +48,17 @@ generate_stack_env() {
         return 1
     fi
 
-    # Header informativo
+    # Header informativo y variables dinámicas
     cat > "$temp_file" << EOF
 # ======================================
 # Archivo generado automáticamente
 # Stack: $stack_name
 # NO EDITAR MANUALMENTE
 # ======================================
+
+# Variables dinámicas del stack
+STACK_NAME=$stack_name
+STACK_DATA=../../data/$stack_name
 
 EOF
 

@@ -11,7 +11,7 @@ services:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../../data/auth/tinyauth:/data
+      - ${STACK_DATA}/tinyauth:/data
     environment:
       - APP_URL=https://tinyauth.${BASE_DOMAIN}
       - PROVIDERS_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}

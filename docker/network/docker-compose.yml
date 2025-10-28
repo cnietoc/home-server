@@ -16,8 +16,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config:/etc/traefik:ro
-      - ../../data/network/traefik/certs:/certs
-      - ../../data/network/traefik/logs:/logs
+      - ${STACK_DATA}/traefik/certs:/certs
+      - ${STACK_DATA}/traefik/logs:/logs
     environment:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
