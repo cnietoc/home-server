@@ -1,0 +1,100 @@
+networks:
+  proxy:
+    external: true
+
+services:
+  authelia:
+    image: authelia/authelia:latest
+    container_name: authelia
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - ./config:/config:ro
+      - ../../data/auth/authelia/data:/data
+    environment:
+      # Configuración del servidor
+      - AUTHELIA_SERVER_HOST=0.0.0.0
+      - AUTHELIA_SERVER_PORT=9091
+
+      # Log y tema
+      - AUTHELIA_LOG_LEVEL=info
+      - AUTHELIA_THEME=auto
+
+      # Secretos de seguridad
+      - AUTHELIA_JWT_SECRET=${AUTHELIA_JWT_SECRET}
+      - AUTHELIA_SESSION_SECRET=${AUTHELIA_SESSION_SECRET}
+
+      # Datos del usuario administrador
+      - AUTHELIA_ADMIN_PASSWORD_HASH=${AUTHELIA_ADMIN_PASSWORD_HASH}
+      - AUTHELIA_ADMIN_EMAIL=${AUTHELIA_ADMIN_EMAIL}
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY=${AUTHELIA_STORAGE_ENCRYPTION_KEY}
+
+      # URLs y dominio
+      - AUTHELIA_DEFAULT_REDIRECTION_URL=https://${BASE_DOMAIN}
+      - AUTHELIA_TOTP_ISSUER=${BASE_DOMAIN}
+      # Base de datos de usuarios desde variables de entorno
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PATH=/config/users_database.yml
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_ALGORITHM=argon2id
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_ITERATIONS=1
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_SALT_LENGTH=16
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_PARALLELISM=8
+      - AUTHELIA_AUTHENTICATION_BACKEND_FILE_PASSWORD_MEMORY=128
+
+      # Control de acceso
+      - AUTHELIA_ACCESS_CONTROL_DEFAULT_POLICY=deny
+      - AUTHELIA_ACCESS_CONTROL_RULES_0_DOMAIN=*.${BASE_DOMAIN}
+      - AUTHELIA_ACCESS_CONTROL_RULES_0_POLICY=one_factor
+      - AUTHELIA_ACCESS_CONTROL_RULES_0_SUBJECT=group:admins
+      - AUTHELIA_ACCESS_CONTROL_RULES_1_DOMAIN=hello.${BASE_DOMAIN}
+      - AUTHELIA_ACCESS_CONTROL_RULES_1_POLICY=bypass
+
+      # Configuración de sesión
+      - AUTHELIA_SESSION_NAME=authelia_session
+      - AUTHELIA_SESSION_EXPIRATION=1h
+      - AUTHELIA_SESSION_INACTIVITY=5m
+      - AUTHELIA_SESSION_REMEMBER_ME_DURATION=1M
+      - AUTHELIA_SESSION_REDIS_HOST=authelia-redis
+      - AUTHELIA_SESSION_REDIS_PORT=6379
+
+      # Configuración de cookies (requerida)
+      - AUTHELIA_SESSION_COOKIES_0_DOMAIN=${BASE_DOMAIN}
+      - AUTHELIA_SESSION_COOKIES_0_SUBDOMAIN=${BASE_DOMAIN}
+      - AUTHELIA_SESSION_COOKIES_0_AUTH_URL=https://auth.${BASE_DOMAIN}
+      - AUTHELIA_SESSION_COOKIES_0_DEFAULT_REDIRECTION_URL=https://${BASE_DOMAIN}
+      - AUTHELIA_SESSION_COOKIES_0_NAME=authelia_session
+      - AUTHELIA_SESSION_COOKIES_0_SAME_SITE=lax
+      - AUTHELIA_SESSION_COOKIES_0_EXPIRATION=1h
+      - AUTHELIA_SESSION_COOKIES_0_INACTIVITY=5m
+      - AUTHELIA_SESSION_COOKIES_0_REMEMBER_ME=1M
+
+      # Regulación
+      - AUTHELIA_REGULATION_MAX_RETRIES=3
+      - AUTHELIA_REGULATION_FIND_TIME=120
+      - AUTHELIA_REGULATION_BAN_TIME=300
+
+      # Almacenamiento
+      - AUTHELIA_STORAGE_LOCAL_PATH=/data/db.sqlite3
+
+      # Notificaciones
+      - AUTHELIA_NOTIFIER_FILESYSTEM_FILENAME=/data/notification.txt
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.rule=Host(`auth.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.authelia.tls=true"
+      - "traefik.http.routers.authelia.tls.certresolver=cloudflare"
+
+      # Middleware de autenticación para otros servicios
+      - "traefik.http.middlewares.authelia.forwardAuth.address=http://authelia:9091/api/verify?rd=https://auth.${BASE_DOMAIN}/"
+      - "traefik.http.middlewares.authelia.forwardAuth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authelia.forwardAuth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email"
+
+  authelia-redis:
+    image: redis:alpine
+    container_name: authelia-redis
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - ../../data/auth/redis:/data
+    command: redis-server --appendonly yes
