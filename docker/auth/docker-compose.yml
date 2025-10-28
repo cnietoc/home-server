@@ -1,8 +1,15 @@
+networks:
+  proxy:
+    external: true
+
+
 services:
   authelia:
     image: authelia/authelia:latest
     container_name: authelia
     restart: unless-stopped
+    networks:
+      - proxy
 
     environment:
       # --- General ---
