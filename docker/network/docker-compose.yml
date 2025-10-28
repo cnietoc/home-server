@@ -16,8 +16,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config:/etc/traefik:ro
-      - ../../data/network/certs:/certs
-      - ../../data/network/logs:/logs
+      - ../../data/network/traefik/certs:/certs
+      - ../../data/network/traefik/logs:/logs
     command:
       # API y Dashboard
       - --api.dashboard=true
