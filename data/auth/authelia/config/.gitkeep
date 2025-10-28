@@ -1,1 +1,5 @@
-# TODO fill me
+# Esta carpeta contiene configuración de Authelia
+# - users_database.yml: Base de datos de usuarios locales
+# - db.sqlite3: Base de datos principal de Authelia (generado automáticamente)
+# - notification.txt: Log de notificaciones (generado automáticamente)
+

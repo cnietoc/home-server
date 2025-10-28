@@ -2,53 +2,22 @@ networks:
   proxy:
     external: true
 
-
 services:
-  authelia:
-    image: authelia/authelia:latest
-    container_name: authelia
+  tinyauth:
+    image: ghcr.io/steveiliop56/tinyauth:latest
+    container_name: tinyauth
     restart: unless-stopped
     networks:
       - proxy
-
     environment:
-      # --- General ---
-      AUTHELIA_SERVER_ADDRESS: tcp://0.0.0.0:9091
-      AUTHELIA_LOG_LEVEL: info
-      AUTHELIA_THEME: dark
-      AUTHELIA_DEFAULT_REDIRECTION_URL: https://auth.${BASE_DOMAIN}
-
-      # --- Secrets (del .env) ---
-      AUTHELIA_JWT_SECRET: ${AUTHELIA_JWT_SECRET}
-      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY}
-      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET}
-
-      # --- Session ---
-      AUTHELIA_SESSION_DOMAIN: ${BASE_DOMAIN}
-      AUTHELIA_SESSION_EXPIRATION: 1h
-      AUTHELIA_SESSION_INACTIVITY: 5m
-      AUTHELIA_SESSION_SAME_SITE: lax
-      AUTHELIA_SESSION_NAME: authelia_session
-
-      # --- Authentication (Google OAuth2) ---
-      AUTHELIA_AUTHENTICATION_BACKEND_DISABLE_RESET_PASSWORD: "true"
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_ENABLED: "true"
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_PROVIDER: google
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_SCOPE: openid email profile
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_ENDPOINT_AUTH_METHOD: client_secret_basic
-      AUTHELIA_AUTHENTICATION_BACKEND_OIDC_DISCOVERY_URL: https://accounts.google.com/.well-known/openid-configuration
-
-      # --- Access Control ---
-      AUTHELIA_ACCESS_CONTROL_DEFAULT_POLICY: deny
-      AUTHELIA_ACCESS_CONTROL_RULES: ${AUTHELIA_ACCESS_CONTROL_RULES}
-
-      # --- Notifier (disabled) ---
-      AUTHELIA_NOTIFIER_SMTP_ENABLED: false
-      AUTHELIA_NOTIFIER_DISABLE_STARTUP_CHECK: true
-
-    ports:
-      - "9091:9091"
-    volumes:
-      - ../../data/auth/authelia/config:/config
+      - APP_URL=https://tinyauth.${BASE_DOMAIN}
+      - PROVIDERS_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - PROVIDERS_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OAUTH_WHITELIST=${OAUTH_WHITELIST}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tinyauth.rule=Host(`tinyauth.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.tinyauth.tls=true"
+      - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
+      - "traefik.http.services.tinyauth.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.tinyauth.forwardauth.address: http://tinyauth:3000/api/auth/traefik"
