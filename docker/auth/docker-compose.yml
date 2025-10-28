@@ -15,8 +15,8 @@ services:
       - PROVIDERS_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - OAUTH_WHITELIST=${OAUTH_WHITELIST}
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tinyauth.rule=Host(`tinyauth.${BASE_DOMAIN}`)"
-      - "traefik.http.routers.tinyauth.tls=true"
-      - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
-      - "traefik.http.middlewares.tinyauth.forwardauth.address: http://tinyauth:3000/api/auth/traefik"
+      traefik.enable: "true"
+      traefik.http.routers.tinyauth.rule: "Host(`tinyauth.${BASE_DOMAIN}`)"
+      traefik.http.routers.tinyauth.tls: "true"
+      traefik.http.routers.tinyauth.tls.certresolver: "cloudflare"
+      traefik.http.middlewares.tinyauth.forwardauth.address: "http://tinyauth:3000/api/auth/traefik"
