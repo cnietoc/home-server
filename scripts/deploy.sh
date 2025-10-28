@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -237,7 +237,9 @@ verify_stack_health() {
     local stack_name="$1"
     local stack_dir="$DOCKER_DIR/$stack_name"
 
-    cd "$stack_dir"
+    if ! cd "$stack_dir"; then
+        return 1
+    fi
 
     # Esperar un momento para que los contenedores se estabilicen
     sleep 3
@@ -338,7 +340,10 @@ redeploy_stack() {
 
     log "🔄 Redespliegando stack: $stack_name"
 
-    cd "$stack_dir"
+    if ! cd "$stack_dir"; then
+        error "Error accediendo al directorio: $stack_dir"
+        return 1
+    fi
 
     if [[ "$force_recreate" == "true" ]]; then
         log "♻️ Recreando contenedores completamente..."
@@ -527,8 +532,17 @@ main() {
     local failed_stacks=()
 
     for stack in "${stacks_to_deploy[@]}"; do
-        if redeploy_stack "$stack" "$force_recreate"; then
-            if verify_stack_health "$stack"; then
+        local stack_result=0
+
+        # Intentar desplegar el stack
+        redeploy_stack "$stack" "$force_recreate" || stack_result=$?
+
+        if [[ $stack_result -eq 0 ]]; then
+            # Despliegue exitoso, verificar salud
+            local health_result=0
+            verify_stack_health "$stack" || health_result=$?
+
+            if [[ $health_result -eq 0 ]]; then
                 log "✅ Stack $stack desplegado y funcionando correctamente"
                 ((success++))
             else
