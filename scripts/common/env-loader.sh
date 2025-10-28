@@ -12,13 +12,13 @@ get_private_dir() {
     local private_dir="$project_root/config/private"
 
     if [[ ! -L "$private_dir" ]]; then
-        echo "❌ Error: Enlace simbólico no encontrado: $private_dir" >&2
-        echo "Crea el enlace: ./scripts/link-config.sh /ruta/a/tu/configuracion" >&2
+        log "❌ Error: Enlace simbólico no encontrado: $private_dir" >&2
+        log "Crea el enlace: ./scripts/link-config.sh /ruta/a/tu/configuracion" >&2
         return 1
     fi
 
     if [[ ! -d "$private_dir" ]]; then
-        echo "❌ Error: El enlace apunta a una carpeta inexistente: $private_dir" >&2
+        log "❌ Error: El enlace apunta a una carpeta inexistente: $private_dir" >&2
         return 1
     fi
 
@@ -31,10 +31,10 @@ load_env() {
         set -a
         source "$env_file"
         set +a
-        echo "[$(date '+%H:%M:%S')] ✅ Cargado: $(basename "$env_file")"
+        log "✅ Cargado: $(basename "$env_file")"
         return 0
     else
-        echo "[$(date '+%H:%M:%S')] ⚠️ No encontrado: $(basename "$env_file")"
+        log "⚠️ No encontrado: $(basename "$env_file")"
         return 1
     fi
 }
