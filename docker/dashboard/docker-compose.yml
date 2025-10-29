@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Dashboard dinámico del Home Server
   dashboard:
