@@ -20,8 +20,8 @@ DESCRIPCIÓN:
 
 PROCESO:
   1. Para TODOS los contenedores del sistema
-  2. Ejecuta deploy completo desde cero
-  3. Elimina contenedores huérfanos (que no se levantaron)
+  2. Elimina TODOS los contenedores (limpieza total)
+  3. Ejecuta deploy completo desde cero
   4. Limpia recursos Docker no utilizados
   5. Verifica estado final
 
@@ -276,6 +276,64 @@ verify_final_state() {
     fi
 }
 
+# Eliminar TODOS los contenedores (limpieza total)
+remove_all_containers() {
+    local dry_run="$1"
+    local verbose="$2"
+
+    log_step "Eliminando TODOS los contenedores (limpieza total)"
+
+    # Obtener todos los contenedores (corriendo y parados)
+    local all_containers=$(get_all_containers)
+
+    if [[ -z "$all_containers" ]]; then
+        log "ℹ️ No hay contenedores para eliminar"
+        return 0
+    fi
+
+    local container_count=$(echo "$all_containers" | wc -w)
+    log "🗑️ Encontrados $container_count contenedores para eliminar"
+
+    if [[ "$verbose" == "true" ]]; then
+        log "📦 Contenedores a eliminar:"
+        for container_id in $all_containers; do
+            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
+            local status=$(docker inspect --format '{{.State.Status}}' "$container_id" 2>/dev/null || echo "unknown")
+            log "   - $name ($container_id) [$status]"
+        done
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        log "🔍 DRY RUN: Eliminaría $container_count contenedores"
+        return 0
+    fi
+
+    log "🗑️ Eliminando todos los contenedores..."
+
+    # Eliminar todos de una vez
+    if docker rm -f $all_containers >/dev/null 2>&1; then
+        log "✅ Todos los contenedores eliminados exitosamente"
+    else
+        warn "⚠️ Algunos contenedores no se pudieron eliminar"
+        # Intentar eliminar uno por uno los que fallen
+        for container_id in $all_containers; do
+            if ! docker rm -f "$container_id" >/dev/null 2>&1; then
+                local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
+                warn "   ❌ No se pudo eliminar: $name ($container_id)"
+            fi
+        done
+    fi
+
+    # Verificar que no queden contenedores
+    local remaining=$(docker ps -aq | wc -l)
+    if [[ $remaining -eq 0 ]]; then
+        log "✅ Sistema limpio: No quedan contenedores"
+    else
+        warn "⚠️ Aún quedan $remaining contenedores en el sistema"
+        [[ "$verbose" == "true" ]] && docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+    fi
+}
+
 # Función principal
 main() {
     local dry_run=false
@@ -327,8 +385,8 @@ main() {
     # Mostrar qué se hará
     log "📋 Proceso a ejecutar:"
     log "   1. Parar TODOS los contenedores del sistema"
-    log "   2. Ejecutar deploy completo desde cero"
-    log "   3. Eliminar contenedores huérfanos (que no se levantaron)"
+    log "   2. Eliminar TODOS los contenedores (limpieza total)"
+    log "   3. Ejecutar deploy completo desde cero"
     if [[ "$no_cleanup" != "true" ]]; then
         log "   4. Limpiar recursos Docker no utilizados"
         log "   5. Verificar estado final"
@@ -366,8 +424,10 @@ main() {
             exit 1
         fi
 
+        # LIMPIEZA TOTAL: Eliminar TODOS los contenedores antes del deploy
+        remove_all_containers "$dry_run" "$verbose"
+
         run_clean_deploy "$dry_run" "$verbose"
-        remove_orphaned_containers "$dry_run" "$verbose"
         cleanup_docker_resources "$dry_run" "$verbose" "$no_cleanup"
         verify_final_state "$verbose"
     else
