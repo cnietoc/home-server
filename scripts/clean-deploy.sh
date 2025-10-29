@@ -97,31 +97,50 @@ stop_all_containers() {
         local stopped_count=0
         local failed_count=0
 
-        for container_id in $containers; do
-            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
+        # Procesar cada contenedor individualmente
+        local container_array=($containers)
+        local total_containers=${#container_array[@]}
+
+        for i in "${!container_array[@]}"; do
+            local container_id="${container_array[$i]}"
+            local current=$((i + 1))
+
+            log "   📋 Procesando $current/$total_containers: $container_id"
+
+            local name
+            name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
+
+            log "   🏷️ Nombre: $name"
 
             # Verificar si ya está parado (usar ID corto)
             if ! docker ps -q | grep -q "^$container_id"; then
-                [[ "$verbose" == "true" ]] && log "   ⏭️ $name ya estaba parado"
+                log "   ⏭️ $name ya estaba parado"
                 ((stopped_count++))
                 continue
             fi
 
-            # Intentar parar el contenedor con timeout más corto
-            log "   🔄 Parando $name..."
-            if timeout 30s docker stop "$container_id" >/dev/null 2>&1; then
+            # Intentar parar el contenedor
+            log "   🔄 Parando $name... (timeout 10s)"
+            if timeout 10s docker stop "$container_id" 2>/dev/null; then
                 log "   ✅ Parado: $name"
                 ((stopped_count++))
             else
                 # Si no se puede parar normalmente, forzar
-                warn "   ⚠️ No se pudo parar $name (timeout/error), forzando..."
-                if timeout 5s docker kill "$container_id" >/dev/null 2>&1; then
+                warn "   ⚠️ No se pudo parar $name, forzando..."
+                if timeout 5s docker kill "$container_id" 2>/dev/null; then
                     log "   🔴 Forzado: $name"
                     ((stopped_count++))
                 else
                     error "   ❌ Error parando: $name"
                     ((failed_count++))
                 fi
+            fi
+
+            # Verificar que realmente se paró
+            if ! docker ps -q | grep -q "^$container_id"; then
+                log "   ✓ Confirmado: $name está parado"
+            else
+                warn "   ⚠️ $name sigue corriendo después del comando stop"
             fi
         done
 
