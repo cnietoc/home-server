@@ -13,6 +13,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${STACK_DATA}/tinyauth:/data
     environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - APP_URL=https://tinyauth.${BASE_DOMAIN}
       - PROVIDERS_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - PROVIDERS_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}

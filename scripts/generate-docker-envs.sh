@@ -70,15 +70,7 @@ EOF
         echo "" >> "$temp_file"
     fi
 
-    # 2. Cargar configuración específica del stack desde carpeta privada
-    local stack_file="$private_dir/$stack_name.env"
-    if [[ -f "$stack_file" ]]; then
-        echo "# === Configuración $stack_name ===" >> "$temp_file"
-        cat "$stack_file" >> "$temp_file"
-        echo "" >> "$temp_file"
-    fi
-
-    # 3. Cargar configuración adicional necesaria para este stack
+    # 2. Cargar archivos .env configurados
     local additional_config=$(get_stack_config "$stack_name")
     if [[ -n "$additional_config" ]]; then
         echo "# === Configuración adicional ===" >> "$temp_file"
@@ -125,9 +117,7 @@ generate_all_stack_envs() {
     for stack_dir in "$DOCKER_DIR"/*/; do
         if [[ -d "$stack_dir" ]]; then
             local stack_name="$(basename "$stack_dir")"
-            # Asegurar que el archivo .env específico del stack existe
-            ensure_env_file_exists "$stack_name" "$private_dir"
-            # También asegurar archivos de configuración adicional
+            # Solo asegurar archivos de configuración explícitamente configurados
             local additional_config=$(get_stack_config "$stack_name")
             if [[ -n "$additional_config" ]]; then
                 IFS=',' read -ra config_array <<< "$additional_config"
@@ -193,8 +183,16 @@ main() {
             else
                 for stack in "$@"; do
                     if [[ -d "$DOCKER_DIR/$stack" ]]; then
-                        # Asegurarse de que el archivo .env existe antes de procesar
-                        ensure_env_file_exists "$stack" "$(get_private_dir)"
+                        # Solo asegurar archivos explícitamente configurados
+                        local private_dir="$(get_private_dir)"
+                        local additional_config=$(get_stack_config "$stack")
+                        if [[ -n "$additional_config" ]]; then
+                            IFS=',' read -ra config_array <<< "$additional_config"
+                            for config_type in "${config_array[@]}"; do
+                                config_type=$(echo "$config_type" | xargs)
+                                ensure_env_file_exists "$config_type" "$private_dir"
+                            done
+                        fi
                         generate_stack_env "$stack"
                     else
                         log "⚠️ Stack no encontrado: $stack"

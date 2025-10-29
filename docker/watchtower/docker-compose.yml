@@ -7,6 +7,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${STACK_DATA}/watchtower/logs:/logs
     environment:
+      # Variables comunes
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+
       # Configuración básica
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_REMOVE_VOLUMES=true
@@ -25,5 +30,5 @@ services:
 
       # Configuración de actualización
       - WATCHTOWER_ROLLING_RESTART=true
-      - WATCHTOWER_TIMEOUT=30s
-      - WATCHTOWER_NO_STARTUP_MESSAGE=false
+      - WATCHTOWER_TIMEOUT=90s
+      - WATCHTOWER_NO_STARTUP_MESSAGE=true

@@ -10,15 +10,18 @@ services:
     networks:
       - proxy
     ports:
-      - "${TRAEFIK_HTTP_PORT}:80"
-      - "${TRAEFIK_HTTPS_PORT}:443"
-      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config:/etc/traefik:ro
       - ${STACK_DATA}/traefik/certs:/certs
       - ${STACK_DATA}/traefik/logs:/logs
     environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     command:
