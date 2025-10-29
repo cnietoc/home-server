@@ -18,7 +18,7 @@ services:
       - PGID=${PGID}
     labels:
       traefik.enable: true
-      traefik.http.routers.hello.rule: "Host(`hello.${BASE_DOMAIN}`)"
-      traefik.http.routers.hello.tls: "true"
-      traefik.http.routers.hello.tls.certresolver: "cloudflare"
-      traefik.http.services.hello.loadbalancer.server.port: "80"
+      traefik.http.routers.test.rule: "Host(`test.${BASE_DOMAIN}`)"
+      traefik.http.routers.test.tls: "true"
+      traefik.http.routers.test.tls.certresolver: "cloudflare"
+      traefik.http.services.test.loadbalancer.server.port: "80"
