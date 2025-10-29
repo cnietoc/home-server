@@ -3,15 +3,13 @@ networks:
     external: true
 
 services:
-  # Dashboard dinámico del Home Server
-  dashboard:
+
+  dashboard-web:
     build: .
-    container_name: dashboard
+    container_name: dashboard-web
     restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - BASE_DOMAIN=${BASE_DOMAIN}
+    networks:
+      - proxy
     volumes:
       # Acceso a la configuración de stacks (solo lectura)
       - ../../config/stacks.yml:/config/stacks.yml:ro
@@ -20,8 +18,13 @@ services:
       # Acceso a información del sistema
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-    networks:
-      - proxy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - BASE_DOMAIN=${BASE_DOMAIN}
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.hello.rule: "Host(`hello.${BASE_DOMAIN}`)"
