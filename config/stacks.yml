@@ -40,3 +40,12 @@ stacks:
         description: "🏠 Dashboard del Home Server"
         protected: false
 
+  # Hello World - Ejemplo básico
+  hello-world:
+    description: "Servicio de ejemplo Hello World"
+    config_files: []  # Solo usa common.env
+    services:
+      web:
+        subdomain: hello
+        description: "👋 Página de bienvenida Hello World"
+        protected: false
