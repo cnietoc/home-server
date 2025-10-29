@@ -5,7 +5,8 @@ RUN apk add --no-cache \
     docker-cli \
     procps \
     util-linux \
-    coreutils
+    coreutils \
+    curl
 
 # Crear usuario no-root primero
 RUN addgroup -g 1001 -S nodejs && \
@@ -14,17 +15,26 @@ RUN addgroup -g 1001 -S nodejs && \
 # Crear directorio de la aplicación
 WORKDIR /app
 
-# Copiar archivos de dependencias (mejor cache de Docker)
+# Copiar archivos de dependencias primero para mejor cache
 COPY package*.json ./
 
-# Instalar dependencias como root, luego cambiar permisos
+# Instalar dependencias como root
 RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # Copiar código de la aplicación
-COPY . .
+COPY server.js ./
+COPY public/ ./public/
 
-# Cambiar permisos de todo el directorio
+# Debug: verificar estructura de archivos
+RUN echo "=== Estructura de /app ===" && \
+    ls -la /app/ && \
+    echo "=== Estructura de /app/public ===" && \
+    ls -la /app/public/ && \
+    echo "=== Contenido de server.js (primeras 10 líneas) ===" && \
+    head -10 /app/server.js
+
+# Cambiar permisos
 RUN chown -R nodejs:nodejs /app
 
 # Cambiar a usuario no-root
@@ -37,5 +47,8 @@ EXPOSE 3000
 ENV NODE_ENV=production \
     PORT=3000
 
-# Comando de inicio
-CMD ["npm", "start"]
+# Verificar que Node.js puede iniciar (test básico)
+RUN node --version && npm --version
+
+# Comando de inicio con logging mejorado
+CMD ["sh", "-c", "echo 'Iniciando servidor Node.js en puerto $PORT' && npm start"]
