@@ -41,7 +41,7 @@ stacks:
         protected: false
 
   # Hello World - Ejemplo básico
-  hello-world:
+  helloworld:
     description: "Servicio de ejemplo Hello World"
     config_files: []  # Solo usa common.env
     services:
