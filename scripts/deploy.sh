@@ -166,7 +166,8 @@ regenerate_stack_env_files() {
 config_sources_have_changed() {
     local config_files=(
         "$CONFIG_DIR/templates"
-        "$CONFIG_DIR/stack-envs.conf"
+        "$CONFIG_DIR/stacks.yml"
+        "$SCRIPT_DIR/stack-info.sh"
     )
 
     # Incluir archivos de configuración privada si existe el enlace
@@ -209,7 +210,8 @@ config_sources_have_changed() {
 save_config_sources_hash() {
     local config_files=(
         "$CONFIG_DIR/templates"
-        "$CONFIG_DIR/stack-envs.conf"
+        "$CONFIG_DIR/stacks.yml"
+        "$SCRIPT_DIR/stack-info.sh"
     )
 
     if [[ -L "$CONFIG_DIR/private" ]]; then
