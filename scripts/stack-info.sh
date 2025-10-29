@@ -79,16 +79,21 @@ check_yq() {
 run_yq() {
     local query="$1"
     local file="$2"
+    local result
 
     if [[ "$YQ_VERSION" == "go" ]]; then
-        yq eval "$query" "$file"
+        result=$(yq eval "$query" "$file")
     elif [[ "$YQ_VERSION" == "python" ]]; then
         # Para yq-python, el archivo va antes de la query
-        yq "$query" "$file"
+        result=$(yq "$query" "$file")
+        # Limpiar comillas extras que puede agregar yq-python
+        result=$(echo "$result" | sed 's/^"//; s/"$//')
     else
         error "Versión de yq no detectada correctamente. YQ_VERSION=$YQ_VERSION"
         return 1
     fi
+
+    echo "$result"
 }
 
 # Función de inicialización para otros scripts
@@ -114,7 +119,12 @@ get_available_stacks() {
         return 1
     fi
 
-    run_yq '.stacks | keys | .[]' "$STACK_CONFIG"
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | keys | .[]' "$STACK_CONFIG"
+    else
+        # Para yq-python, usar sintaxis diferente y limpiar comillas
+        run_yq '.stacks | keys[]' "$STACK_CONFIG" | sed 's/"//g'
+    fi
 }
 
 # Obtener archivos de configuración de un stack específico
@@ -129,8 +139,8 @@ get_stack_config_files() {
     if [[ "$YQ_VERSION" == "go" ]]; then
         config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_CONFIG")
     else
-        # Para yq-python, necesitamos un enfoque diferente
-        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_CONFIG" | tr '\n' ',' | sed 's/,$//')
+        # Para yq-python, extraer elementos del array sin comillas
+        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
     fi
 
     # Siempre incluir common como base, luego agregar los específicos del stack
@@ -233,7 +243,8 @@ load_stack_info() {
         if [[ "$YQ_VERSION" == "go" ]]; then
             service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_CONFIG" 2>/dev/null)
         else
-            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_CONFIG" 2>/dev/null)
+            # Para yq-python, usar sintaxis diferente y limpiar comillas
+            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g')
         fi
 
         local service_entries=""
@@ -366,7 +377,6 @@ list_all_stacks() {
     fi
 
     log "📋 Configuración de stacks disponibles:"
-    echo ""
 
     # Obtener todos los stacks únicos
     local all_stacks=()

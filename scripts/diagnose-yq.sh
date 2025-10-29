@@ -93,5 +93,20 @@ case "$YQ_VERSION" in
         ;;
 esac
 
+# Probar comando específico que estaba fallando
+echo ""
+echo "🎯 Prueba específica del comando problemático:"
+echo "   Comando: get_stack_config_files platform"
+
+# Simular el comando que estaba fallando
+if [[ "$YQ_VERSION" == "go" ]]; then
+    result=$(yq eval ".stacks.platform.config_files | join(\",\")" "$STACK_CONFIG" 2>/dev/null)
+    echo "   Resultado (Go): $result"
+elif [[ "$YQ_VERSION" == "python" ]]; then
+    result=$(yq ".stacks.platform.config_files[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+    echo "   Resultado (Python): $result"
+    echo "   Resultado esperado: cloudflare,auth,watchtower"
+fi
+
 echo ""
 echo "✨ Diagnóstico completado"
