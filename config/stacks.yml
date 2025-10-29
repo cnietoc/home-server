@@ -30,13 +30,13 @@ stacks:
         description: "🔄 Actualizaciones automáticas de imágenes"
         # Sin subdomain porque es un servicio en segundo plano
 
-  # Aplicación de prueba - ejemplo de stack simple
-  helloworld:
-    description: "Aplicación de prueba"
-    config_files:
-      - helloworld # Configuración del servicio Hello World
+  # Dashboard dinámico del servidor
+  dashboard:
+    description: "Dashboard dinámico con información del servidor"
+    config_files: []  # Solo usa common.env
     services:
-      hello:
-        subdomain: hello
-        description: "👋 Hello World"
+      web:
+        subdomain: ""  # Sin subdominio - dominio principal
+        description: "🏠 Dashboard del Home Server"
         protected: false
+

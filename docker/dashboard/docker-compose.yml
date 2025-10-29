@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Dashboard dinámico del Home Server
+  dashboard:
+    build: .
+    container_name: ${STACK_NAME}_dashboard
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - BASE_DOMAIN=${BASE_DOMAIN}
+    volumes:
+      # Acceso a la configuración de stacks (solo lectura)
+      - ../../config/stacks.yml:/config/stacks.yml:ro
+      # Acceso al socket de Docker para obtener información
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Acceso a información del sistema
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    networks:
+      - default
+      - traefik
+    labels:
+      # Traefik configuration para dominio principal (sin subdominio)
+      - "traefik.enable=true"
+      - "traefik.http.routers.${STACK_NAME}-dashboard.rule=Host(`${BASE_DOMAIN}`)"
+      - "traefik.http.routers.${STACK_NAME}-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.${STACK_NAME}-dashboard.tls.certresolver=cloudflare"
+      - "traefik.http.services.${STACK_NAME}-dashboard.loadbalancer.server.port=3000"
+
+      # Etiquetas adicionales para organización
+      - "homeserver.stack=${STACK_NAME}"
+      - "homeserver.service=dashboard"
+
+networks:
+  traefik:
+    external: true
+  default:
+    name: ${STACK_NAME}_network

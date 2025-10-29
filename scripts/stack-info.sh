@@ -257,10 +257,15 @@ load_stack_info() {
             desc=$(run_yq ".stacks.$stack.services.$service.description" "$STACK_CONFIG" 2>/dev/null)
 
             # Limpiar valores null
-            [[ "$subdomain" == "null" ]] && subdomain=""
             [[ "$desc" == "null" ]] && desc=""
 
-            local service_entry="$service:$subdomain:$desc"
+            # Solo incluir subdomain si está definido (no null)
+            local service_entry
+            if [[ "$subdomain" == "null" ]]; then
+                service_entry="$service:NO_SUBDOMAIN:$desc"  # Sin subdomain
+            else
+                service_entry="$service:$subdomain:$desc"  # Con subdomain (puede ser vacío)
+            fi
             if [[ -n "$service_entries" ]]; then
                 service_entries="$service_entries,$service_entry"
             else
@@ -297,7 +302,13 @@ build_service_url() {
     fi
 
     # Construir URL completa
-    echo "https://${subdomain}.${base_domain}"
+    if [[ -z "$subdomain" || "$subdomain" == "" ]]; then
+        # Sin subdominio - dominio principal
+        echo "https://${base_domain}"
+    else
+        # Con subdominio
+        echo "https://${subdomain}.${base_domain}"
+    fi
 }
 
 # Mostrar servicios de stacks específicos
@@ -346,13 +357,17 @@ show_stack_services() {
                 local is_last_service=$((k == service_count - 1))
                 local service_line=""
 
-                if [[ -n "$service_subdomain" ]]; then
-                    # Servicio con subdomain - construir URL completa
+                if [[ "$service_subdomain" == "NO_SUBDOMAIN" ]]; then
+                    # Servicio sin URL (solo descripción)
+                    service_line="$service_desc"
+                elif [[ -n "$service_subdomain" ]]; then
+                    # Servicio con subdomain no vacío
                     local full_url=$(build_service_url "$service_subdomain")
                     service_line="$service_desc → $full_url"
                 else
-                    # Servicio sin URL (solo descripción)
-                    service_line="$service_desc"
+                    # Servicio con subdomain vacío (dominio principal)
+                    local full_url=$(build_service_url "$service_subdomain")
+                    service_line="$service_desc → $full_url"
                 fi
 
                 if [[ $is_last_service -eq 1 ]]; then
@@ -455,13 +470,17 @@ list_all_stacks() {
                 local is_last_service=$((k == service_count - 1))
                 local service_line=""
 
-                if [[ -n "$service_subdomain" ]]; then
-                    # Servicio con subdomain - construir URL completa
+                if [[ "$service_subdomain" == "NO_SUBDOMAIN" ]]; then
+                    # Servicio sin URL (solo descripción)
+                    service_line="$service_desc"
+                elif [[ -n "$service_subdomain" ]]; then
+                    # Servicio con subdomain no vacío
                     local full_url=$(build_service_url "$service_subdomain")
                     service_line="$service_desc → $full_url"
                 else
-                    # Servicio sin URL (solo descripción)
-                    service_line="$service_desc"
+                    # Servicio con subdomain vacío (dominio principal)
+                    local full_url=$(build_service_url "$service_subdomain")
+                    service_line="$service_desc → $full_url"
                 fi
 
                 if [[ $is_last_service -eq 1 ]]; then

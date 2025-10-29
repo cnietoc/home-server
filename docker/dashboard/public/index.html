@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 Home Server Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 1rem;
+        }
+
+        .last-updated {
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .card h2 .icon {
+            margin-right: 0.5rem;
+            font-size: 1.5rem;
+        }
+
+        .system-info {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .info-label {
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .info-value {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .stacks-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stack-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stack-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stack-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stack-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .stack-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .stack-description {
+            margin-bottom: 1rem;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .config-info {
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .services {
+            margin-top: 1rem;
+        }
+
+        .services-title {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .service-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .service-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .service-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+        }
+
+        .service-url {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .service-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 0.3rem 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .service-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .protected-badge {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            margin-left: 0.5rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            opacity: 0.7;
+        }
+
+        .error {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 15px;
+            color: #dc3545;
+            margin: 2rem 0;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            padding: 1rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 Home Server Dashboard</h1>
+            <p class="subtitle">Estado en tiempo real del servidor</p>
+            <div class="last-updated" id="lastUpdated">Cargando...</div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Información del Sistema -->
+            <div class="card">
+                <h2><span class="icon">🖥️</span> Sistema</h2>
+                <div class="system-info" id="systemInfo">
+                    <div class="loading">Cargando información del sistema...</div>
+                </div>
+            </div>
+
+            <!-- Información de Docker -->
+            <div class="card">
+                <h2><span class="icon">🐳</span> Docker</h2>
+                <div class="system-info" id="dockerInfo">
+                    <div class="loading">Cargando información de Docker...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stacks y Servicios -->
+        <div class="card">
+            <h2><span class="icon">📦</span> Stacks y Servicios</h2>
+            <div class="stacks-container" id="stacksContainer">
+                <div class="loading">Cargando stacks y servicios...</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadDashboard()" title="Actualizar">
+        <span id="refreshIcon">🔄</span>
+    </button>
+
+    <script>
+        // Función para formatear fechas
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // Función para renderizar información del sistema
+        function renderSystemInfo(system) {
+            const container = document.getElementById('systemInfo');
+
+            container.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Hostname</span>
+                    <span class="info-value">${system.hostname}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Uptime</span>
+                    <span class="info-value">${system.uptime}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Memoria</span>
+                    <span class="info-value">${system.memory.used} / ${system.memory.total}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Disco</span>
+                    <span class="info-value">${system.disk.used} / ${system.disk.total} (${system.disk.usage})</span>
+                </div>
+            `;
+        }
+
+        // Función para renderizar información de Docker
+        function renderDockerInfo(docker) {
+            const container = document.getElementById('dockerInfo');
+
+            container.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Contenedores Totales</span>
+                    <span class="info-value">${docker.containers}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Contenedores Ejecutándose</span>
+                    <span class="info-value">${docker.running}</span>
+                </div>
+            `;
+        }
+
+        // Función para renderizar stacks
+        function renderStacks(stacks) {
+            const container = document.getElementById('stacksContainer');
+
+            if (!stacks || stacks.length === 0) {
+                container.innerHTML = '<div class="error">No se encontraron stacks configurados</div>';
+                return;
+            }
+
+            const stacksHtml = stacks.map(stack => {
+                const servicesHtml = stack.services.map(service => {
+                    return `
+                        <div class="service-item">
+                            <div class="service-info">
+                                <div class="service-name">${service.description}</div>
+                                ${service.hasUrl ? `<div class="service-url">${service.url}</div>` : '<div class="service-url">Servicio interno</div>'}
+                            </div>
+                            <div>
+                                ${service.protected ? '<span class="protected-badge">🔒 Protegido</span>' : ''}
+                                ${service.hasUrl ? `<a href="${service.url}" target="_blank" class="service-link">Abrir →</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="stack-card">
+                        <div class="stack-header">
+                            <span class="stack-icon">📦</span>
+                            <span class="stack-name">${stack.name}</span>
+                        </div>
+                        <div class="stack-description">${stack.description}</div>
+                        <div class="config-info">📁 Config: ${stack.config_files}</div>
+                        <div class="services">
+                            <div class="services-title">Servicios (${stack.services.length})</div>
+                            ${servicesHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = stacksHtml;
+        }
+
+        // Función para cargar el dashboard
+        async function loadDashboard() {
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('spinning');
+
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+
+                // Actualizar timestamp
+                document.getElementById('lastUpdated').textContent =
+                    `Última actualización: ${formatDate(data.generated_at)}`;
+
+                // Renderizar componentes
+                renderSystemInfo(data.system);
+                renderDockerInfo(data.system.docker);
+                renderStacks(data.stacks);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('systemInfo').innerHTML =
+                    '<div class="error">Error cargando información del sistema</div>';
+                document.getElementById('dockerInfo').innerHTML =
+                    '<div class="error">Error cargando información de Docker</div>';
+                document.getElementById('stacksContainer').innerHTML =
+                    '<div class="error">Error cargando stacks y servicios</div>';
+            } finally {
+                refreshIcon.classList.remove('spinning');
+            }
+        }
+
+        // Cargar dashboard al inicio
+        loadDashboard();
+
+        // Actualizar cada 30 segundos
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
+

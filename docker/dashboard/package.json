@@ -1,0 +1,24 @@
+{
+  "name": "homeserver-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard dinámico del Home Server con información en tiempo real",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "yaml": "^2.3.4",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Home Server",
+  "license": "MIT"
+}
+
