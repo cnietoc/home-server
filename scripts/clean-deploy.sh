@@ -82,7 +82,7 @@ stop_all_containers() {
     if [[ "$verbose" == "true" ]]; then
         log "📦 Contenedores a parar:"
         for container_id in $containers; do
-            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\//' || echo "unknown")
+            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
             log "   - $name ($container_id)"
         done
     fi
@@ -141,7 +141,7 @@ remove_orphaned_containers() {
     if [[ "$verbose" == "true" ]]; then
         log "📦 Contenedores huérfanos a eliminar:"
         for container_id in $orphaned_containers; do
-            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\//' || echo "unknown")
+            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
             log "   - $name ($container_id)"
         done
     fi
