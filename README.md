@@ -4,7 +4,8 @@
 
 Este proyecto configura un servidor doméstico con:
 - **Traefik** como proxy inverso con SSL automático
-- **Authelia** para autenticación centralizada con 2FA opcional
+- **TinyAuth** para autenticación centralizada con Google OAuth
+- **Watchtower** para actualizaciones automáticas de imágenes Docker
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
 - **Hello World** como aplicación de prueba
 - **Gestión centralizada de configuración y variables de entorno**
@@ -18,8 +19,7 @@ home-server/
 │   ├── stack-envs.conf      # Configuración de variables por stack
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
-│   ├── network/            # Stack de infraestructura (Traefik)
-│   ├── auth/              # Stack de autenticación (Authelia)
+│   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower)
 │   └── helloworld/         # Stack de aplicación de prueba
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
@@ -115,44 +115,43 @@ nano config/private/cloudflare.env
 ...
 ```
 
-### 5. Configurar autenticación (Nuevo)
+### 5. Configurar autenticación (TinyAuth)
 
-El sistema incluye **Authelia** para proteger tus servicios con autenticación robusta. Configura un usuario administrador:
+El sistema incluye **TinyAuth** para proteger tus servicios con autenticación simple usando Google OAuth. Configura las credenciales:
 
 ```bash
-# 1. Generar secretos de seguridad (JWT, Session, Storage)
-openssl rand -hex 32  # Ejecutar 3 veces para obtener 3 secretos diferentes
+# 1. Obtener credenciales de Google OAuth
+# Ve a https://console.developers.google.com/
+# Crea un proyecto y configura OAuth 2.0
 
-# 2. Generar hash de contraseña de forma segura
-./scripts/generate-auth-password.sh
-
-# 3. Configurar autenticación
+# 2. Configurar autenticación
 nano config/private/auth.env
 ```
 
 **Ejemplo de configuración en `auth.env`:**
 ```bash
-# Secretos de seguridad (usar los generados arriba)
-AUTHELIA_JWT_SECRET=tu-jwt-secret-de-64-caracteres
-AUTHELIA_SESSION_SECRET=tu-session-secret-de-64-caracteres
-AUTHELIA_STORAGE_ENCRYPTION_KEY=tu-storage-key-de-64-caracteres
+# Google OAuth (obtener de Google Console)
+GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=tu-client-secret
 
-# Base de datos de usuarios (reemplazar hash con el generado)
-AUTHELIA_USERS_DATABASE="users:
-  admin:
-    displayname: Administrator
-    password: \$argon2id\$v=19\$m=65536,t=3,p=4\$TU_HASH_GENERADO
-    email: admin@tu-dominio.com
-    groups:
-      - admins"
+# Usuarios autorizados (emails separados por comas)
+OAUTH_WHITELIST=tu-email@gmail.com,otro-email@gmail.com
 ```
 
+**Configuración en Google Console:**
+1. Ve a https://console.developers.google.com/
+2. Crea nuevo proyecto o selecciona uno existente
+3. Habilita "Google+ API" 
+4. Ve a "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+5. Tipo: Web application
+6. Authorized redirect URIs: `https://tinyauth.tu-dominio.com/api/auth/callback/google`
+
 **Características del sistema de autenticación:**
-- 🔐 **Login seguro** con usuario/contraseña
-- 🔒 **2FA opcional** (Google Authenticator, etc.)
-- 👥 **Gestión de usuarios y grupos**
-- 🛡️ **Políticas de acceso granulares**
-- ⏱️ **Sesiones persistentes** con Redis
+- 🔐 **Login con Google OAuth** - Sin gestión de contraseñas
+- ✅ **Whitelist de emails** - Solo usuarios autorizados
+- 🚀 **Configuración simple** - Solo credenciales Google
+- 🛡️ **Forward Auth** - Protege cualquier servicio con Traefik
+- ⚡ **Liviano** - Minimal y rápido
 
 Ver documentación completa: [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)
 
@@ -237,7 +236,7 @@ El script `deploy.sh` es tu comando principal que se encarga de todo automática
 
 ```bash
 # Desplegar stacks específicos
-./scripts/deploy.sh network helloworld
+./scripts/deploy.sh platform helloworld
 
 # Forzar despliegue sin detección de cambios
 ./scripts/deploy.sh --force
@@ -267,9 +266,8 @@ Si necesitas control granular sobre el proceso:
 ./scripts/generate-docker-envs.sh
 
 # 3. Levantar stacks individualmente
-cd docker/network && docker compose up -d      # Traefik primero
-cd ../auth && docker compose up -d             # Autenticación segundo
-cd ../helloworld && docker compose up -d       # Servicios después
+cd docker/platform && docker compose up -d    # Infraestructura completa (Traefik + TinyAuth + Watchtower)
+cd ../helloworld && docker compose up -d       # Aplicaciones de usuario
 ```
 
 ## 🌐 Acceso a los Servicios
@@ -281,12 +279,12 @@ Una vez desplegado, podrás acceder a:
 
 ### 🔒 **Servicios Protegidos (requieren login)**
 - **Traefik Dashboard**: `https://traefik.tu-dominio.com`
-- **Panel de Autenticación**: `https://auth.tu-dominio.com`
+- **Panel de Autenticación**: `https://tinyauth.tu-dominio.com`
 
 ### 🔐 **Flujo de Autenticación**
 
 1. **Acceso a servicio protegido** (ej: Traefik Dashboard)
-2. **Redirección automática** a `https://auth.tu-dominio.com`
+2. **Redirección automática** a `https://tinyauth.tu-dominio.com`
 3. **Login** con las credenciales configuradas
 4. **Redirección de vuelta** al servicio original
 5. **Acceso concedido** con sesión persistente
@@ -296,7 +294,7 @@ Una vez desplegado, podrás acceder a:
 Para proteger cualquier servicio nuevo, agrega esta etiqueta a su `docker-compose.yml`:
 ```yaml
 labels:
-  - "traefik.http.routers.tu-servicio.middlewares=authelia@docker"
+  - "traefik.http.routers.tu-servicio.middlewares=tinyauth@docker"
 ```
 
 > **Nota**: Asegúrate de que tu dominio esté configurado en Cloudflare y apunte a tu servidor.
@@ -424,7 +422,7 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 ./scripts/deploy.sh
 
 # Redesplegar solo servicios específicos
-./scripts/deploy.sh network auth helloworld
+./scripts/deploy.sh platform helloworld
 
 # Forzar regeneración de archivos .env
 ./scripts/deploy.sh --force-envs
@@ -432,8 +430,8 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 # Ver estado de los servicios
 ./scripts/deploy.sh --list
 
-# Generar hash para contraseñas de Authelia
-./scripts/generate-auth-password.sh
+# Ver configuración de TinyAuth
+nano config/private/auth.env
 ```
 
 ### Gestión de configuración
@@ -456,14 +454,14 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 
 ```bash
 # Ver logs en tiempo real de un stack específico
-docker compose -f docker/network/docker-compose.yml logs -f
-docker compose -f docker/auth/docker-compose.yml logs -f
+docker compose -f docker/platform/docker-compose.yml logs -f
+docker compose -f docker/helloworld/docker-compose.yml logs -f
 
 # Reiniciar servicios manualmente
 docker compose -f docker/helloworld/docker-compose.yml restart
 
 # Parar stack específico
-docker compose -f docker/network/docker-compose.yml down
+docker compose -f docker/platform/docker-compose.yml down
 
 # Verificar redes Docker
 docker network ls | grep proxy
@@ -542,19 +540,18 @@ docker volume inspect traefik_certs traefik_logs
 sudo chown -R 1000:1000 /var/lib/docker/volumes/traefik_*
 
 # O reiniciar contenedores para que Docker reconfigure permisos
-./scripts/deploy.sh --recreate network
+./scripts/deploy.sh --recreate platform
 ```
 
 ## 🔄 Próximos Pasos
 
 Una vez que tengas funcionando el stack completo con autenticación, puedes:
 
-1. **Añadir más usuarios** al sistema de autenticación
-2. **Proteger servicios adicionales** con el middleware de Authelia
+1. **Añadir más usuarios** al sistema de autenticación (whitelist)
+2. **Proteger servicios adicionales** con el middleware de TinyAuth
 3. **Crear nuevos stacks** (multimedia, monitoring, etc.)
 4. **Configurar backup automático** de la carpeta `data/`
-5. **Habilitar 2FA** desde el panel de Authelia
-6. **Personalizar políticas de acceso** por grupos de usuarios
+5. **Personalizar configuración** de TinyAuth según necesidades
 
 ## 📝 Notas Importantes
 
@@ -562,3 +559,31 @@ Una vez que tengas funcionando el stack completo con autenticación, puedes:
 - Los archivos `.env` en `docker/*/` se generan automáticamente
 - Los datos persistentes se guardan en `data/`
 - Traefik maneja automáticamente los certificados SSL
+
+### Limpieza y Redespliegue Completo
+
+Si necesitas una limpieza completa (útil después de reorganizaciones o cambios mayores):
+
+```bash
+# Ver qué haría sin ejecutar
+./scripts/clean-deploy.sh --dry-run
+
+# Limpieza completa (para todo y redesplega)
+./scripts/clean-deploy.sh --verbose
+
+# Limpieza sin confirmación
+./scripts/clean-deploy.sh --force
+```
+
+**¿Cuándo usar este script?**
+- Después de reorganizar stacks
+- Cuando hay contenedores huérfanos corriendo
+- Para limpieza completa del sistema Docker
+- Cuando el deploy normal no elimina servicios antiguos
+
+**Lo que hace (agnóstico):**
+- Para TODOS los contenedores del sistema
+- Ejecuta deploy completo desde cero
+- Elimina contenedores huérfanos (que no se levantaron)
+- Limpia recursos Docker no utilizados
+- Verifica estado final
