@@ -6,7 +6,7 @@ services:
   # Dashboard dinámico del Home Server
   dashboard:
     build: .
-    container_name: ${STACK_NAME}_dashboard
+    container_name: dashboard
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -25,6 +25,6 @@ services:
     labels:
       # Traefik configuration para dominio principal (sin subdominio)
       - "traefik.enable=true"
-      - "traefik.http.routers.home.rule=Host(`home.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.home.rule=Host(`dashboard.${BASE_DOMAIN}`)"
       - "traefik.http.routers.home.tls.certresolver=cloudflare"
       - "traefik.http.services.home.loadbalancer.server.port=3000"
