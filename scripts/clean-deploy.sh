@@ -444,12 +444,19 @@ main() {
     else
         log "🎉 Limpieza y redespliegue completados exitosamente"
 
-        if load_common_config 2>/dev/null; then
-            echo ""
-            log "🌐 Servicios disponibles:"
-            log "   🔀 Traefik Dashboard: https://traefik.${BASE_DOMAIN:-tu-dominio.com}"
-            log "   🔐 TinyAuth: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
-            log "   👋 Hello World: https://hello.${BASE_DOMAIN:-tu-dominio.com}"
+        echo ""
+        # Mostrar servicios usando el script centralizado - detectar stacks dinámicamente
+        local available_stacks
+        available_stacks=$(find "$PROJECT_ROOT/docker" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; 2>/dev/null | sort)
+
+        if [[ -n "$available_stacks" ]]; then
+            # Convertir a array para pasar como argumentos
+            local stacks_array=($available_stacks)
+            "$SCRIPT_DIR/stack-info.sh" services "${stacks_array[@]}" 2>/dev/null || {
+                log "ℹ️ No se pudo cargar información de servicios"
+            }
+        else
+            log "ℹ️ No se encontraron stacks desplegados"
         fi
     fi
 }

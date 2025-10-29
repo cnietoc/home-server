@@ -4,29 +4,59 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$PROJECT_ROOT/docker"
-STACK_CONFIG="$PROJECT_ROOT/config/stack-envs.conf"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
 
-# Leer configuración de variables desde archivo
+# Obtener lista de stacks disponibles
+get_available_stacks() {
+    "$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo ""
+}
+
+# Obtener archivos de configuración de un stack
+get_stack_config_files() {
+    local stack_name="$1"
+    "$SCRIPT_DIR/stack-info.sh" get_stack_config_files "$stack_name" 2>/dev/null || echo ""
+}
+
+# Obtener descripción de un stack
+get_stack_description() {
+    local stack_name="$1"
+    "$SCRIPT_DIR/stack-info.sh" get_stack_description "$stack_name" 2>/dev/null || echo ""
+}
+
+# Verificar si un stack existe
+stack_exists() {
+    local stack_name="$1"
+    "$SCRIPT_DIR/stack-info.sh" stack_exists "$stack_name" 2>/dev/null
+}
+
+# Cargar configuración de stacks usando stack-info.sh
 load_stack_config() {
     declare -gA STACK_CONFIG
 
-    if [[ ! -f "$STACK_CONFIG" ]]; then
-        log "⚠️ No existe archivo de configuración: $STACK_CONFIG"
+    # Verificar que stack-info.sh esté disponible y funcional
+    if ! "$SCRIPT_DIR/stack-info.sh" init_stack_info >/dev/null 2>&1; then
+        log "❌ Error: No se pudo inicializar stack-info"
         return 1
     fi
 
-    while IFS='=' read -r stack config_vars || [[ -n "$stack" ]]; do
-        # Ignorar líneas vacías y comentarios
-        [[ -z "$stack" || "$stack" =~ ^[[:space:]]*# ]] && continue
+    # Obtener lista de stacks
+    local stacks
+    stacks=$(get_available_stacks) || {
+        log "❌ Error obteniendo lista de stacks"
+        return 1
+    }
 
-        # Limpiar espacios
-        stack=$(echo "$stack" | xargs)
-        config_vars=$(echo "$config_vars" | xargs)
+    while IFS= read -r stack; do
+        [[ -z "$stack" ]] && continue
 
-        STACK_CONFIG["$stack"]="$config_vars"
-    done < "$STACK_CONFIG"
+        # Obtener archivos de configuración para este stack
+        local config_files
+        config_files=$(get_stack_config_files "$stack")
+
+        STACK_CONFIG["$stack"]="$config_files"
+
+    done <<< "$stacks"
 }
 
 # Obtener configuración para un stack específico
@@ -62,19 +92,11 @@ STACK_DATA=../../data/$stack_name
 
 EOF
 
-    # 1. Cargar variables comunes desde carpeta privada
-    local common_file="$private_dir/common.env"
-    if [[ -f "$common_file" ]]; then
-        echo "# === Variables comunes ===" >> "$temp_file"
-        cat "$common_file" >> "$temp_file"
-        echo "" >> "$temp_file"
-    fi
-
-    # 2. Cargar archivos .env configurados
-    local additional_config=$(get_stack_config "$stack_name")
-    if [[ -n "$additional_config" ]]; then
-        echo "# === Configuración adicional ===" >> "$temp_file"
-        IFS=',' read -ra config_array <<< "$additional_config"
+    # Cargar todos los archivos .env configurados
+    local all_config=$(get_stack_config "$stack_name")
+    if [[ -n "$all_config" ]]; then
+        echo "# === Configuración del stack ===" >> "$temp_file"
+        IFS=',' read -ra config_array <<< "$all_config"
         for config_type in "${config_array[@]}"; do
             config_type=$(echo "$config_type" | xargs)
             local config_file="$private_dir/$config_type.env"
@@ -91,20 +113,33 @@ EOF
     # Crear directorio si no existe y mover archivo
     mkdir -p "$(dirname "$output_file")"
     mv "$temp_file" "$output_file"
-    log "✅ Generado: docker/$stack_name/.env (configuración: ${additional_config:-ninguna})"
+    log "✅ Generado: docker/$stack_name/.env (configuración: ${all_config:-ninguna})"
 }
 
 # Listar configuración actual
 list_stack_config() {
-    log "Configuración actual de variables por stack:"
+    log "📋 Configuración de variables por stack:"
     echo ""
-    printf "%-15s | %s\n" "STACK" "CONFIGURACIÓN"
-    printf "%-15s-|-%s\n" "---------------" "------------------------"
 
-    for stack in "${!STACK_CONFIG[@]}"; do
+    printf "%-15s | %-30s | %s\n" "STACK" "ARCHIVOS CONFIGURACIÓN" "DESCRIPCIÓN"
+    printf "%-15s-|-%s-|-%s\n" "---------------" "------------------------------" "------------------------"
+
+    # Cargar configuración de stacks
+    if ! load_stack_config; then
+        log "❌ Error cargando configuración de stacks"
+        return 1
+    fi
+
+    for stack in $(printf '%s\n' "${!STACK_CONFIG[@]}" | sort); do
         local config_vars="${STACK_CONFIG[$stack]}"
-        printf "%-15s | %s\n" "$stack" "${config_vars:-ninguna}"
-    done | sort
+
+        # Obtener descripción usando stack-info wrapper
+        local description
+        description=$(get_stack_description "$stack")
+        [[ -z "$description" ]] && description="Sin descripción"
+
+        printf "%-15s | %-30s | %s\n" "$stack" "$config_vars" "$description"
+    done
 }
 
 # Generar .env para todos los stacks
@@ -117,10 +152,10 @@ generate_all_stack_envs() {
     for stack_dir in "$DOCKER_DIR"/*/; do
         if [[ -d "$stack_dir" ]]; then
             local stack_name="$(basename "$stack_dir")"
-            # Solo asegurar archivos de configuración explícitamente configurados
-            local additional_config=$(get_stack_config "$stack_name")
-            if [[ -n "$additional_config" ]]; then
-                IFS=',' read -ra config_array <<< "$additional_config"
+            # Asegurar todos los archivos de configuración (incluyendo common)
+            local all_config=$(get_stack_config "$stack_name")
+            if [[ -n "$all_config" ]]; then
+                IFS=',' read -ra config_array <<< "$all_config"
                 for config_type in "${config_array[@]}"; do
                     config_type=$(echo "$config_type" | xargs)
                     ensure_env_file_exists "$config_type" "$private_dir"
@@ -183,11 +218,11 @@ main() {
             else
                 for stack in "$@"; do
                     if [[ -d "$DOCKER_DIR/$stack" ]]; then
-                        # Solo asegurar archivos explícitamente configurados
+                        # Asegurar todos los archivos de configuración (incluyendo common)
                         local private_dir="$(get_private_dir)"
-                        local additional_config=$(get_stack_config "$stack")
-                        if [[ -n "$additional_config" ]]; then
-                            IFS=',' read -ra config_array <<< "$additional_config"
+                        local all_config=$(get_stack_config "$stack")
+                        if [[ -n "$all_config" ]]; then
+                            IFS=',' read -ra config_array <<< "$all_config"
                             for config_type in "${config_array[@]}"; do
                                 config_type=$(echo "$config_type" | xargs)
                                 ensure_env_file_exists "$config_type" "$private_dir"

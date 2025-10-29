@@ -31,7 +31,6 @@ load_env() {
         set -a
         source "$env_file"
         set +a
-        log "✅ Cargado: $(basename "$env_file")"
         return 0
     else
         log "⚠️ No encontrado: $(basename "$env_file")"

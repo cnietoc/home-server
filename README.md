@@ -16,7 +16,7 @@ Este proyecto configura un servidor doméstico con:
 home-server/
 ├── config/
 │   ├── templates/           # Plantillas de configuración
-│   ├── stack-envs.conf      # Configuración de variables por stack
+│   ├── stacks.yml           # Configuración de stacks y servicios
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
 │   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower)
@@ -588,3 +588,44 @@ Si necesitas una limpieza completa (útil después de reorganizaciones o cambios
 - Elimina contenedores huérfanos (que no se levantaron)
 - Limpia recursos Docker no utilizados
 - Verifica estado final
+
+### Gestión de información de stacks
+
+El sistema utiliza un archivo YAML (`config/stacks.yml`) para centralizar toda la configuración de stacks y servicios:
+
+```bash
+# Ver servicios de stacks específicos
+./scripts/stack-info.sh services platform helloworld
+
+# Listar toda la configuración de stacks
+./scripts/stack-info.sh list
+
+# Ver configuración de un stack específico
+./scripts/stack-info.sh config platform
+
+# Ver ayuda completa
+./scripts/stack-info.sh help
+```
+
+**Formato del archivo `config/stacks.yml`:**
+```yaml
+stacks:
+  mi-stack:
+    description: "Descripción del stack"
+    config_files:
+      - archivo1      # Usa config/private/archivo1.env
+      - archivo2      # Usa config/private/archivo2.env
+    services:
+      mi-servicio:
+        subdomain: mi-servicio
+        description: "🔗 Mi Servicio"
+        protected: true
+```
+
+**Ventajas del formato YAML:**
+- 📖 **Más legible** que el formato anterior
+- 🏗️ **Bien estructurado** con jerarquía clara
+- ✅ **Validable** con herramientas YAML estándar  
+- 📝 **Comentarios** y documentación integrados
+- 🔧 **Extensible** para futuras funcionalidades
+

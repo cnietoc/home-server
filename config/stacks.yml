@@ -1,0 +1,41 @@
+# Configuración de Stacks del Home Server
+# =====================================
+#
+# Este archivo define la configuración de todos los stacks del home server,
+# incluyendo qué archivos de configuración usan y qué servicios exponen.
+#
+# Configuración de servicios:
+# - subdomain: Se combina automáticamente con BASE_DOMAIN desde common.env para formar https://subdomain.BASE_DOMAIN
+#
+# Formato YAML para mejor legibilidad y mantenimiento
+
+stacks:
+  # Stack de infraestructura base - siempre se despliega primero
+  platform:
+    description: "Servicios de infraestructura base"
+    config_files:
+      - cloudflare    # Para DNS y certificados SSL
+      - auth          # Para configuración de TinyAuth
+      - watchtower    # Para actualizaciones automáticas
+    services:
+      traefik:
+        subdomain: traefik
+        description: "🔀 Traefik Dashboard"
+        protected: true
+      tinyauth:
+        subdomain: auth
+        description: "🔐 Panel de Autenticación"
+        protected: false
+      watchtower:
+        description: "🔄 Actualizaciones automáticas de imágenes"
+        # Sin subdomain porque es un servicio en segundo plano
+
+  # Aplicación de prueba - ejemplo de stack simple
+  helloworld:
+    description: "Aplicación de prueba"
+    config_files: []  # Solo usa common.env (sin archivos adicionales)
+    services:
+      hello:
+        subdomain: hello
+        description: "👋 Hello World"
+        protected: false

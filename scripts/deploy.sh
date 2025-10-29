@@ -658,23 +658,11 @@ main() {
         log "🎉 Despliegue completado exitosamente"
 
         # Mostrar URLs de acceso si todo está bien
-        if load_common_config 2>/dev/null; then
-            echo ""
-            log "🌐 Servicios accesibles:"
-            for stack in "${stacks_to_deploy[@]}"; do
-                case $stack in
-                    platform)
-                        log "   🏗️ Platform Stack:"
-                        log "      🔀 Traefik Dashboard: https://traefik.${BASE_DOMAIN:-tu-dominio.com}"
-                        log "      🔐 TinyAuth: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
-                        log "      🔄 Watchtower: Actualizaciones automáticas de imágenes"
-                        ;;
-                    helloworld)
-                        log "   👋 Hello World: https://hello.${BASE_DOMAIN:-tu-dominio.com}"
-                        ;;
-                esac
-            done
-        fi
+        echo ""
+        # Mostrar servicios usando el script centralizado
+        "$SCRIPT_DIR/stack-info.sh" services "${stacks_to_deploy[@]}" 2>/dev/null || {
+            log "ℹ️ No se pudo cargar información de servicios"
+        }
     else
         log "⚠️ Despliegue completado con errores"
         exit 1
