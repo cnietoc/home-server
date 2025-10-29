@@ -7,6 +7,7 @@ Este proyecto configura un servidor doméstico con:
 - **TinyAuth** para autenticación centralizada con Google OAuth
 - **Watchtower** para actualizaciones automáticas de imágenes Docker
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
+- **Dashboard dinámico** con información del servidor en tiempo real
 - **Hello World** como aplicación de prueba
 - **Gestión centralizada de configuración y variables de entorno**
 
@@ -20,6 +21,7 @@ home-server/
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
 │   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower)
+│   ├── home/               # Stack principal - Dashboard del Home Server
 │   └── helloworld/         # Stack de aplicación de prueba
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
@@ -214,6 +216,25 @@ Si no tienes Docker y Docker Compose instalados, puedes usar el siguiente script
 **Después de la instalación:**
 - Verifica Docker: `docker run hello-world`
 
+### Rebuild Automático de Imágenes
+
+El sistema de deploy incluye **rebuild automático inteligente**:
+
+- **✅ Detección automática**: Si hay `Dockerfile` en el stack, se rebuildea automáticamente
+- **🚀 Caché inteligente**: 
+  - Deploy normal: `docker compose build` (con caché, más rápido)
+  - Con `--recreate`: `docker compose build --no-cache` (sin caché, más seguro)
+- **📁 Búsqueda recursiva**: Detecta Dockerfiles en cualquier subdirectorio del stack
+- **⚡ Solo cuando es necesario**: No rebuilder stacks que no tienen código personalizado
+
+```bash
+# Deploy normal - rebuild con caché (rápido para desarrollo)
+./scripts/deploy.sh home
+
+# Recreate completo - rebuild sin caché (después de cambios importantes)
+./scripts/deploy.sh --recreate home
+```
+
 
 ## 🚢 Despliegue de Servicios
 
@@ -237,12 +258,12 @@ El script `deploy.sh` es tu comando principal que se encarga de todo automática
 
 ```bash
 # Desplegar stacks específicos
-./scripts/deploy.sh platform helloworld
+./scripts/deploy.sh platform home helloworld
 
 # Forzar despliegue sin detección de cambios
 ./scripts/deploy.sh --force
 
-# Recrear contenedores completamente
+# Recrear contenedores completamente (incluye rebuild si hay Dockerfile)
 ./scripts/deploy.sh --recreate
 
 # Ver información detallada del proceso
@@ -268,6 +289,7 @@ Si necesitas control granular sobre el proceso:
 
 # 3. Levantar stacks individualmente
 cd docker/platform && docker compose up -d    # Infraestructura completa (Traefik + TinyAuth + Watchtower)
+cd ../home && docker compose up -d             # Dashboard principal del Home Server
 cd ../helloworld && docker compose up -d       # Aplicaciones de usuario
 ```
 
@@ -276,6 +298,7 @@ cd ../helloworld && docker compose up -d       # Aplicaciones de usuario
 Una vez desplegado, podrás acceder a:
 
 ### 🔓 **Servicios Públicos (sin autenticación)**
+- **Dashboard del Home Server**: `https://tu-dominio.com` (página principal)
 - **Hello World App**: `https://hello.tu-dominio.com`
 
 ### 🔒 **Servicios Protegidos (requieren login)**
@@ -423,7 +446,7 @@ Ver documentación completa: [docs/AUTO_DEPLOYMENT.md](docs/AUTO_DEPLOYMENT.md)
 ./scripts/deploy.sh
 
 # Redesplegar solo servicios específicos
-./scripts/deploy.sh platform helloworld
+./scripts/deploy.sh platform home helloworld
 
 # Forzar regeneración de archivos .env
 ./scripts/deploy.sh --force-envs
@@ -595,7 +618,7 @@ El sistema utiliza un archivo YAML (`config/stacks.yml`) para centralizar toda l
 
 ```bash
 # Ver servicios de stacks específicos
-./scripts/stack-info.sh services platform helloworld
+./scripts/stack-info.sh services platform home helloworld
 
 # Listar toda la configuración de stacks
 ./scripts/stack-info.sh list
@@ -610,16 +633,24 @@ El sistema utiliza un archivo YAML (`config/stacks.yml`) para centralizar toda l
 **Formato del archivo `config/stacks.yml`:**
 ```yaml
 stacks:
-  mi-stack:
-    description: "Descripción del stack"
-    config_files:
-      - archivo1      # Usa config/private/archivo1.env
-      - archivo2      # Usa config/private/archivo2.env
+  home:
+    description: "Página principal del Home Server con información dinámica"
+    config_files: []  # Solo usa common.env
     services:
-      mi-servicio:
-        subdomain: mi-servicio
-        description: "🔗 Mi Servicio"
-        protected: true
+      web:
+        subdomain: ""  # Sin subdominio (dominio principal)
+        description: "🏠 Home Server Dashboard"
+        protected: false
+  
+  helloworld:
+    description: "Servicio de ejemplo Hello World"
+    config_files:
+      - helloworld    # Usa config/private/helloworld.env
+    services:
+      hello:
+        subdomain: hello
+        description: "👋 Página de bienvenida Hello World"
+        protected: false
 ```
 
 **Ventajas del formato YAML:**

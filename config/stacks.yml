@@ -30,14 +30,14 @@ stacks:
         description: "🔄 Actualizaciones automáticas de imágenes"
         # Sin subdomain porque es un servicio en segundo plano
 
-  # Dashboard dinámico del servidor
-  dashboard:
-    description: "Dashboard dinámico con información del servidor"
+  # Home page del servidor
+  home:
+    description: "Página principal del Home Server"
     config_files: []  # Solo usa common.env
     services:
       web:
-        subdomain: hello # Sin subdominio - dominio principal
-        description: "🏠 Dashboard del Home Server"
+        subdomain: ""  # Sin subdominio - dominio principal
+        description: "🏠 Home Server Dashboard"
         protected: false
 
   # Hello World - Ejemplo básico
