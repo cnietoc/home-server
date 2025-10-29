@@ -666,7 +666,7 @@ main() {
                     platform)
                         log "   🏗️ Platform Stack:"
                         log "      🔀 Traefik Dashboard: https://traefik.${BASE_DOMAIN:-tu-dominio.com}"
-                        log "      🔐 TinyAuth: https://tinyauth.${BASE_DOMAIN:-tu-dominio.com}"
+                        log "      🔐 TinyAuth: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
                         log "      🔄 Watchtower: Actualizaciones automáticas de imágenes"
                         ;;
                     helloworld)

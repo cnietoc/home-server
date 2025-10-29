@@ -145,7 +145,7 @@ OAUTH_WHITELIST=tu-email@gmail.com,otro-email@gmail.com
 3. Habilita "Google+ API" 
 4. Ve a "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
 5. Tipo: Web application
-6. Authorized redirect URIs: `https://tinyauth.tu-dominio.com/api/auth/callback/google`
+6. Authorized redirect URIs: `https://auth.tu-dominio.com/api/auth/callback/google`
 
 **Características del sistema de autenticación:**
 - 🔐 **Login con Google OAuth** - Sin gestión de contraseñas
@@ -280,12 +280,12 @@ Una vez desplegado, podrás acceder a:
 
 ### 🔒 **Servicios Protegidos (requieren login)**
 - **Traefik Dashboard**: `https://traefik.tu-dominio.com`
-- **Panel de Autenticación**: `https://tinyauth.tu-dominio.com`
+- **Panel de Autenticación**: `https://auth.tu-dominio.com`
 
 ### 🔐 **Flujo de Autenticación**
 
 1. **Acceso a servicio protegido** (ej: Traefik Dashboard)
-2. **Redirección automática** a `https://tinyauth.tu-dominio.com`
+2. **Redirección automática** a `https://auth.tu-dominio.com`
 3. **Login** con las credenciales configuradas
 4. **Redirección de vuelta** al servicio original
 5. **Acceso concedido** con sesión persistente

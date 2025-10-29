@@ -4,7 +4,7 @@ networks:
 
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:latest
     container_name: traefik
     restart: unless-stopped
     networks:
@@ -76,13 +76,13 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-      - APP_URL=https://tinyauth.${BASE_DOMAIN}
+      - APP_URL=https://auth.${BASE_DOMAIN}
       - PROVIDERS_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - PROVIDERS_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - OAUTH_WHITELIST=${OAUTH_WHITELIST}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tinyauth.rule=Host(`tinyauth.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.tinyauth.rule=Host(`auth.${BASE_DOMAIN}`)"
       - "traefik.http.routers.tinyauth.tls=true"
       - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
       - "traefik.http.middlewares.tinyauth.forwardauth.address=http://tinyauth:3000/api/auth/traefik"
