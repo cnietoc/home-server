@@ -23,8 +23,8 @@ services:
     networks:
       - proxy
     labels:
-      # Traefik configuration para dominio principal (sin subdominio)
-      - "traefik.enable=true"
-      - "traefik.http.routers.test.rule=Host(`test.${BASE_DOMAIN}`)"
-      - "traefik.http.routers.test.tls.certresolver=cloudflare"
-      - "traefik.http.services.test.loadbalancer.server.port=3000"
+      traefik.enable: true
+      traefik.http.routers.test.rule: "Host(`test.${BASE_DOMAIN}`)"
+      traefik.http.routers.test.tls: "true"
+      traefik.http.routers.test.tls.certresolver: "cloudflare"
+      traefik.http.services.test.loadbalancer.server.port: "3000"
