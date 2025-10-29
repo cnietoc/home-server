@@ -86,15 +86,18 @@ get_changed_stacks() {
         fi
     fi
 
-    # Verificar resto de stacks
-    for stack_dir in "$DOCKER_DIR"/*/; do
-        if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
-            local stack_name="$(basename "$stack_dir")"
-            if [[ "$stack_name" != "platform" ]] && stack_config_has_changed "$stack_name"; then
+    # Verificar resto de stacks usando stack-info.sh
+    local available_stacks
+    available_stacks=$("$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo "")
+
+    if [[ -n "$available_stacks" ]]; then
+        while IFS= read -r stack_name; do
+            [[ -z "$stack_name" ]] && continue
+            if [[ "$stack_name" != "platform" ]] && [[ -d "$DOCKER_DIR/$stack_name" ]] && stack_config_has_changed "$stack_name"; then
                 changed_stacks+=("$stack_name")
             fi
-        fi
-    done
+        done <<< "$available_stacks"
+    fi
 
     printf "%s " "${changed_stacks[@]}"
 }
@@ -284,15 +287,18 @@ get_available_stacks() {
         platform_found=true
     fi
 
-    # Luego agregar el resto en orden alfabético
-    for stack_dir in "$DOCKER_DIR"/*/; do
-        if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
-            local stack_name="$(basename "$stack_dir")"
-            if [[ "$stack_name" != "platform" ]]; then
+    # Luego agregar el resto usando stack-info.sh
+    local available_stacks
+    available_stacks=$("$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo "")
+
+    if [[ -n "$available_stacks" ]]; then
+        while IFS= read -r stack_name; do
+            [[ -z "$stack_name" ]] && continue
+            if [[ "$stack_name" != "platform" ]] && [[ -d "$DOCKER_DIR/$stack_name" ]]; then
                 all_stacks+=("$stack_name")
             fi
-        fi
-    done
+        done <<< "$available_stacks"
+    fi
 
     printf "%s " "${all_stacks[@]}"
 }
@@ -375,19 +381,33 @@ EOF
 
 list_stacks() {
     log "Stacks disponibles:"
-    for stack_dir in "$DOCKER_DIR"/*/; do
-        if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
-            local stack_name="$(basename "$stack_dir")"
-            local status="⏹️"
 
-            # Verificar si está corriendo (básico)
-            if docker compose -f "$stack_dir/docker-compose.yml" ps -q 2>/dev/null | grep -q .; then
-                status="🟢"
+    # Usar stack-info.sh para obtener lista de stacks
+    local available_stacks
+    available_stacks=$("$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo "")
+
+    if [[ -n "$available_stacks" ]]; then
+        while IFS= read -r stack_name; do
+            [[ -z "$stack_name" ]] && continue
+
+            if [[ -d "$DOCKER_DIR/$stack_name" ]]; then
+                local status="⏹️"
+                local stack_dir="$DOCKER_DIR/$stack_name"
+
+                # Verificar si está corriendo (básico)
+                if [[ -f "$stack_dir/docker-compose.yml" ]] && docker compose -f "$stack_dir/docker-compose.yml" ps -q 2>/dev/null | grep -q .; then
+                    status="🟢"
+                fi
+
+                echo "  $status $stack_name"
+            else
+                echo "  ⚠️ $stack_name (directorio docker no encontrado)"
             fi
-
-            echo "  $status $stack_name"
-        fi
-    done
+        done <<< "$available_stacks"
+    else
+        log "❌ No se pudieron obtener stacks desde stack-info.sh"
+        log "   Verifica que config/stacks.yml exista y sea válido"
+    fi
 }
 
 redeploy_stack() {

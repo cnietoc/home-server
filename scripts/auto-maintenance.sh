@@ -101,24 +101,54 @@ check_services() {
     cron_log "🔍 Verificando estado de servicios..."
 
     local services_down=()
-    local docker_dirs=("$PROJECT_ROOT/docker"/*)
 
-    for stack_dir in "${docker_dirs[@]}"; do
-        if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
-            local stack_name="$(basename "$stack_dir")"
+    # Usar stack-info.sh para obtener lista de stacks
+    local available_stacks
+    available_stacks=$("$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo "")
 
-            cd "$stack_dir"
-            local running_containers
-            running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
+    if [[ -n "$available_stacks" ]]; then
+        while IFS= read -r stack_name; do
+            [[ -z "$stack_name" ]] && continue
 
-            if [[ $running_containers -eq 0 ]]; then
-                services_down+=("$stack_name")
-                cron_log "⚠️ Stack $stack_name no está corriendo"
+            local stack_dir="$PROJECT_ROOT/docker/$stack_name"
+            if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
+                cd "$stack_dir"
+                local running_containers
+                running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
+
+                if [[ $running_containers -eq 0 ]]; then
+                    services_down+=("$stack_name")
+                    cron_log "⚠️ Stack $stack_name no está corriendo"
+                else
+                    cron_log "✅ Stack $stack_name corriendo ($running_containers contenedores)"
+                fi
             else
-                cron_log "✅ Stack $stack_name corriendo ($running_containers contenedores)"
+                cron_log "⚠️ Stack $stack_name configurado pero directorio docker no encontrado"
             fi
-        fi
-    done
+        done <<< "$available_stacks"
+    else
+        cron_log "❌ No se pudieron obtener stacks desde stack-info.sh"
+        cron_log "   Fallback: buscando directorios docker manualmente"
+
+        # Fallback al método anterior si stack-info.sh falla
+        local docker_dirs=("$PROJECT_ROOT/docker"/*)
+        for stack_dir in "${docker_dirs[@]}"; do
+            if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
+                local stack_name="$(basename "$stack_dir")"
+
+                cd "$stack_dir"
+                local running_containers
+                running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
+
+                if [[ $running_containers -eq 0 ]]; then
+                    services_down+=("$stack_name")
+                    cron_log "⚠️ Stack $stack_name no está corriendo"
+                else
+                    cron_log "✅ Stack $stack_name corriendo ($running_containers contenedores)"
+                fi
+            fi
+        done
+    fi
 
     if [[ ${#services_down[@]} -gt 0 ]]; then
         cron_log "❌ Servicios caídos detectados: ${services_down[*]}"

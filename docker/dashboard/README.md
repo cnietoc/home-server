@@ -1,4 +1,4 @@
-# 🏠 Home Server Dashboard (ServerInfo Stack)
+# 🏠 Home Server Dashboard (Dashboard Stack)
 
 Dashboard dinámico del Home Server que muestra información en tiempo real del servidor y servicios disponibles.
 
@@ -36,11 +36,40 @@ El servicio lee automáticamente:
 
 ```bash
 # Generar archivos .env
-./scripts/generate-docker-envs.sh serverinfo
+./scripts/generate-docker-envs.sh dashboard
 
 # Desplegar el stack
-./scripts/deploy.sh serverinfo
+./scripts/deploy.sh dashboard
 ```
+
+## 🧪 Desarrollo Local
+
+Para probar el dashboard localmente:
+
+```bash
+# Usar el script de desarrollo (recomendado)
+./dev-server.sh
+
+# O manualmente
+npm install
+npm start
+```
+
+### 📋 Gestión de Dependencias
+
+El `package-lock.json` **está incluido en el repositorio** por las siguientes razones:
+
+- **✅ Builds reproducibles**: Garantiza que todas las instalaciones usen las mismas versiones exactas
+- **✅ Seguridad**: Previene instalación de versiones vulnerables 
+- **✅ Velocidad CI/CD**: `npm ci` es más rápido que `npm install`
+- **✅ Determinismo**: Elimina variabilidad entre entornos (dev/staging/prod)
+
+**Flujo de trabajo:**
+1. Al agregar dependencias: `npm install <package>` (actualiza package.json y package-lock.json)
+2. Al instalar en desarrollo: `npm ci` (instala desde lock file)
+3. En Docker: `npm ci --omit=dev` (instala solo dependencias de producción)
+
+**Nota**: Esta es la práctica recomendada para aplicaciones (a diferencia de librerías).
 
 ## 🌐 Acceso
 
