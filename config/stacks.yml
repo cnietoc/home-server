@@ -36,7 +36,7 @@ stacks:
     config_files: []  # Solo usa common.env
     services:
       web:
-        subdomain: ""  # Sin subdominio - dominio principal
+        subdomain: "test"  # Sin subdominio - dominio principal
         description: "🏠 Dashboard del Home Server"
         protected: false
 

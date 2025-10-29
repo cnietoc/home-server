@@ -25,6 +25,6 @@ services:
     labels:
       # Traefik configuration para dominio principal (sin subdominio)
       - "traefik.enable=true"
-      - "traefik.http.routers.home.rule=Host(`dashboard.${BASE_DOMAIN}`)"
-      - "traefik.http.routers.home.tls.certresolver=cloudflare"
-      - "traefik.http.services.home.loadbalancer.server.port=3000"
+      - "traefik.http.routers.test.rule=Host(`test.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.test.tls.certresolver=cloudflare"
+      - "traefik.http.services.test.loadbalancer.server.port=3000"
