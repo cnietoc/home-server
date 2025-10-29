@@ -211,15 +211,6 @@ run_clean_deploy() {
     local deploy_args=()
     [[ "$verbose" == "true" ]] && deploy_args+=("--verbose")
 
-    # Forzar regeneración de .env y deploy completo
-    log "📝 Regenerando archivos .env..."
-    if "$SCRIPT_DIR/deploy.sh" --force-envs "${deploy_args[@]}" >/dev/null; then
-        log "✅ Archivos .env regenerados"
-    else
-        error "❌ Error regenerando archivos .env"
-        return 1
-    fi
-
     log "🚀 Iniciando deploy completo..."
     if "$SCRIPT_DIR/deploy.sh" --force "${deploy_args[@]}"; then
         log "✅ Deploy completado"
