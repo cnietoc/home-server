@@ -3,7 +3,7 @@ networks:
     external: true
 
 services:
-  home-web:
+  web:
     build: .
     container_name: home-web
     restart: unless-stopped
@@ -30,3 +30,5 @@ services:
       traefik.http.routers.home.tls: "true"
       traefik.http.routers.home.tls.certresolver: "cloudflare"
       traefik.http.services.home.loadbalancer.server.port: "3000"
+      # Excluir de Watchtower (imagen construida localmente)
+      com.centurylinklabs.watchtower.enable: "false"
