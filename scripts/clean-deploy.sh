@@ -100,8 +100,8 @@ stop_all_containers() {
         for container_id in $containers; do
             local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
 
-            # Verificar si ya está parado
-            if ! docker ps -q --no-trunc | grep -q "^$container_id$"; then
+            # Verificar si ya está parado (usar ID corto)
+            if ! docker ps -q | grep -q "^$container_id"; then
                 [[ "$verbose" == "true" ]] && log "   ⏭️ $name ya estaba parado"
                 ((stopped_count++))
                 continue
