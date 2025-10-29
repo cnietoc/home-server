@@ -81,6 +81,7 @@ install_basic_deps() {
         software-properties-common
         git
         jq
+        yq
         htop
         unzip
         vim

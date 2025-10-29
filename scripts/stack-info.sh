@@ -13,12 +13,80 @@ source "$SCRIPT_DIR/common/env-loader.sh"
 
 
 
-# Verificar si yq está disponible
-check_yq() {
-    if command -v yq >/dev/null 2>&1; then
+# Detectar qué versión de yq está instalada y configurar sintaxis
+YQ_VERSION=""
+YQ_SYNTAX=""
+
+detect_yq_version() {
+    if ! command -v yq >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Verificar si el archivo existe
+    if [[ ! -f "$STACK_CONFIG" ]]; then
+        return 1
+    fi
+
+    # Probar con sintaxis de yq-go primero (más común)
+    if yq eval '.stacks' "$STACK_CONFIG" >/dev/null 2>&1; then
+        YQ_VERSION="go"
+        YQ_SYNTAX="eval"
+        return 0
+    # Probar con sintaxis de yq-python
+    elif yq '.stacks' "$STACK_CONFIG" >/dev/null 2>&1; then
+        YQ_VERSION="python"
+        YQ_SYNTAX=""
+        return 0
+    # Probar detectar por la ayuda de yq
+    elif yq --help 2>&1 | grep -q "yaml-output"; then
+        # Es la versión Python (tiene --yaml-output)
+        YQ_VERSION="python"
+        YQ_SYNTAX=""
+        return 0
+    elif yq --help 2>&1 | grep -q "eval"; then
+        # Es la versión Go (tiene eval)
+        YQ_VERSION="go"
+        YQ_SYNTAX="eval"
         return 0
     else
-        error "yq no está instalado. Instálalo con: sudo snap install yq (Ubuntu) o brew install yq (macOS)"
+        return 1
+    fi
+}
+
+# Verificar si yq está disponible y detectar versión
+check_yq() {
+    if detect_yq_version; then
+        # Debug: mostrar versión detectada
+        if [[ "${DEBUG:-}" == "1" ]]; then
+            echo "🔍 yq detectado: versión $YQ_VERSION" >&2
+        fi
+        return 0
+    else
+        error "yq no está instalado o no funciona correctamente."
+        error "Archivo de configuración: $STACK_CONFIG"
+        error "¿Existe el archivo? $(ls -la "$STACK_CONFIG" 2>/dev/null || echo "NO")"
+        error "Versión de yq instalada: $(yq --version 2>/dev/null || echo "ERROR")"
+        error ""
+        error "Instálalo con:"
+        error "  - Ubuntu/Debian: sudo snap install yq"
+        error "  - macOS: brew install yq"
+        error "  - Python: pip install yq"
+        return 1
+    fi
+}
+
+# Ejecutar comando yq con la sintaxis correcta según la versión
+run_yq() {
+    local query="$1"
+    local file="$2"
+
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        yq eval "$query" "$file"
+    elif [[ "$YQ_VERSION" == "python" ]]; then
+        # Para yq-python, el archivo va antes de la query
+        yq "$query" "$file"
+    else
+        error "Versión de yq no detectada correctamente. YQ_VERSION=$YQ_VERSION"
         return 1
     fi
 }
@@ -46,7 +114,7 @@ get_available_stacks() {
         return 1
     fi
 
-    yq eval '.stacks | keys | .[]' "$STACK_CONFIG"
+    run_yq '.stacks | keys | .[]' "$STACK_CONFIG"
 }
 
 # Obtener archivos de configuración de un stack específico
@@ -58,7 +126,12 @@ get_stack_config_files() {
     fi
 
     local config_files
-    config_files=$(yq eval ".stacks.$stack_name.config_files | join(\",\")" "$STACK_CONFIG")
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_CONFIG")
+    else
+        # Para yq-python, necesitamos un enfoque diferente
+        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_CONFIG" | tr '\n' ',' | sed 's/,$//')
+    fi
 
     # Siempre incluir common como base, luego agregar los específicos del stack
     if [[ "$config_files" == "null" || -z "$config_files" || "$config_files" == "" ]]; then
@@ -77,7 +150,7 @@ get_stack_description() {
     fi
 
     local description
-    description=$(yq eval ".stacks.$stack_name.description" "$STACK_CONFIG" 2>/dev/null)
+    description=$(run_yq ".stacks.$stack_name.description" "$STACK_CONFIG" 2>/dev/null)
 
     if [[ "$description" == "null" ]]; then
         echo ""
@@ -96,7 +169,7 @@ get_service_subdomain() {
     fi
 
     local subdomain
-    subdomain=$(yq eval ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_CONFIG" 2>/dev/null)
+    subdomain=$(run_yq ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_CONFIG" 2>/dev/null)
 
     if [[ "$subdomain" == "null" ]]; then
         echo ""
@@ -114,7 +187,13 @@ stack_exists() {
     fi
 
     local exists
-    exists=$(yq eval ".stacks | has(\"$stack_name\")" "$STACK_CONFIG" 2>/dev/null)
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_CONFIG" 2>/dev/null)
+    else
+        # Para yq-python, verificar si el stack existe de manera diferente
+        exists=$(run_yq ".stacks.$stack_name" "$STACK_CONFIG" 2>/dev/null)
+        [[ "$exists" != "null" && -n "$exists" ]] && exists="true" || exists="false"
+    fi
 
     [[ "$exists" == "true" ]]
 }
@@ -149,18 +228,22 @@ load_stack_info() {
         [[ -n "$description" ]] && STACK_DESCRIPTIONS["$stack"]="$description"
         [[ -n "$config_files" ]] && STACK_CONFIG_MAP["$stack"]="$config_files"
 
-        # Servicios - obtener nombres de servicios directamente con yq
+        # Servicios - obtener nombres de servicios usando run_yq
         local service_names
-        service_names=$(yq eval ".stacks.$stack.services | keys | .[]" "$STACK_CONFIG" 2>/dev/null)
+        if [[ "$YQ_VERSION" == "go" ]]; then
+            service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_CONFIG" 2>/dev/null)
+        else
+            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_CONFIG" 2>/dev/null)
+        fi
 
         local service_entries=""
         while IFS= read -r service; do
             [[ -z "$service" ]] && continue
 
-            # Obtener subdomain y descripción del servicio usando yq directo
+            # Obtener subdomain y descripción del servicio usando run_yq
             local subdomain desc
-            subdomain=$(yq eval ".stacks.$stack.services.$service.subdomain" "$STACK_CONFIG" 2>/dev/null)
-            desc=$(yq eval ".stacks.$stack.services.$service.description" "$STACK_CONFIG" 2>/dev/null)
+            subdomain=$(run_yq ".stacks.$stack.services.$service.subdomain" "$STACK_CONFIG" 2>/dev/null)
+            desc=$(run_yq ".stacks.$stack.services.$service.description" "$STACK_CONFIG" 2>/dev/null)
 
             # Limpiar valores null
             [[ "$subdomain" == "null" ]] && subdomain=""
