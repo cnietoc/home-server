@@ -33,7 +33,8 @@ stacks:
   # Aplicación de prueba - ejemplo de stack simple
   helloworld:
     description: "Aplicación de prueba"
-    config_files: []  # Solo usa common.env (sin archivos adicionales)
+    config_files:
+      - helloworld # Configuración del servicio Hello World
     services:
       hello:
         subdomain: hello
