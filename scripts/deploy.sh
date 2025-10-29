@@ -353,7 +353,6 @@ DESCRIPCIÓN:
 
 OPCIONES:
   -r, --recreate       Recrear contenedores completamente
-  -b, --build          Forzar rebuild de imágenes Docker (implica --recreate)
   -f, --force          Forzar despliegue sin detección de cambios
   --force-envs         Forzar regeneración de .env files
   --reset-state        Resetear estado de detección de cambios
@@ -367,7 +366,6 @@ EJEMPLOS:
   $0                           # Despliegue completo (detecta cambios automáticamente)
   $0 network                   # Desplegar solo stack network
   $0 --recreate helloworld     # Recrear contenedores de helloworld
-  $0 --build dashboard         # Rebuild imagen y recrear contenedores de dashboard
   $0 network helloworld        # Desplegar múltiples stacks
   $0 --list                    # Ver stacks disponibles
   $0 --force                   # Forzar despliegue completo sin detección
@@ -434,41 +432,14 @@ redeploy_stack() {
         return 1
     fi
 
-    # Verificar si necesita rebuild (si hay Dockerfile)
-    local needs_rebuild=false
-    if [[ -f "Dockerfile" ]]; then
-        log "🔍 Dockerfile detectado, verificando si necesita rebuild..."
-
-        # Verificar si la imagen existe
-        local image_exists=false
-        if docker compose config --services | while read -r service; do
-            if docker compose images "$service" 2>/dev/null | grep -q "$service"; then
-                echo "exists"
-                break
-            fi
-        done | grep -q "exists"; then
-            image_exists=true
-        fi
-
-        if [[ "$image_exists" == "false" ]] || [[ "$force_recreate" == "true" ]]; then
-            needs_rebuild=true
-        fi
-    fi
-
     # Parar contenedores actuales
     log "⏹️ Parando contenedores actuales..."
     docker compose down --remove-orphans
 
-    # Rebuild si es necesario
-    if [[ "$needs_rebuild" == "true" ]]; then
-        log "🔨 Rebuilding imagen(es)..."
-        if [[ "$force_recreate" == "true" ]]; then
-            log "   🧹 Build desde cero (--no-cache)"
-            docker compose build --no-cache
-        else
-            log "   📦 Build incremental"
-            docker compose build
-        fi
+    # Si se fuerza recreate, hacer build (si hay Dockerfile)
+    if [[ "$force_recreate" == "true" ]] && [[ -f "Dockerfile" ]]; then
+        log "🔨 Rebuilding imagen(es) desde cero..."
+        docker compose build --no-cache
     fi
 
     if [[ "$force_recreate" == "true" ]]; then
@@ -506,10 +477,6 @@ main() {
         case $1 in
             -r|--recreate)
                 force_recreate=true
-                shift
-                ;;
-            -b|--build)
-                force_recreate=true  # Forzar recreate implica rebuild
                 shift
                 ;;
             -f|--force)
