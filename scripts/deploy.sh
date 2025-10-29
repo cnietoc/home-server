@@ -436,10 +436,21 @@ redeploy_stack() {
     log "⏹️ Parando contenedores actuales..."
     docker compose down --remove-orphans
 
-    # Si se fuerza recreate, hacer build (si hay Dockerfile)
-    if [[ "$force_recreate" == "true" ]] && [[ -f "Dockerfile" ]]; then
-        log "🔨 Rebuilding imagen(es) desde cero..."
-        docker compose build --no-cache
+    # Detectar si hay servicios que requieren build (buscar Dockerfile en cualquier parte)
+    local needs_build=false
+    if find . -name "Dockerfile" -type f | head -1 | grep -q .; then
+        needs_build=true
+    fi
+
+    # Si hay archivos que requieren build, aplicar estrategia según fuerza
+    if [[ "$needs_build" == "true" ]]; then
+        if [[ "$force_recreate" == "true" ]]; then
+            log "🔨 Rebuilding imagen(es) desde cero (sin caché)..."
+            docker compose build --no-cache
+        else
+            log "🔨 Rebuilding imagen(es) (con caché)..."
+            docker compose build
+        fi
     fi
 
     if [[ "$force_recreate" == "true" ]]; then
