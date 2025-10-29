@@ -97,16 +97,17 @@ stop_all_containers() {
         local stopped_count=0
         local failed_count=0
 
-        # Procesar cada contenedor individualmente
-        local container_array=($containers)
+        # Convertir a array para procesamiento seguro
+        read -ra container_array <<< "$containers"
         local total_containers=${#container_array[@]}
+        local current=0
 
-        for i in "${!container_array[@]}"; do
-            local container_id="${container_array[$i]}"
-            local current=$((i + 1))
+        for container_id in "${container_array[@]}"; do
+            ((current++))
 
             log "   📋 Procesando $current/$total_containers: $container_id"
 
+            # Obtener nombre del contenedor
             local name
             name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
 
@@ -121,13 +122,13 @@ stop_all_containers() {
 
             # Intentar parar el contenedor
             log "   🔄 Parando $name... (timeout 10s)"
-            if timeout 10s docker stop "$container_id" 2>/dev/null; then
+            if timeout 10s docker stop "$container_id" >/dev/null 2>&1; then
                 log "   ✅ Parado: $name"
                 ((stopped_count++))
             else
                 # Si no se puede parar normalmente, forzar
                 warn "   ⚠️ No se pudo parar $name, forzando..."
-                if timeout 5s docker kill "$container_id" 2>/dev/null; then
+                if timeout 5s docker kill "$container_id" >/dev/null 2>&1; then
                     log "   🔴 Forzado: $name"
                     ((stopped_count++))
                 else
@@ -137,6 +138,7 @@ stop_all_containers() {
             fi
 
             # Verificar que realmente se paró
+            sleep 1  # Dar tiempo para que el contenedor se pare completamente
             if ! docker ps -q | grep -q "^$container_id"; then
                 log "   ✓ Confirmado: $name está parado"
             else
