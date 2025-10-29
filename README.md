@@ -24,6 +24,7 @@ home-server/
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
 │   ├── install-docker.sh   # Instalación de Docker (Ubuntu)
+│   ├── onedrive-manager.sh # Gestión completa de OneDrive con rclone
 │   ├── setup-security.sh   # Configuración de seguridad del servidor
 │   ├── setup-ssh.sh        # Configuración SSH con claves de GitHub
 │   ├── update-dns.sh       # Actualización automática de DNS Cloudflare
@@ -51,13 +52,13 @@ Si necesitas sincronizar archivos con OneDrive, puedes instalar y configurar rcl
 
 ```bash
 # Instalar rclone y configurar OneDrive
-./scripts/install-onedrive.sh
+./scripts/onedrive-manager.sh
 
 # Diagnosticar problemas del servicio
-./scripts/install-onedrive.sh diagnose
+./scripts/onedrive-manager.sh diagnose
 
 # Reparar configuración si hay problemas
-./scripts/install-onedrive.sh repair
+./scripts/onedrive-manager.sh repair
 ```
 
 **Gestión del servicio systemd:**

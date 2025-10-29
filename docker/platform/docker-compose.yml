@@ -110,7 +110,6 @@ services:
 
       # Programación de actualizaciones
       - WATCHTOWER_SCHEDULE=${WATCHTOWER_SCHEDULE}
-      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL}
 
       # Notificaciones y logs
       - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS}
