@@ -30,40 +30,7 @@ stack_exists() {
     "$SCRIPT_DIR/stack-info.sh" stack_exists "$stack_name" 2>/dev/null
 }
 
-# Cargar configuración de stacks usando stack-info.sh
-load_stack_config() {
-    declare -gA STACK_CONFIG
 
-    # Verificar que stack-info.sh esté disponible y funcional
-    if ! "$SCRIPT_DIR/stack-info.sh" init_stack_info >/dev/null 2>&1; then
-        log "❌ Error: No se pudo inicializar stack-info"
-        return 1
-    fi
-
-    # Obtener lista de stacks
-    local stacks
-    stacks=$(get_available_stacks) || {
-        log "❌ Error obteniendo lista de stacks"
-        return 1
-    }
-
-    while IFS= read -r stack; do
-        [[ -z "$stack" ]] && continue
-
-        # Obtener archivos de configuración para este stack
-        local config_files
-        config_files=$(get_stack_config_files "$stack")
-
-        STACK_CONFIG["$stack"]="$config_files"
-
-    done <<< "$stacks"
-}
-
-# Obtener configuración para un stack específico
-get_stack_config() {
-    local stack_name="$1"
-    echo "${STACK_CONFIG[$stack_name]:-}"
-}
 
 # Generar .env combinado para un stack específico
 generate_stack_env() {
@@ -93,7 +60,7 @@ STACK_DATA=../../data/$stack_name
 EOF
 
     # Cargar todos los archivos .env configurados
-    local all_config=$(get_stack_config "$stack_name")
+            local all_config=$(get_stack_config_files "$stack_name")
     if [[ -n "$all_config" ]]; then
         echo "# === Configuración del stack ===" >> "$temp_file"
         IFS=',' read -ra config_array <<< "$all_config"
@@ -121,24 +88,29 @@ list_stack_config() {
     log "📋 Configuración de variables por stack:"
     echo ""
 
-    printf "%-15s | %-30s | %s\n" "STACK" "ARCHIVOS CONFIGURACIÓN" "DESCRIPCIÓN"
-    printf "%-15s-|-%s-|-%s\n" "---------------" "------------------------------" "------------------------"
-
-    # Cargar configuración de stacks
-    if ! load_stack_config; then
-        log "❌ Error cargando configuración de stacks"
+    # Obtener stacks directamente desde stack-info.sh
+    local stacks
+    stacks=$(get_available_stacks) || {
+        log "❌ Error obteniendo lista de stacks"
         return 1
-    fi
+    }
 
-    for stack in $(printf '%s\n' "${!STACK_CONFIG[@]}" | sort); do
-        local config_vars="${STACK_CONFIG[$stack]}"
+    local stack_list=($stacks)
+    for stack in "${stack_list[@]}"; do
+        [[ -z "$stack" ]] && continue
+
+        local config_vars
+        config_vars=$(get_stack_config_files "$stack")
 
         # Obtener descripción usando stack-info wrapper
         local description
         description=$(get_stack_description "$stack")
         [[ -z "$description" ]] && description="Sin descripción"
 
-        printf "%-15s | %-30s | %s\n" "$stack" "$config_vars" "$description"
+        # Mostrar en formato compacto con viñetas bonito
+        echo "📦 $stack: $description"
+        echo "   ⚙️  $config_vars"
+        echo ""
     done
 }
 
@@ -149,11 +121,20 @@ generate_all_stack_envs() {
         return 1
     fi
 
-    for stack_dir in "$DOCKER_DIR"/*/; do
-        if [[ -d "$stack_dir" ]]; then
-            local stack_name="$(basename "$stack_dir")"
+    # Obtener stacks desde stack-info.sh en lugar de buscar directorios
+    local stacks
+    stacks=$(get_available_stacks) || {
+        log "❌ Error obteniendo lista de stacks"
+        return 1
+    }
+
+    while IFS= read -r stack_name; do
+        [[ -z "$stack_name" ]] && continue
+
+        # Verificar que el directorio docker existe para este stack
+        if [[ -d "$DOCKER_DIR/$stack_name" ]]; then
             # Asegurar todos los archivos de configuración (incluyendo common)
-            local all_config=$(get_stack_config "$stack_name")
+            local all_config=$(get_stack_config_files "$stack_name")
             if [[ -n "$all_config" ]]; then
                 IFS=',' read -ra config_array <<< "$all_config"
                 for config_type in "${config_array[@]}"; do
@@ -162,8 +143,10 @@ generate_all_stack_envs() {
                 done
             fi
             generate_stack_env "$stack_name"
+        else
+            log "⚠️ Stack '$stack_name' definido en configuración pero no tiene directorio docker"
         fi
-    done
+    done <<< "$stacks"
 }
 
 # Generar archivo .env desde template si no existe
@@ -192,9 +175,9 @@ ensure_env_file_exists() {
 
 # Función principal
 main() {
-    # Cargar configuración de variables
-    if ! load_stack_config; then
-        log "❌ Error cargando configuración de variables"
+    # Verificar que stack-info.sh esté disponible
+    if ! "$SCRIPT_DIR/stack-info.sh" init_stack_info >/dev/null 2>&1; then
+        log "❌ Error: No se pudo inicializar stack-info"
         exit 1
     fi
 
@@ -217,20 +200,27 @@ main() {
                 generate_all_stack_envs
             else
                 for stack in "$@"; do
-                    if [[ -d "$DOCKER_DIR/$stack" ]]; then
-                        # Asegurar todos los archivos de configuración (incluyendo common)
-                        local private_dir="$(get_private_dir)"
-                        local all_config=$(get_stack_config "$stack")
-                        if [[ -n "$all_config" ]]; then
-                            IFS=',' read -ra config_array <<< "$all_config"
-                            for config_type in "${config_array[@]}"; do
-                                config_type=$(echo "$config_type" | xargs)
-                                ensure_env_file_exists "$config_type" "$private_dir"
-                            done
+                    # Verificar que el stack existe en la configuración
+                    if stack_exists "$stack"; then
+                        # Verificar que también tiene directorio docker
+                        if [[ -d "$DOCKER_DIR/$stack" ]]; then
+                            # Asegurar todos los archivos de configuración (incluyendo common)
+                            local private_dir="$(get_private_dir)"
+                            local all_config=$(get_stack_config_files "$stack")
+                            if [[ -n "$all_config" ]]; then
+                                IFS=',' read -ra config_array <<< "$all_config"
+                                for config_type in "${config_array[@]}"; do
+                                    config_type=$(echo "$config_type" | xargs)
+                                    ensure_env_file_exists "$config_type" "$private_dir"
+                                done
+                            fi
+                            generate_stack_env "$stack"
+                        else
+                            log "⚠️ Stack '$stack' existe en configuración pero no tiene directorio docker"
                         fi
-                        generate_stack_env "$stack"
                     else
-                        log "⚠️ Stack no encontrado: $stack"
+                        log "⚠️ Stack no encontrado en configuración: $stack"
+                        log "   Stacks disponibles: $(get_available_stacks | tr '\n' ' ')"
                     fi
                 done
             fi
