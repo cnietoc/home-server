@@ -291,6 +291,11 @@ get_available_stacks() {
     local available_stacks
     available_stacks=$("$SCRIPT_DIR/stack-info.sh" get_available_stacks 2>/dev/null || echo "")
 
+    echo "🔍 Obteniendo stacks disponibles..."
+    echo "🔍 platform found: $platform_found"
+    echo "🔍 available_stacks: $available_stacks"
+      echo "🔍 all_stacks: ${all_stacks[*]}"
+
     if [[ -n "$available_stacks" ]]; then
         while IFS= read -r stack_name; do
             [[ -z "$stack_name" ]] && continue
@@ -299,6 +304,7 @@ get_available_stacks() {
             fi
         done <<< "$available_stacks"
     fi
+    echo "🔍 all_stacks: ${all_stacks[*]}"
 
     printf "%s " "${all_stacks[@]}"
 }
