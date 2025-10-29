@@ -94,10 +94,46 @@ stop_all_containers() {
 
     log "⏹️ Parando todos los contenedores..."
     if [[ -n "$containers" ]]; then
-        if docker stop $containers >/dev/null 2>&1; then
-            log "✅ Contenedores parados exitosamente"
+        local stopped_count=0
+        local failed_count=0
+
+        for container_id in $containers; do
+            local name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///' || echo "unknown")
+
+            # Verificar si ya está parado
+            if ! docker ps -q --no-trunc | grep -q "^$container_id$"; then
+                [[ "$verbose" == "true" ]] && log "   ⏭️ $name ya estaba parado"
+                ((stopped_count++))
+                continue
+            fi
+
+            # Intentar parar el contenedor con timeout más corto
+            log "   🔄 Parando $name..."
+            if timeout 30s docker stop "$container_id" >/dev/null 2>&1; then
+                log "   ✅ Parado: $name"
+                ((stopped_count++))
+            else
+                # Si no se puede parar normalmente, forzar
+                warn "   ⚠️ No se pudo parar $name (timeout/error), forzando..."
+                if timeout 5s docker kill "$container_id" >/dev/null 2>&1; then
+                    log "   🔴 Forzado: $name"
+                    ((stopped_count++))
+                else
+                    error "   ❌ Error parando: $name"
+                    ((failed_count++))
+                fi
+            fi
+        done
+
+        log "✅ Resultado: $stopped_count parados, $failed_count fallos"
+
+        # Verificar que realmente no hay contenedores corriendo
+        local still_running=$(docker ps -q | wc -l)
+        if [[ $still_running -gt 0 ]]; then
+            warn "⚠️ Aún hay $still_running contenedores corriendo"
+            [[ "$verbose" == "true" ]] && docker ps --format "table {{.Names}}\t{{.Status}}"
         else
-            log "⚠️ Algunos contenedores ya estaban parados o no se pudieron parar"
+            log "✅ Todos los contenedores están parados"
         fi
     fi
 }
@@ -332,6 +368,16 @@ main() {
     stop_all_containers "$dry_run" "$verbose"
 
     if [[ "$dry_run" != "true" ]]; then
+        # Verificar que realmente todos están parados antes de continuar
+        local still_running=$(docker ps -q | wc -l)
+        if [[ $still_running -gt 0 ]]; then
+            error "❌ Aún hay contenedores corriendo. No se puede continuar con seguridad."
+            log "💡 Contenedores que aún están corriendo:"
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+            log "💡 Puedes forzar la parada con: docker stop \$(docker ps -q) || docker kill \$(docker ps -q)"
+            exit 1
+        fi
+
         run_clean_deploy "$dry_run" "$verbose"
         remove_orphaned_containers "$dry_run" "$verbose"
         cleanup_docker_resources "$dry_run" "$verbose" "$no_cleanup"
