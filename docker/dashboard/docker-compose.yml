@@ -1,3 +1,7 @@
+networks:
+  proxy:
+    external: true
+
 services:
   # Dashboard dinámico del Home Server
   dashboard:
@@ -17,8 +21,7 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
     networks:
-      - default
-      - traefik
+      - proxy
     labels:
       # Traefik configuration para dominio principal (sin subdominio)
       - "traefik.enable=true"
@@ -26,13 +29,3 @@ services:
       - "traefik.http.routers.${STACK_NAME}-dashboard.entrypoints=websecure"
       - "traefik.http.routers.${STACK_NAME}-dashboard.tls.certresolver=cloudflare"
       - "traefik.http.services.${STACK_NAME}-dashboard.loadbalancer.server.port=3000"
-
-      # Etiquetas adicionales para organización
-      - "homeserver.stack=${STACK_NAME}"
-      - "homeserver.service=dashboard"
-
-networks:
-  traefik:
-    external: true
-  default:
-    name: ${STACK_NAME}_network
