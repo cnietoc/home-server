@@ -75,14 +75,22 @@ stack_config_has_changed() {
     [[ "$current_hash" != "$stored_hash" ]]
 }
 
-# Obtener todos los stacks que han cambiado
+# Obtener todos los stacks que han cambiado con platform primero
 get_changed_stacks() {
     local changed_stacks=()
 
+    # Verificar platform primero
+    if [[ -d "$DOCKER_DIR/platform" && -f "$DOCKER_DIR/platform/docker-compose.yml" ]]; then
+        if stack_config_has_changed "platform"; then
+            changed_stacks+=("platform")
+        fi
+    fi
+
+    # Verificar resto de stacks
     for stack_dir in "$DOCKER_DIR"/*/; do
         if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
             local stack_name="$(basename "$stack_dir")"
-            if stack_config_has_changed "$stack_name"; then
+            if [[ "$stack_name" != "platform" ]] && stack_config_has_changed "$stack_name"; then
                 changed_stacks+=("$stack_name")
             fi
         fi
@@ -263,13 +271,24 @@ regenerate_env_files() {
     fi
 }
 
-# Obtener todos los stacks disponibles
+# Obtener todos los stacks disponibles con platform primero
 get_available_stacks() {
     local all_stacks=()
+    local platform_found=false
 
+    # Primero agregar platform si existe
+    if [[ -d "$DOCKER_DIR/platform" && -f "$DOCKER_DIR/platform/docker-compose.yml" ]]; then
+        all_stacks+=("platform")
+        platform_found=true
+    fi
+
+    # Luego agregar el resto en orden alfabético
     for stack_dir in "$DOCKER_DIR"/*/; do
         if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
-            all_stacks+=("$(basename "$stack_dir")")
+            local stack_name="$(basename "$stack_dir")"
+            if [[ "$stack_name" != "platform" ]]; then
+                all_stacks+=("$stack_name")
+            fi
         fi
     done
 
@@ -644,17 +663,14 @@ main() {
             log "🌐 Servicios accesibles:"
             for stack in "${stacks_to_deploy[@]}"; do
                 case $stack in
-                    network)
-                        log "   🔀 Traefik Dashboard: https://traefik.${BASE_DOMAIN:-tu-dominio.com}"
+                    platform)
+                        log "   🏗️ Platform Stack:"
+                        log "      🔀 Traefik Dashboard: https://traefik.${BASE_DOMAIN:-tu-dominio.com}"
+                        log "      🔐 TinyAuth: https://tinyauth.${BASE_DOMAIN:-tu-dominio.com}"
+                        log "      🔄 Watchtower: Actualizaciones automáticas de imágenes"
                         ;;
                     helloworld)
                         log "   👋 Hello World: https://hello.${BASE_DOMAIN:-tu-dominio.com}"
-                        ;;
-                    auth)
-                        log "   🔐 Panel de Autenticación: https://auth.${BASE_DOMAIN:-tu-dominio.com}"
-                        ;;
-                    watchtower)
-                        log "   🔄 Watchtower: Actualizaciones automáticas de imágenes Docker"
                         ;;
                 esac
             done
