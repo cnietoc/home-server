@@ -14,7 +14,8 @@ services:
       - ./html:/usr/share/nginx/html:ro
     environment:
       - TZ=${TZ}
-    user: ${PUID}:${PGID}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.test.rule: "Host(`test.${BASE_DOMAIN}`)"

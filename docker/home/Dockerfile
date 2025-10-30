@@ -6,11 +6,8 @@ RUN apk add --no-cache \
     procps \
     util-linux \
     coreutils \
-    curl
-
-# Crear usuario no-root primero
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    curl \
+    su-exec
 
 # Crear directorio de la aplicación
 WORKDIR /app
@@ -26,6 +23,10 @@ RUN npm ci --omit=dev && \
 COPY server.js ./
 COPY public/ ./public/
 
+# Copiar script de entrada
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Debug: verificar estructura de archivos
 RUN echo "=== Estructura de /app ===" && \
     ls -la /app/ && \
@@ -33,12 +34,6 @@ RUN echo "=== Estructura de /app ===" && \
     ls -la /app/public/ && \
     echo "=== Contenido de server.js (primeras 10 líneas) ===" && \
     head -10 /app/server.js
-
-# Cambiar permisos
-RUN chown -R nodejs:nodejs /app
-
-# Cambiar a usuario no-root
-USER nodejs
 
 # Exponer puerto
 EXPOSE 3000
@@ -50,5 +45,6 @@ ENV NODE_ENV=production \
 # Verificar que Node.js puede iniciar (test básico)
 RUN node --version && npm --version
 
-# Comando de inicio con verificación de Docker
-CMD ["sh", "-c", "echo 'Iniciando servidor Node.js en puerto $PORT' && echo 'Verificando acceso a Docker...' && docker version >/dev/null 2>&1 && echo 'Docker accesible ✓' || echo 'Docker no accesible ⚠️' && npm start"]
+# Usar entrypoint para manejo dinámico de usuarios
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["npm", "start"]

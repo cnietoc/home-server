@@ -22,7 +22,8 @@ services:
       - PORT=3000
       - BASE_DOMAIN=${BASE_DOMAIN}
       - TZ=${TZ}
-    user: ${PUID}:${PGID}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.home.rule: "Host(`${BASE_DOMAIN}`)"
