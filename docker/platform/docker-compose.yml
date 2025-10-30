@@ -24,6 +24,7 @@ services:
       - PGID=${PGID}
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+    user: ${PUID}:${PGID}
     command:
       # API y Dashboard
       - --api.dashboard=true

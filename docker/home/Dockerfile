@@ -50,5 +50,5 @@ ENV NODE_ENV=production \
 # Verificar que Node.js puede iniciar (test básico)
 RUN node --version && npm --version
 
-# Comando de inicio con logging mejorado
-CMD ["sh", "-c", "echo 'Iniciando servidor Node.js en puerto $PORT' && npm start"]
+# Comando de inicio con verificación de Docker
+CMD ["sh", "-c", "echo 'Iniciando servidor Node.js en puerto $PORT' && echo 'Verificando acceso a Docker...' && docker version >/dev/null 2>&1 && echo 'Docker accesible ✓' || echo 'Docker no accesible ⚠️' && npm start"]
