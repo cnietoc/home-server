@@ -1,15 +1,17 @@
-# 🏠 Home Server Dashboard (Dashboard Stack)
+# 🏠 Home Server Dashboard (Home Stack)
 
-Dashboard dinámico del Home Server que muestra información en tiempo real del servidor y servicios disponibles.
+Dashboard seguro del Home Server que muestra servicios accesibles y estado del sistema sin exponer información sensible.
 
 ## 🚀 Características
 
-- **📊 Información en tiempo real**: Calcula toda la información al momento de la consulta
-- **🖥️ Datos del sistema**: Hostname, uptime, memoria, disco
-- **🐳 Estado de Docker**: Contenedores totales y en ejecución
-- **📦 Stacks y servicios**: Lista dinámica con URLs funcionales
-- **🌐 Sin subdominio**: Se abre directamente en el dominio principal
+- **🌐 Servicios accesibles**: Lista solo servicios web públicos y protegidos
+- **📊 Estado del sistema**: Información segura (sin hostname real, IPs, o rutas)
+- **🔒 Separación por seguridad**: Servicios públicos vs protegidos claramente diferenciados
+- **📈 Métricas útiles**: Uso de memoria, disco y carga del sistema en porcentajes
+- **🐳 Estado de contenedores**: Solo conteos básicos sin nombres ni detalles
+- **🌐 Dominio principal**: Accesible directamente desde el dominio sin subdominio
 - **♻️ Auto-actualización**: Refresco automático cada 30 segundos
+- **🛡️ Información filtrada**: No expone rutas internas, configuraciones o detalles del sistema
 
 ## 🛠️ Tecnologías
 
@@ -21,9 +23,26 @@ Dashboard dinámico del Home Server que muestra información en tiempo real del 
 ## 📡 API Endpoints
 
 - `GET /` - Dashboard web principal
-- `GET /api/system` - Información del sistema
-- `GET /api/stacks` - Stacks y servicios configurados
+- `GET /api/system` - Estado del sistema (información segura)
+- `GET /api/services` - Servicios web accesibles (públicos y protegidos)
 - `GET /api/dashboard` - Datos completos del dashboard
+
+### 🛡️ Información de Seguridad
+
+**Datos que NO se exponen:**
+- Hostname real del servidor
+- Direcciones IP internas
+- Rutas del sistema de archivos
+- Nombres de contenedores específicos
+- Configuraciones detalladas
+- Logs o información sensible
+
+**Datos seguros que SÍ se muestran:**
+- Porcentajes de uso de recursos
+- Estado general del sistema (low/medium/high)
+- URLs de servicios públicos
+- Conteo básico de contenedores
+- Tiempo de actividad
 
 ## 🔧 Configuración
 

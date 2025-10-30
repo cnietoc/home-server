@@ -29,81 +29,97 @@ function loadStacksConfig() {
     }
 }
 
-// Función para obtener información del sistema
+// Función para obtener información del sistema (segura)
 function getSystemInfo() {
     try {
         const info = {};
 
-        // Información básica del sistema
-        try {
-            info.hostname = execSync('hostname', { encoding: 'utf8' }).trim();
-        } catch (e) {
-            info.hostname = 'unknown';
-        }
+        // Información básica del sistema (sin hostname real por seguridad)
+        info.serverName = 'Home Server';
 
         try {
-            info.uptime = execSync('uptime -p', { encoding: 'utf8' }).trim();
+            const uptime = execSync('uptime -p', { encoding: 'utf8' }).trim();
+            info.uptime = uptime.replace('up ', '');
         } catch (e) {
             info.uptime = 'unknown';
         }
 
+        // Memoria (solo porcentajes, no cantidades absolutas)
         try {
-            const memInfo = execSync('free -h', { encoding: 'utf8' });
+            const memInfo = execSync('free', { encoding: 'utf8' });
             const memLines = memInfo.split('\n');
             const memLine = memLines.find(line => line.startsWith('Mem:'));
             if (memLine) {
-                const memParts = memLine.split(/\s+/);
+                const memParts = memLine.split(/\s+/).map(Number);
+                const total = memParts[1];
+                const used = memParts[2];
+                const usagePercent = Math.round((used / total) * 100);
+
                 info.memory = {
-                    total: memParts[1],
-                    used: memParts[2],
-                    available: memParts[6] || memParts[3]
+                    usage: `${usagePercent}%`,
+                    status: usagePercent > 80 ? 'high' : usagePercent > 60 ? 'medium' : 'low'
                 };
             }
         } catch (e) {
-            info.memory = { total: 'unknown', used: 'unknown', available: 'unknown' };
+            info.memory = { usage: 'unknown', status: 'unknown' };
         }
 
+        // Disco (solo del sistema de archivos root)
         try {
             const diskInfo = execSync('df -h /', { encoding: 'utf8' });
             const diskLines = diskInfo.split('\n');
             const diskLine = diskLines[1];
             if (diskLine) {
                 const diskParts = diskLine.split(/\s+/);
+                const usagePercent = parseInt(diskParts[4].replace('%', ''));
+
                 info.disk = {
-                    total: diskParts[1],
-                    used: diskParts[2],
+                    usage: diskParts[4],
                     available: diskParts[3],
-                    usage: diskParts[4]
+                    status: usagePercent > 85 ? 'high' : usagePercent > 70 ? 'medium' : 'low'
                 };
             }
         } catch (e) {
-            info.disk = { total: 'unknown', used: 'unknown', available: 'unknown', usage: 'unknown' };
+            info.disk = { usage: 'unknown', available: 'unknown', status: 'unknown' };
         }
 
-        // Información de Docker
+        // Estado general del sistema
         try {
-            const dockerInfo = execSync('docker info --format "{{.Containers}}"', { encoding: 'utf8' }).trim();
-            info.docker = {
-                containers: dockerInfo || '0'
+            const loadAvg = execSync('cat /proc/loadavg', { encoding: 'utf8' }).trim().split(' ')[0];
+            const load = parseFloat(loadAvg);
+            info.load = {
+                value: load.toFixed(2),
+                status: load > 2.0 ? 'high' : load > 1.0 ? 'medium' : 'low'
             };
-
-            const runningContainers = execSync('docker ps -q | wc -l', { encoding: 'utf8' }).trim();
-            info.docker.running = runningContainers || '0';
         } catch (e) {
-            info.docker = { containers: 'unknown', running: 'unknown' };
+            info.load = { value: 'unknown', status: 'unknown' };
         }
 
-        info.timestamp = new Date().toISOString();
+        // Información básica de Docker (solo conteos)
+        try {
+            const runningContainers = execSync('docker ps -q | wc -l', { encoding: 'utf8' }).trim();
+            const totalContainers = execSync('docker ps -a -q | wc -l', { encoding: 'utf8' }).trim();
+
+            info.containers = {
+                running: parseInt(runningContainers) || 0,
+                total: parseInt(totalContainers) || 0
+            };
+        } catch (e) {
+            info.containers = { running: 0, total: 0 };
+        }
+
+        info.lastUpdated = new Date().toISOString();
         return info;
     } catch (error) {
         console.error('Error getting system info:', error.message);
         return {
-            hostname: 'unknown',
+            serverName: 'Home Server',
             uptime: 'unknown',
-            memory: { total: 'unknown', used: 'unknown', available: 'unknown' },
-            disk: { total: 'unknown', used: 'unknown', available: 'unknown', usage: 'unknown' },
-            docker: { containers: 'unknown', running: 'unknown' },
-            timestamp: new Date().toISOString()
+            memory: { usage: 'unknown', status: 'unknown' },
+            disk: { usage: 'unknown', available: 'unknown', status: 'unknown' },
+            load: { value: 'unknown', status: 'unknown' },
+            containers: { running: 0, total: 0 },
+            lastUpdated: new Date().toISOString()
         };
     }
 }
@@ -116,48 +132,37 @@ function buildServiceUrl(subdomain) {
     return `https://${subdomain}.${BASE_DOMAIN}`;
 }
 
-// Función para procesar stacks y servicios
-function processStacksAndServices() {
+// Función para procesar servicios web accesibles
+function processAccessibleServices() {
     const config = loadStacksConfig();
-    const stacks = [];
+    const publicServices = [];
+    const protectedServices = [];
 
     if (config.stacks) {
         Object.entries(config.stacks).forEach(([stackName, stackConfig]) => {
-            const stack = {
-                name: stackName,
-                description: stackConfig.description || 'Sin descripción',
-                config_files: Array.isArray(stackConfig.config_files)
-                    ? ['common', ...stackConfig.config_files].join(',')
-                    : 'common',
-                services: []
-            };
-
             if (stackConfig.services) {
                 Object.entries(stackConfig.services).forEach(([serviceName, serviceConfig]) => {
-                    const service = {
-                        name: serviceName,
-                        description: serviceConfig.description || serviceName,
-                        protected: serviceConfig.protected || false,
-                        subdomain: serviceConfig.subdomain
-                    };
-
-                    // Solo agregar URL si tiene subdomain o es el servicio principal
+                    // Solo incluir servicios que tienen subdomain definido (accesibles vía web)
                     if (serviceConfig.subdomain !== undefined) {
-                        service.url = buildServiceUrl(serviceConfig.subdomain);
-                        service.hasUrl = true;
-                    } else {
-                        service.hasUrl = false;
-                    }
+                        const service = {
+                            name: serviceConfig.description || serviceName,
+                            url: buildServiceUrl(serviceConfig.subdomain),
+                            stack: stackName
+                        };
 
-                    stack.services.push(service);
+                        // Separar por protección
+                        if (serviceConfig.protected) {
+                            protectedServices.push(service);
+                        } else {
+                            publicServices.push(service);
+                        }
+                    }
                 });
             }
-
-            stacks.push(stack);
         });
     }
 
-    return stacks;
+    return { publicServices, protectedServices };
 }
 
 // API Endpoints
@@ -166,18 +171,18 @@ app.get('/api/system', (req, res) => {
     res.json(systemInfo);
 });
 
-app.get('/api/stacks', (req, res) => {
-    const stacks = processStacksAndServices();
-    res.json(stacks);
+app.get('/api/services', (req, res) => {
+    const services = processAccessibleServices();
+    res.json(services);
 });
 
 app.get('/api/dashboard', (req, res) => {
     const systemInfo = getSystemInfo();
-    const stacks = processStacksAndServices();
+    const services = processAccessibleServices();
 
     res.json({
         system: systemInfo,
-        stacks: stacks,
+        services: services,
         generated_at: new Date().toISOString()
     });
 });
@@ -191,8 +196,9 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🏠 Home Server Dashboard running on port ${PORT}`);
     console.log(`📊 API endpoints:`);
-    console.log(`   - GET /api/system - System information`);
-    console.log(`   - GET /api/stacks - Stacks and services`);
+    console.log(`   - GET / - Main dashboard`);
+    console.log(`   - GET /api/system - System status (safe information)`);
+    console.log(`   - GET /api/services - Accessible web services`);
     console.log(`   - GET /api/dashboard - Complete dashboard data`);
 });
 

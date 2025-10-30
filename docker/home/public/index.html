@@ -46,15 +46,15 @@
             opacity: 0.6;
         }
 
-        .dashboard-grid {
+        .services-grid {
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: 1fr 1fr;
             gap: 2rem;
-            margin-bottom: 2rem;
+            margin-top: 2rem;
         }
 
         @media (max-width: 768px) {
-            .dashboard-grid {
+            .services-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -108,10 +108,10 @@
             font-size: 0.9rem;
         }
 
-        .stacks-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
+        .services-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .stack-card {
@@ -213,6 +213,64 @@
             color: white;
         }
 
+        .service-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .service-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .service-info {
+            flex: 1;
+        }
+
+        .service-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .service-description {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .status-indicator {
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-low {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-medium {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .status-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
         .protected-badge {
             background: rgba(255, 193, 7, 0.3);
             color: #ffc107;
@@ -270,35 +328,35 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🏠 Home Server Dashboard</h1>
-            <p class="subtitle">Estado en tiempo real del servidor</p>
-            <div class="last-updated" id="lastUpdated">Cargando...</div>
-        </div>
+    <div class="header">
+        <h1>🏠 Home Server</h1>
+        <p class="subtitle">Servicios y estado del sistema</p>
+        <div class="last-updated" id="lastUpdated">Cargando...</div>
+    </div>
 
-        <div class="dashboard-grid">
-            <!-- Información del Sistema -->
-            <div class="card">
-                <h2><span class="icon">🖥️</span> Sistema</h2>
-                <div class="system-info" id="systemInfo">
-                    <div class="loading">Cargando información del sistema...</div>
-                </div>
-            </div>
-
-            <!-- Información de Docker -->
-            <div class="card">
-                <h2><span class="icon">🐳</span> Docker</h2>
-                <div class="system-info" id="dockerInfo">
-                    <div class="loading">Cargando información de Docker...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stacks y Servicios -->
+        <!-- Estado del Sistema -->
         <div class="card">
-            <h2><span class="icon">📦</span> Stacks y Servicios</h2>
-            <div class="stacks-container" id="stacksContainer">
-                <div class="loading">Cargando stacks y servicios...</div>
+            <h2><span class="icon">📊</span> Estado del Sistema</h2>
+            <div class="system-info" id="systemInfo">
+                <div class="loading">Cargando información del sistema...</div>
+            </div>
+        </div>
+
+        <div class="services-grid">
+            <!-- Servicios Públicos -->
+            <div class="card">
+                <h2><span class="icon">🌐</span> Servicios Públicos</h2>
+                <div class="services-container" id="publicServices">
+                    <div class="loading">Cargando servicios públicos...</div>
+                </div>
+            </div>
+
+            <!-- Servicios Protegidos -->
+            <div class="card">
+                <h2><span class="icon">🔒</span> Panel de Administración</h2>
+                <div class="services-container" id="protectedServices">
+                    <div class="loading">Cargando servicios protegidos...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -327,82 +385,86 @@
 
             container.innerHTML = `
                 <div class="info-item">
-                    <span class="info-label">Hostname</span>
-                    <span class="info-value">${system.hostname}</span>
+                    <span class="info-label">Servidor</span>
+                    <span class="info-value">${system.serverName}</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Uptime</span>
+                    <span class="info-label">Tiempo Activo</span>
                     <span class="info-value">${system.uptime}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Memoria</span>
-                    <span class="info-value">${system.memory.used} / ${system.memory.total}</span>
+                    <div class="info-value">
+                        ${system.memory.usage}
+                        <span class="status-indicator status-${system.memory.status}">${system.memory.status}</span>
+                    </div>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Disco</span>
-                    <span class="info-value">${system.disk.used} / ${system.disk.total} (${system.disk.usage})</span>
+                    <div class="info-value">
+                        ${system.disk.usage} usado, ${system.disk.available} libre
+                        <span class="status-indicator status-${system.disk.status}">${system.disk.status}</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Carga del Sistema</span>
+                    <div class="info-value">
+                        ${system.load.value}
+                        <span class="status-indicator status-${system.load.status}">${system.load.status}</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Contenedores</span>
+                    <span class="info-value">${system.containers.running} activos / ${system.containers.total} total</span>
                 </div>
             `;
         }
 
-        // Función para renderizar información de Docker
-        function renderDockerInfo(docker) {
-            const container = document.getElementById('dockerInfo');
+        // Función para renderizar servicios públicos
+        function renderPublicServices(services) {
+            const container = document.getElementById('publicServices');
 
-            container.innerHTML = `
-                <div class="info-item">
-                    <span class="info-label">Contenedores Totales</span>
-                    <span class="info-value">${docker.containers}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Contenedores Ejecutándose</span>
-                    <span class="info-value">${docker.running}</span>
-                </div>
-            `;
-        }
-
-        // Función para renderizar stacks
-        function renderStacks(stacks) {
-            const container = document.getElementById('stacksContainer');
-
-            if (!stacks || stacks.length === 0) {
-                container.innerHTML = '<div class="error">No se encontraron stacks configurados</div>';
+            if (!services || services.length === 0) {
+                container.innerHTML = '<div class="info-item"><span class="info-label">No hay servicios públicos configurados</span></div>';
                 return;
             }
 
-            const stacksHtml = stacks.map(stack => {
-                const servicesHtml = stack.services.map(service => {
-                    return `
-                        <div class="service-item">
-                            <div class="service-info">
-                                <div class="service-name">${service.description}</div>
-                                ${service.hasUrl ? `<div class="service-url">${service.url}</div>` : '<div class="service-url">Servicio interno</div>'}
-                            </div>
-                            <div>
-                                ${service.protected ? '<span class="protected-badge">🔒 Protegido</span>' : ''}
-                                ${service.hasUrl ? `<a href="${service.url}" target="_blank" class="service-link">Abrir →</a>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <div class="stack-card">
-                        <div class="stack-header">
-                            <span class="stack-icon">📦</span>
-                            <span class="stack-name">${stack.name}</span>
-                        </div>
-                        <div class="stack-description">${stack.description}</div>
-                        <div class="config-info">📁 Config: ${stack.config_files}</div>
-                        <div class="services">
-                            <div class="services-title">Servicios (${stack.services.length})</div>
-                            ${servicesHtml}
-                        </div>
+            const servicesHtml = services.map(service => `
+                <div class="service-card">
+                    <div class="service-info">
+                        <div class="service-title">${service.name}</div>
+                        <div class="service-description">${service.url}</div>
                     </div>
-                `;
-            }).join('');
+                    <a href="${service.url}" target="_blank" class="service-link">Abrir →</a>
+                </div>
+            `).join('');
 
-            container.innerHTML = stacksHtml;
+            container.innerHTML = servicesHtml;
+        }
+
+        // Función para renderizar servicios protegidos
+        function renderProtectedServices(services) {
+            const container = document.getElementById('protectedServices');
+
+            if (!services || services.length === 0) {
+                container.innerHTML = '<div class="info-item"><span class="info-label">No hay servicios protegidos configurados</span></div>';
+                return;
+            }
+
+            const servicesHtml = services.map(service => `
+                <div class="service-card">
+                    <div class="service-info">
+                        <div class="service-title">${service.name}</div>
+                        <div class="service-description">${service.url}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="protected-badge">🔒</span>
+                        <a href="${service.url}" target="_blank" class="service-link">Acceder →</a>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = servicesHtml;
         }
 
         // Función para cargar el dashboard
@@ -420,17 +482,17 @@
 
                 // Renderizar componentes
                 renderSystemInfo(data.system);
-                renderDockerInfo(data.system.docker);
-                renderStacks(data.stacks);
+                renderPublicServices(data.services.publicServices);
+                renderProtectedServices(data.services.protectedServices);
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
                 document.getElementById('systemInfo').innerHTML =
                     '<div class="error">Error cargando información del sistema</div>';
-                document.getElementById('dockerInfo').innerHTML =
-                    '<div class="error">Error cargando información de Docker</div>';
-                document.getElementById('stacksContainer').innerHTML =
-                    '<div class="error">Error cargando stacks y servicios</div>';
+                document.getElementById('publicServices').innerHTML =
+                    '<div class="error">Error cargando servicios públicos</div>';
+                document.getElementById('protectedServices').innerHTML =
+                    '<div class="error">Error cargando servicios protegidos</div>';
             } finally {
                 refreshIcon.classList.remove('spinning');
             }
