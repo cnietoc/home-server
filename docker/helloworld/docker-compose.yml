@@ -14,8 +14,6 @@ services:
       - ./html:/usr/share/nginx/html:ro
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
     user: ${PUID}:${PGID}
     labels:
       traefik.enable: true
