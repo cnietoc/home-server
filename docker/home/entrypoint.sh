@@ -9,25 +9,45 @@ PGID=${PGID:-1000}
 
 echo "🔧 Configurando usuario con PUID=$PUID, PGID=$PGID"
 
-# Crear grupo si no existe
+# Crear grupo - manejar colisiones de GID
 if ! getent group nodejs > /dev/null 2>&1; then
-    addgroup -g ${PGID} -S nodejs
-    echo "✅ Grupo nodejs creado con GID=$PGID"
+    # Verificar si el GID ya está en uso
+    if getent group ${PGID} > /dev/null 2>&1; then
+        EXISTING_GROUP=$(getent group ${PGID} | cut -d: -f1)
+        echo "ℹ️ GID $PGID ya está en uso por grupo '$EXISTING_GROUP', usando grupo existente"
+        GROUP_NAME=$EXISTING_GROUP
+    else
+        addgroup -g ${PGID} -S nodejs
+        echo "✅ Grupo nodejs creado con GID=$PGID"
+        GROUP_NAME=nodejs
+    fi
 else
     echo "ℹ️ Grupo nodejs ya existe"
+    GROUP_NAME=nodejs
 fi
 
-# Crear usuario si no existe
+# Crear usuario - manejar colisiones de UID
 if ! getent passwd nodejs > /dev/null 2>&1; then
-    adduser -S nodejs -u ${PUID} -G nodejs -s /bin/sh
-    echo "✅ Usuario nodejs creado con UID=$PUID"
+    # Verificar si el UID ya está en uso
+    if getent passwd ${PUID} > /dev/null 2>&1; then
+        EXISTING_USER=$(getent passwd ${PUID} | cut -d: -f1)
+        echo "ℹ️ UID $PUID ya está en uso por usuario '$EXISTING_USER', usando usuario existente"
+        USER_NAME=$EXISTING_USER
+        # Agregar el usuario existente al grupo que vamos a usar
+        adduser $USER_NAME $GROUP_NAME 2>/dev/null || true
+    else
+        adduser -S nodejs -u ${PUID} -G ${GROUP_NAME} -s /bin/sh
+        echo "✅ Usuario nodejs creado con UID=$PUID"
+        USER_NAME=nodejs
+    fi
 else
     echo "ℹ️ Usuario nodejs ya existe"
+    USER_NAME=nodejs
 fi
 
 # Asegurar permisos correctos en /app
 echo "🔧 Configurando permisos de /app..."
-chown -R nodejs:nodejs /app
+chown -R ${USER_NAME}:${GROUP_NAME} /app
 
 # Verificar acceso a Docker
 echo "🐳 Verificando acceso a Docker..."
@@ -41,14 +61,14 @@ if docker version >/dev/null 2>&1; then
         if ! getent group docker_host > /dev/null 2>&1; then
             addgroup -g ${DOCKER_GID} -S docker_host
         fi
-        adduser nodejs docker_host 2>/dev/null || true
+        adduser ${USER_NAME} docker_host 2>/dev/null || true
         echo "✅ Usuario agregado al grupo docker del host"
     fi
 else
     echo "⚠️ Docker no accesible (funcionará en modo degradado)"
 fi
 
-echo "🚀 Iniciando aplicación como usuario nodejs..."
+echo "🚀 Iniciando aplicación como usuario ${USER_NAME}..."
 
-# Cambiar al usuario nodejs y ejecutar comando
-exec su-exec nodejs "$@"
+# Cambiar al usuario y ejecutar comando
+exec su-exec ${USER_NAME} "$@"
