@@ -56,10 +56,12 @@ Stack completo para gestión, descarga y streaming de contenido multimedia. Incl
 
 ```
 data/media/              # Todo centralizado en el stack media
-├── library/             # Biblioteca de medios organizada
-│   ├── movies/          # Películas para Jellyfin
-│   ├── tv/              # Series para Jellyfin
-│   └── music/           # Música (opcional)
+├── library-raw/        # Biblioteca original gestionada por Sonarr/Radarr
+│   ├── movies/         # Películas originales
+│   └── tv/             # Series originales
+├── library-optimized/  # Biblioteca optimizada por Tdarr (para Jellyfin)
+│   ├── movies/         # Películas optimizadas
+│   └── tv/             # Series optimizadas
 ├── downloads/           # Gestión de descargas
 │   ├── complete/        # Descargas completadas
 │   ├── incomplete/      # Descargas en progreso
@@ -120,12 +122,13 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 ### 🔗 **1b. Configurar Jackett (Complementario)**
 1. Accede a `https://jackett.tu-dominio.com`
 2. Agrega trackers específicos que Prowlarr no tenga
-3. Copia la **API Key** de Jackett
-4. En Prowlarr: **Settings > Indexers > Add Indexer > Torznab**
+3. Configura FlareSolverr: `http://flaresolverr:8191`
+4. Copia la **API Key** de Jackett 
+5. En Prowlarr: **Settings > Indexers > Add Indexer > Torznab**
    - URL: `http://jackett:9117/api/v2.0/indexers/[indexer-id]/results/torznab/`
    - API Key: [Tu API Key de Jackett]
    - Categories: 2000,5000,7000 (Movies, TV, Other)
-5. **Opcional**: Jackett puede descargar .torrents directamente al watch folder de Transmission
+6. **Opcional**: Jackett puede descargar .torrents directamente al watch folder de Transmission
 
 ### 🎥 **2. Configurar Radarr**
 1. Accede a `https://radarr.tu-dominio.com`
@@ -161,8 +164,10 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 ### 🔄 **5. Configurar Tdarr**
 1. Accede a `https://tdarr.tu-dominio.com`
 2. **Libraries:** Agrega las rutas de medios:
-   - `/media/movies` para películas
-   - `/media/tv` para series
+   - `/input/movies` para películas originales (`library-raw`)
+   - `/input/tv` para series originales (`library-raw`)
+   - `/output/movies` para películas optimizadas (`library-optimized`)
+   - `/output/tv` para series optimizadas (`library-optimized`)
 3. **Plugins:** Configura para tu hardware y preferencias
 4. **Ejemplo para H.264 1080p:**
    - Input: Cualquier formato
@@ -171,33 +176,38 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 
 ### 📺 **6. Configurar Jellyfin (Reproducción Directa)**
 1. Accede a `https://jellyfin.tu-dominio.com`
-2. **Configuración → Reproducción:**
+2. **Configuración → Bibliotecas:**
+   - Agrega `/media/movies` y `/media/tv` apuntando a `library-optimized` como principal
+   - Opcional: Agrega también `/media-raw/movies` y `/media-raw/tv` para acceso secundario a la original
+3. **Configuración → Reproducción:**
    - ✅ Habilitar reproducción directa de video
    - ✅ Habilitar reproducción directa de audio
    - ❌ Deshabilitar transcodificación de hardware
    - ❌ Deshabilitar transcodificación de software
-3. **Configuración → Usuarios:**
+4. **Configuración → Usuarios:**
    - Para cada usuario: **Reproducción → Permitir reproducción directa**
-4. **Resultado:** Jellyfin solo reproduce archivos optimizados por Tdarr
+5. **Resultado:** Jellyfin solo reproduce archivos optimizados por Tdarr, pero puedes acceder a los originales si lo necesitas
 
 ## 🎯 Flujo de Trabajo Optimizado
 
 ### **Pipeline de Procesamiento:**
 1. **Descarga**: Radarr/Sonarr → Prowlarr → Transmission
-2. **Transcodificación**: Tdarr procesa automáticamente los archivos
-3. **Subtítulos**: Bazarr descarga subtítulos
-4. **Reproducción**: Jellyfin sirve contenido optimizado
+2. **Organización**: Sonarr/Radarr mueven archivos a `library-raw`
+3. **Transcodificación**: Tdarr procesa desde `library-raw` y deja los optimizados en `library-optimized`
+4. **Subtítulos**: Bazarr descarga subtítulos
+5. **Reproducción**: Jellyfin sirve contenido desde `library-optimized` (y opcionalmente desde la original)
 
 ### **Ventajas de esta configuración:**
 - **🚀 Jellyfin sin carga**: Solo reproduce, no transcodifica
 - **⚡ Reproducción inmediata**: Videos pre-optimizados por Tdarr
 - **🔧 Hardware eficiente**: Solo Tdarr usa aceleración por hardware
 - **📱 Compatible universal**: Videos optimizados para todos los dispositivos
-- **💾 Gestión de almacenamiento**: Tdarr puede reducir tamaños de archivo
+- **💾 Gestión de almacenamiento**: Mantienes originales y optimizados separados
+- **🔙 Recuperación fácil**: Siempre tienes acceso a los originales (`library-raw`)
 
 ### **Configuración de Tdarr:**
-- Procesa automáticamente archivos nuevos
-- Convierte a formatos compatibles (H.264/H.265)
+- Procesa automáticamente archivos nuevos desde la librería `library-raw`
+- Convierte a formatos compatibles y deja los resultados en la optimizada
 - Mantiene calidad optimizando bitrate
 - Usa hardware acceleration cuando está disponible
 
