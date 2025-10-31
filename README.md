@@ -8,6 +8,7 @@ Este proyecto configura un servidor doméstico con:
 - **Watchtower** para actualizaciones automáticas de imágenes Docker
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
 - **Dashboard dinámico** con información del servidor en tiempo real
+- **Stack de medios completo** (Jellyfin, Radarr, Sonarr, Transmission, etc.)
 - **Hello World** como aplicación de prueba
 - **Gestión centralizada de configuración y variables de entorno**
 
@@ -22,6 +23,7 @@ home-server/
 ├── docker/
 │   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower)
 │   ├── home/               # Stack principal - Dashboard del Home Server
+│   ├── media/              # Stack de medios (Jellyfin, Radarr, Sonarr, etc.)
 │   └── helloworld/         # Stack de aplicación de prueba
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
@@ -216,25 +218,16 @@ Si no tienes Docker y Docker Compose instalados, puedes usar el siguiente script
 **Después de la instalación:**
 - Verifica Docker: `docker run hello-world`
 
-### Rebuild Automático de Imágenes
+### Funcionalidades Avanzadas del Sistema de Deploy
 
-El sistema de deploy incluye **rebuild automático inteligente**:
+El sistema de deploy incluye varias características avanzadas:
 
+#### **🔨 Rebuild Automático de Imágenes**
 - **✅ Detección automática**: Si hay `Dockerfile` en el stack, se rebuildea automáticamente
 - **🚀 Caché inteligente**: 
   - Deploy normal: `docker compose build` (con caché, más rápido)
   - Con `--recreate`: `docker compose build --no-cache` (sin caché, más seguro)
 - **📁 Búsqueda recursiva**: Detecta Dockerfiles en cualquier subdirectorio del stack
-- **⚡ Solo cuando es necesario**: No rebuilder stacks que no tienen código personalizado
-
-```bash
-# Deploy normal - rebuild con caché (rápido para desarrollo)
-./scripts/deploy.sh home
-
-# Recreate completo - rebuild sin caché (después de cambios importantes)
-./scripts/deploy.sh --recreate home
-```
-
 
 ## 🚢 Despliegue de Servicios
 
@@ -258,7 +251,7 @@ El script `deploy.sh` es tu comando principal que se encarga de todo automática
 
 ```bash
 # Desplegar stacks específicos
-./scripts/deploy.sh platform home helloworld
+./scripts/deploy.sh platform home media helloworld
 
 # Forzar despliegue sin detección de cambios
 ./scripts/deploy.sh --force
@@ -618,7 +611,7 @@ El sistema utiliza un archivo YAML (`config/stacks.yml`) para centralizar toda l
 
 ```bash
 # Ver servicios de stacks específicos
-./scripts/stack-info.sh services platform home helloworld
+./scripts/stack-info.sh services platform home media helloworld
 
 # Listar toda la configuración de stacks
 ./scripts/stack-info.sh list

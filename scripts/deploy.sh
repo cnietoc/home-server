@@ -432,6 +432,16 @@ redeploy_stack() {
         return 1
     fi
 
+    # Ejecutar script de pre-deploy si existe (genérico para cualquier stack)
+    if [[ -f "pre-deploy.sh" ]]; then
+        log "🔧 Ejecutando configuración pre-deploy para stack $stack_name..."
+        if ./pre-deploy.sh; then
+            log "✅ Pre-deploy completado para stack $stack_name"
+        else
+            warn "⚠️ Error en script pre-deploy, continuando con configuración por defecto"
+        fi
+    fi
+
     # Parar contenedores actuales
     log "⏹️ Parando contenedores actuales..."
     docker compose down --remove-orphans

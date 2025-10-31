@@ -5,7 +5,7 @@ networks:
 services:
   web:
     build: .
-    container_name: home-web
+    container_name: ${STACK_NAME}
     restart: unless-stopped
     networks:
       - proxy

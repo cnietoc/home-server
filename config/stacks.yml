@@ -32,13 +32,52 @@ stacks:
 
   # Home page del servidor
   home:
-    description: "Página principal del Home Server"
+    description: "Página principal del Home Server con información dinámica"
     config_files: []  # Solo usa common.env
     services:
       web:
         subdomain: ""  # Sin subdominio - dominio principal
         description: "🏠 Home Server Dashboard"
         protected: false
+
+  # Stack de medios y entretenimiento
+  media:
+    description: "Suite completa de medios: descargas, gestión y streaming"
+    config_files:
+      - media  # Configuración específica para servicios de media
+    services:
+      jellyfin:
+        subdomain: "jellyfin"
+        description: "🎬 Servidor de medios Jellyfin"
+        protected: false
+      radarr:
+        subdomain: "radarr"
+        description: "🎥 Gestor de películas Radarr"
+        protected: true
+      sonarr:
+        subdomain: "sonarr"
+        description: "📺 Gestor de series Sonarr"
+        protected: true
+      prowlarr:
+        subdomain: "prowlarr"
+        description: "🔍 Indexador Prowlarr"
+        protected: true
+      transmission:
+        subdomain: "transmission"
+        description: "⬇️ Cliente BitTorrent"
+        protected: true
+      bazarr:
+        subdomain: "bazarr"
+        description: "💬 Gestor de subtítulos Bazarr"
+        protected: true
+      tdarr:
+        subdomain: "tdarr"
+        description: "🔄 Transcodificador Tdarr"
+        protected: true
+      jackett:
+        subdomain: "jackett"
+        description: "🔍 Agregador de trackers Jackett"
+        protected: true
 
   # Hello World - Ejemplo básico
   helloworld:

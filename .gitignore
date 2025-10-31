@@ -5,3 +5,4 @@ config/private
 
 # Permitir estructura de data/ pero el contenido se controla con data/.gitignore
 docker/**/.env
+docker/**/docker-compose.override.yml
