@@ -9,10 +9,10 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/jellyfin:/config
+      - ${STACK_DATA}/config/jellyfin/temp:/cache
       - ${STACK_DATA}/library-raw:/media/library-raw:ro
       - ${STACK_DATA}/library-optimized:/media/library-optimized:ro
       - ${STACK_DATA}/downloads/complete:/downloads:ro
-      - /tmp/jellyfin:/cache
     ports:
       - "8096:8096"       # Puerto interno (opcional, para acceso directo sin proxy)
     environment:
@@ -182,7 +182,7 @@ services:
       - ${STACK_DATA}/library-raw:/media/raw                    # RW - procesa archivos de medios
       - ${STACK_DATA}/library-optimized:/media/optimized                    # RW - procesa archivos de medios
       - ${STACK_DATA}/downloads:/downloads              # RW - procesa descargas nuevas
-      - /tmp/tdarr:/temp
+      - ${STACK_DATA}/config/tdarr/temp:/temp
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
