@@ -13,6 +13,8 @@ services:
       - ${STACK_DATA}/library-optimized:/media/library-optimized:ro
       - ${STACK_DATA}/downloads/complete:/downloads:ro
       - /tmp/jellyfin:/cache
+    ports:
+      - "8096:8096"       # Puerto interno (opcional, para acceso directo sin proxy)
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
