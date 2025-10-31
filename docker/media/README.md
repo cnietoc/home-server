@@ -238,6 +238,9 @@ ENABLE_NVIDIA=true
 ENABLE_VAAPI=true
 ```
 
+**Script de ayuda:**
+Puedes utilizar el script `scripts/check-hw-accel.sh` para verificar si tu sistema soporta estas tecnologías.
+
 **Configuración automática:**
 - Al ejecutar `./scripts/deploy.sh media`, se ejecuta automáticamente `docker/media/pre-deploy.sh`
 - Genera un `docker-compose.override.yml` con la configuración de hardware
