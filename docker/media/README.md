@@ -56,12 +56,9 @@ Stack completo para gestión, descarga y streaming de contenido multimedia. Incl
 
 ```
 data/media/              # Todo centralizado en el stack media
-├── library-raw/        # Biblioteca original gestionada por Sonarr/Radarr
-│   ├── movies/         # Películas originales
-│   └── tv/             # Series originales
-├── library-optimized/  # Biblioteca optimizada por Tdarr (para Jellyfin)
-│   ├── movies/         # Películas optimizadas
-│   └── tv/             # Series optimizadas
+├── library/             # Biblioteca única de películas y series
+│   ├── movies/          # Películas
+│   └── tv/              # Series
 ├── downloads/           # Gestión de descargas
 │   ├── complete/        # Descargas completadas
 │   ├── incomplete/      # Descargas en progreso
@@ -164,21 +161,23 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 ### 🔄 **5. Configurar Tdarr**
 1. Accede a `https://tdarr.tu-dominio.com`
 2. **Libraries:** Agrega las rutas de medios:
-   - `/input/movies` para películas originales (`library-raw`)
-   - `/input/tv` para series originales (`library-raw`)
-   - `/output/movies` para películas optimizadas (`library-optimized`)
-   - `/output/tv` para series optimizadas (`library-optimized`)
+   - `/media/movies` para películas
+   - `/media/tv` para series
 3. **Plugins:** Configura para tu hardware y preferencias
 4. **Ejemplo para H.264 1080p:**
    - Input: Cualquier formato
    - Output: H.264, 1080p, ~5Mbps
    - Tempdir: `/temp` (ya configurado)
+5. **Configuración importante:**
+   - Configura Tdarr para reemplazar archivos originales tras optimizar
+   - Mantiene una sola versión del archivo (optimizada)
 
 ### 📺 **6. Configurar Jellyfin (Reproducción Directa)**
 1. Accede a `https://jellyfin.tu-dominio.com`
 2. **Configuración → Bibliotecas:**
-   - Agrega `/media/movies` y `/media/tv` apuntando a `library-optimized` como principal
-   - Opcional: Agrega también `/media-raw/movies` y `/media-raw/tv` para acceso secundario a la original
+   - Agrega `/media/movies` para películas
+   - Agrega `/media/tv` para series
+   - Agrega `/media/music` para música (opcional)
 3. **Configuración → Reproducción:**
    - ✅ Habilitar reproducción directa de video
    - ✅ Habilitar reproducción directa de audio
@@ -186,28 +185,28 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - ❌ Deshabilitar transcodificación de software
 4. **Configuración → Usuarios:**
    - Para cada usuario: **Reproducción → Permitir reproducción directa**
-5. **Resultado:** Jellyfin solo reproduce archivos optimizados por Tdarr, pero puedes acceder a los originales si lo necesitas
+5. **Resultado:** Jellyfin reproduce archivos optimizados por Tdarr para máxima compatibilidad
 
 ## 🎯 Flujo de Trabajo Optimizado
 
 ### **Pipeline de Procesamiento:**
 1. **Descarga**: Radarr/Sonarr → Prowlarr → Transmission
-2. **Organización**: Sonarr/Radarr mueven archivos a `library-raw`
-3. **Transcodificación**: Tdarr procesa desde `library-raw` y deja los optimizados en `library-optimized`
+2. **Organización**: Sonarr/Radarr mueven archivos a `library`
+3. **Transcodificación**: Tdarr procesa archivos en `library` y los reemplaza optimizados
 4. **Subtítulos**: Bazarr descarga subtítulos
-5. **Reproducción**: Jellyfin sirve contenido desde `library-optimized` (y opcionalmente desde la original)
+5. **Reproducción**: Jellyfin sirve contenido optimizado desde `library`
 
 ### **Ventajas de esta configuración:**
 - **🚀 Jellyfin sin carga**: Solo reproduce, no transcodifica
 - **⚡ Reproducción inmediata**: Videos pre-optimizados por Tdarr
 - **🔧 Hardware eficiente**: Solo Tdarr usa aceleración por hardware
 - **📱 Compatible universal**: Videos optimizados para todos los dispositivos
-- **💾 Gestión de almacenamiento**: Mantienes originales y optimizados separados
-- **🔙 Recuperación fácil**: Siempre tienes acceso a los originales (`library-raw`)
+- **💾 Gestión eficiente**: Una sola versión optimizada por archivo
+- **🎛️ Gestión simple**: Un solo directorio de medios para mantener
 
 ### **Configuración de Tdarr:**
-- Procesa automáticamente archivos nuevos desde la librería `library-raw`
-- Convierte a formatos compatibles y deja los resultados en la optimizada
+- Procesa automáticamente archivos nuevos en la librería `library`
+- Convierte a formatos compatibles reemplazando los originales
 - Mantiene calidad optimizando bitrate
 - Usa hardware acceleration cuando está disponible
 
@@ -238,8 +237,6 @@ ENABLE_NVIDIA=true
 ENABLE_VAAPI=true
 ```
 
-**Script de ayuda:**
-Puedes utilizar el script `scripts/check-hw-accel.sh` para verificar si tu sistema soporta estas tecnologías.
 
 **Configuración automática:**
 - Al ejecutar `./scripts/deploy.sh media`, se ejecuta automáticamente `docker/media/pre-deploy.sh`
