@@ -40,8 +40,7 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/transmission:/config
-      - ${STACK_DATA}/downloads:/downloads
-      - ${STACK_DATA}/downloads/watch:/watch
+      - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
@@ -73,8 +72,8 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/radarr:/config
-      - ${STACK_DATA}/library/movies:/movies
-      - ${STACK_DATA}/downloads:/downloads
+      - ${STACK_DATA}/library/movies:/media/library/movies
+      - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
@@ -100,8 +99,8 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/sonarr:/config
-      - ${STACK_DATA}/library/tv:/tv
-      - ${STACK_DATA}/downloads:/downloads
+      - ${STACK_DATA}/library/tv:/media/library/tv
+      - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
@@ -149,8 +148,8 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/bazarr:/config
-      - ${STACK_DATA}/library/movies:/movies
-      - ${STACK_DATA}/library/tv:/tv
+      - ${STACK_DATA}/library/movies:/media/library/movies
+      - ${STACK_DATA}/library/tv:/media/library/tv
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
@@ -178,8 +177,8 @@ services:
       - ${STACK_DATA}/config/tdarr/server:/app/server
       - ${STACK_DATA}/config/tdarr:/app/configs
       - ${STACK_DATA}/config/tdarr/logs:/app/logs
-      - ${STACK_DATA}/library:/media                    # RW - procesa archivos de medios
-      - ${STACK_DATA}/downloads:/downloads              # RW - procesa descargas nuevas
+      - ${STACK_DATA}/library:/media/library                    # RW - procesa archivos de medios
+      - ${STACK_DATA}/downloads:/media/downloads              # RW - procesa descargas nuevas
       - ${STACK_DATA}/config/tdarr/temp:/temp
     ports:
       - '8266:8266'    # Puerto interno (opcional, para acceso directo de nodos sin proxy)
