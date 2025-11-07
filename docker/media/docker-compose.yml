@@ -32,25 +32,27 @@ services:
 
   # Transmission - Cliente BitTorrent
   transmission:
-    image: linuxserver/transmission:latest
+    image: transmission:latest
     container_name: ${STACK_NAME}_transmission
     restart: unless-stopped
     networks:
       - proxy
       - media_internal
     volumes:
-      - ${STACK_DATA}/config/transmission:/config
+      - ${STACK_DATA}/config/transmission:/var/lib/transmission-daemon
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - USER=${TRANSMISSION_USER}
-      - PASS=${TRANSMISSION_PASS}
-      - WHITELIST=*
-      - PEERPORT=51413
-      - TRANSMISSION_WEB_HOME=/transmission-web-control/
+      - TRANSMISSION_DOWNLOAD_DIR=/downloads/incomplete
+      - TRANSMISSION_INCOMPLETE_DIR=/downloads/incomplete
+      - TRANSMISSION_WATCH_DIR=/downloads/watch
+      - TRANSMISSION_RPC_ENABLED=true
       - TRANSMISSION_RPC_HOST_WHITELIST_ENABLED=false
+      - TRANSMISSION_RPC_AUTHENTICATION_REQUIRED=true
+      - TRANSMISSION_RPC_USERNAME=${TRANSMISSION_USER}
+      - TRANSMISSION_RPC_PASSWORD=${TRANSMISSION_PASS}
+      - TRANSMISSION_RPC_WHITELIST=*
+      - TRANSMISSION_PEER_PORT=51413
     ports:
       - "51413:51413"
       - "51413:51413/udp"
@@ -64,9 +66,10 @@ services:
 
   # Radarr - Gestor de películas
   radarr:
-    image: linuxserver/radarr:latest
+    image: radarr/radarr:latest
     container_name: ${STACK_NAME}_radarr
     restart: unless-stopped
+    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -76,8 +79,6 @@ services:
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.radarr.rule: "Host(`radarr.${BASE_DOMAIN}`)"
@@ -91,9 +92,10 @@ services:
 
   # Sonarr - Gestor de series
   sonarr:
-    image: linuxserver/sonarr:latest
+    image: sonarr/sonarr:latest
     container_name: ${STACK_NAME}_sonarr
     restart: unless-stopped
+    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -103,8 +105,6 @@ services:
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.sonarr.rule: "Host(`sonarr.${BASE_DOMAIN}`)"
@@ -118,9 +118,10 @@ services:
 
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
-    image: linuxserver/prowlarr:latest
+    image: prowlarr/prowlarr:latest
     container_name: ${STACK_NAME}_prowlarr
     restart: unless-stopped
+    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -128,8 +129,6 @@ services:
       - ${STACK_DATA}/config/prowlarr:/config
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.prowlarr.rule: "Host(`prowlarr.${BASE_DOMAIN}`)"
@@ -140,9 +139,10 @@ services:
 
   # Bazarr - Gestor de subtítulos
   bazarr:
-    image: linuxserver/bazarr:latest
+    image: bazarr/bazarr:latest
     container_name: ${STACK_NAME}_bazarr
     restart: unless-stopped
+    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -152,8 +152,6 @@ services:
       - ${STACK_DATA}/library/tv:/media/library/tv
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.bazarr.rule: "Host(`bazarr.${BASE_DOMAIN}`)"
@@ -205,9 +203,10 @@ services:
 
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
-    image: lscr.io/linuxserver/jackett:latest
+    image: jackett/jackett:latest
     container_name: ${STACK_NAME}_jackett
     restart: unless-stopped
+    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -216,8 +215,6 @@ services:
       - ${STACK_DATA}/downloads/watch:/downloads        # RW - deposita .torrents en watch folder
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
       - AUTO_UPDATE=true
     labels:
       traefik.enable: true

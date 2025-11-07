@@ -113,41 +113,74 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 
 ### 🔗 **1. Configurar Prowlarr (Primero)**
 1. Accede a `https://prowlarr.tu-dominio.com`
-2. Agrega indexadores (The Pirate Bay, 1337x, etc.)
-3. Configura FlareSolverr: `http://flaresolverr:8191`
+2. **Settings → General:** Copia la **API Key** (necesaria para conectar con Radarr/Sonarr)
+3. **Indexers:** Agrega indexadores manualmente:
+   - Add Indexer → The Pirate Bay
+   - Add Indexer → 1337x
+   - Add Indexer → YTS, etc.
+4. **Settings → Apps:** Configura conexiones a Radarr/Sonarr:
+   - **Add Application → Radarr:**
+     - Prowlarr Server: `http://prowlarr:9696`
+     - Radarr Server: `http://radarr:7878`
+     - API Key: (copiar desde Radarr → Settings → General)
+   - **Add Application → Sonarr:**
+     - Prowlarr Server: `http://prowlarr:9696`
+     - Sonarr Server: `http://sonarr:8989`
+     - API Key: (copiar desde Sonarr → Settings → General)
+5. **Sync App Indexers:** Esto enviará los indexadores configurados a Radarr/Sonarr automáticamente
+6. **Settings → Download Clients (Opcional):**
+   - FlareSolverr: `http://flaresolverr:8191` (para sitios con CloudFlare)
 
 ### 🔗 **1b. Configurar Jackett (Complementario)**
 1. Accede a `https://jackett.tu-dominio.com`
-2. Agrega trackers específicos que Prowlarr no tenga
+2. Agrega trackers específicos que Prowlarr no tenga o trackers privados
 3. Configura FlareSolverr: `http://flaresolverr:8191`
 4. Copia la **API Key** de Jackett 
-5. En Prowlarr: **Settings > Indexers > Add Indexer > Torznab**
+5. **En Prowlarr:** **Settings → Indexers → Add Indexer → Torznab (Custom)**
+   - Name: Jackett - [nombre del tracker]
    - URL: `http://jackett:9117/api/v2.0/indexers/[indexer-id]/results/torznab/`
    - API Key: [Tu API Key de Jackett]
    - Categories: 2000,5000,7000 (Movies, TV, Other)
-6. **Opcional**: Jackett puede descargar .torrents directamente al watch folder de Transmission
+6. **Test** la conexión y **Save**
+7. Los indexadores de Jackett aparecerán como disponibles en Prowlarr
 
-### 🎥 **2. Configurar Radarr**
+### 🎥 **2. Configurar Radarr (Antes de configurar Prowlarr)**
 1. Accede a `https://radarr.tu-dominio.com`
-2. **Settings → Media Management:**
+2. **Settings → General:**
+   - Copia la **API Key** (necesaria para Prowlarr)
+3. **Settings → Media Management:**
    - Root Folder: `/movies`
    - Rename Movies: ✅
-3. **Settings → Download Clients:**
-   - Add Transmission: `http://transmission:9091`
-   - Remote Path: `/downloads` → Local Path: `/downloads`
-4. **Settings → Indexers:**
-   - Sync automático desde Prowlarr
+   - File Management: Create empty movie folders ✅
+4. **Settings → Download Clients:**
+   - Add → Transmission:
+     - Host: `transmission`
+     - Port: `9091`
+     - Category: `radarr`
+   - Remote Path Mappings:
+     - Remote Path: `/downloads`
+     - Local Path: `/downloads`
+5. **Settings → Indexers:**
+   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
 
-### 📺 **3. Configurar Sonarr**
+### 📺 **3. Configurar Sonarr (Antes de configurar Prowlarr)**
 1. Accede a `https://sonarr.tu-dominio.com`
-2. **Settings → Media Management:**
+2. **Settings → General:**
+   - Copia la **API Key** (necesaria para Prowlarr)
+3. **Settings → Media Management:**
    - Root Folder: `/tv`
    - Rename Episodes: ✅
-3. **Settings → Download Clients:**
-   - Add Transmission: `http://transmission:9091`
-   - Remote Path: `/downloads` → Local Path: `/downloads`
-4. **Settings → Indexers:**
-   - Sync automático desde Prowlarr
+   - Episode Naming: Standard Episode Format
+4. **Settings → Download Clients:**
+   - Add → Transmission:
+     - Host: `transmission`
+     - Port: `9091`
+     - Category: `sonarr`
+   - Remote Path Mappings:
+     - Remote Path: `/downloads`
+     - Local Path: `/downloads`
+5. **Settings → Indexers:**
+   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
 
 ### 💬 **4. Configurar Bazarr**
 1. Accede a `https://bazarr.tu-dominio.com`
@@ -189,11 +222,18 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 
 ## 🎯 Flujo de Trabajo Optimizado
 
-### **Pipeline de Procesamiento:**
-1. **Descarga**: Radarr/Sonarr → Prowlarr → Transmission
-2. **Organización**: Sonarr/Radarr mueven archivos a `library`
+### **Orden de configuración correcto:**
+1. **Primero**: Desplegar el stack completo con `./scripts/deploy.sh media`
+2. **Segundo**: Configurar Radarr y Sonarr (para obtener las API Keys)
+3. **Tercero**: Configurar Prowlarr con las API Keys de Radarr/Sonarr
+4. **Cuarto**: Prowlarr sincroniza indexadores a Radarr/Sonarr automáticamente
+5. **Opcional**: Configurar Jackett para trackers adicionales
+
+### **Pipeline de procesamiento:**
+1. **Descarga**: Radarr/Sonarr → Prowlarr → Indexadores → Transmission
+2. **Organización**: Sonarr/Radarr mueven archivos completados a `library`
 3. **Transcodificación**: Tdarr procesa archivos en `library` y los reemplaza optimizados
-4. **Subtítulos**: Bazarr descarga subtítulos
+4. **Subtítulos**: Bazarr descarga subtítulos automáticamente
 5. **Reproducción**: Jellyfin sirve contenido optimizado desde `library`
 
 ### **Ventajas de esta configuración:**
@@ -203,6 +243,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 - **📱 Compatible universal**: Videos optimizados para todos los dispositivos
 - **💾 Gestión eficiente**: Una sola versión optimizada por archivo
 - **🎛️ Gestión simple**: Un solo directorio de medios para mantener
+- **🔗 Configuración centralizada**: Prowlarr gestiona todos los indexadores
 
 ### **Configuración de Tdarr:**
 - Procesa automáticamente archivos nuevos en la librería `library`
@@ -274,6 +315,54 @@ docker logs media_jellyfin
 docker logs media_radarr
 docker logs media_transmission
 ```
+
+## 🚨 Solución de Problemas Comunes
+
+### **❌ "No veo indexadores en Radarr/Sonarr"**
+**Causa**: Prowlarr NO configura automáticamente los indexadores en Radarr/Sonarr.
+
+**Solución**:
+1. Primero configura Radarr/Sonarr completamente
+2. Copia las API Keys de ambos servicios
+3. En Prowlarr → Settings → Apps → Add Application
+4. Configura las conexiones a Radarr y Sonarr con sus API Keys
+5. Haz clic en "Sync App Indexers" para enviar los indexadores
+
+### **❌ "Transmission no descarga archivos"**
+**Causa**: Path mappings incorrectos entre servicios.
+
+**Solución**:
+- Verificar que todos los servicios usan `/downloads` como directorio
+- En Radarr/Sonarr: Settings → Download Clients → Remote Path Mappings
+- Remote Path: `/downloads` → Local Path: `/downloads`
+
+### **❌ "Tdarr no procesa archivos"**
+**Causa**: Configuración de bibliotecas incorrecta.
+
+**Solución**:
+1. Tdarr → Libraries → Add Library
+2. Source: `/media` (directorio completo)
+3. Cache: `/cache`
+4. Output: Reemplazar archivos originales
+5. Transcode cache: `/transcode_cache`
+
+### **❌ "Jellyfin no encuentra archivos"**
+**Causa**: Bibliotecas no configuradas correctamente.
+
+**Solución**:
+1. Jellyfin → Dashboard → Libraries → Add Library
+2. Movies: `/media/movies`
+3. TV Shows: `/media/tv`
+4. Enable real-time monitoring
+
+### **❌ "Prowlarr no se conecta a Jackett"**
+**Causa**: URL o API Key incorrectos.
+
+**Solución**:
+1. En Jackett, verifica que el indexer esté funcionando
+2. Copia la URL específica del indexer (no la URL base de Jackett)
+3. En Prowlarr: Add Indexer → Torznab Custom
+4. URL completa: `http://jackett:9117/api/v2.0/indexers/[indexer-id]/results/torznab/`
 
 ## 🔄 Actualizaciones
 
