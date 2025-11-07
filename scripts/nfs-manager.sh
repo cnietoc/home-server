@@ -96,21 +96,22 @@ check_dependencies() {
 install_nfs() {
     log_info "Verificando instalación de NFS server..."
 
-    # Verificar si el paquete nfs-kernel-server está instalado
-    if ! dpkg -l | grep -q "^ii.*nfs-kernel-server"; then
-        log_info "Instalando NFS server..."
+    # Verificar si el paquete nfs-kernel-server está instalado correctamente
+    if ! dpkg-query -W -f='${Status}' nfs-kernel-server 2>/dev/null | grep -q "install ok installed"; then
+        log_info "NFS server no está instalado. Instalando..."
         apt-get update
         apt-get install -y nfs-kernel-server nfs-common
         systemctl enable nfs-kernel-server
-        log_info "NFS server instalado correctamente"
+        log_info "✅ NFS server instalado correctamente"
     else
-        log_info "NFS server ya está instalado"
+        log_info "✅ NFS server ya está instalado correctamente"
     fi
 
     # Verificar que el servicio esté habilitado
     if ! systemctl is-enabled nfs-kernel-server &> /dev/null; then
         log_info "Habilitando servicio NFS..."
         systemctl enable nfs-kernel-server
+        log_info "✅ Servicio NFS habilitado"
     fi
 }
 
