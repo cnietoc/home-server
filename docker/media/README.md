@@ -107,7 +107,96 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 
 ## ⚙️ Configuración de Servicios
 
-### 🔗 **1. Configurar Prowlarr (Primero)**
+### 💬 **1. Configurar qBittorrent (PRIMERO - Obligatorio)**
+
+**⚠️ IMPORTANTE: Configurar qBittorrent ANTES que cualquier otro servicio.**
+
+#### **Paso 1: Obtener contraseña temporal**
+1. **Desplegar el stack**: `./scripts/deploy.sh media`
+2. **Ver los logs del contenedor** para obtener la contraseña temporal:
+   ```bash
+   docker logs media_qbittorrent
+   ```
+3. **Buscar este mensaje** en los logs:
+   ```
+   ******** Information ********
+   To control qBittorrent, access the WebUI at: http://localhost:8080
+   The WebUI administrator username is: admin
+   The WebUI administrator password was not set. A temporary password is provided for this session: kATnHVjTM
+   You should set your own password in program preferences.
+   ```
+4. **Anotar la contraseña temporal** (ejemplo: `kATnHVjTM`)
+
+#### **Paso 2: Primer acceso y configuración**
+1. **Accede a** `https://qbittorrent.tu-dominio.com`
+2. **Login inicial:**
+   - Usuario: `admin`
+   - Contraseña: `[contraseña temporal de los logs]`
+3. **¡OBLIGATORIO! Cambiar credenciales inmediatamente:**
+   - Tools → Preferences → Web UI
+   - Username: Cambiar por uno seguro
+   - Password: Cambiar por una contraseña segura y **apuntarla**
+   - **Apply** y **OK**
+
+#### **Paso 3: Configurar paths de descarga**
+4. **Settings → Downloads:**
+   - Default Save Path: `/media/downloads/complete`
+   - Keep incomplete torrents in: `/media/downloads/incomplete`
+   - Copy .torrent files to: `/media/downloads/torrents`
+   - Keep incomplete torrents: ✅
+5. **Settings → BitTorrent:**
+   - Enable DHT: ✅
+   - Enable PeX: ✅
+   - Enable LSD: ✅
+
+#### **Paso 4: Apuntar las credenciales finales**
+**📝 Importante:** Apunta las credenciales que configuraste porque las necesitarás para Radarr y Sonarr:
+- Usuario: `[el que configuraste]`
+- Contraseña: `[la que configuraste]`
+
+### 🎥 **2. Configurar Radarr**
+1. Accede a `https://radarr.tu-dominio.com`
+2. **Settings → General:**
+   - Copia la **API Key** (necesaria para Prowlarr)
+3. **Settings → Media Management:**
+   - Root Folder: `/media/library/movies`
+   - Rename Movies: ✅
+   - File Management: Create empty movie folders ✅
+4. **Settings → Download Clients:**
+   - Add → qBittorrent:
+     - Host: `qbittorrent`
+     - Port: `8080`
+     - Username: `[el que configuraste en qBittorrent]`
+     - Password: `[la que configuraste en qBittorrent]`
+     - Category: `movies`
+   - Remote Path Mappings:
+     - Remote Path: `/media/downloads`
+     - Local Path: `/media/downloads`
+5. **Settings → Indexers:**
+   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
+
+### 📺 **3. Configurar Sonarr**
+1. Accede a `https://sonarr.tu-dominio.com`
+2. **Settings → General:**
+   - Copia la **API Key** (necesaria para Prowlarr)
+3. **Settings → Media Management:**
+   - Root Folder: `/media/library/tv`
+   - Rename Episodes: ✅
+   - Episode Naming: Standard Episode Format
+4. **Settings → Download Clients:**
+   - Add → qBittorrent:
+     - Host: `qbittorrent`
+     - Port: `8080`
+     - Username: `[el que configuraste en qBittorrent]`
+     - Password: `[la que configuraste en qBittorrent]`
+     - Category: `tv`
+   - Remote Path Mappings:
+     - Remote Path: `/media/downloads`
+     - Local Path: `/media/downloads`
+5. **Settings → Indexers:**
+   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
+
+### 🔗 **4. Configurar Prowlarr**
 1. Accede a `https://prowlarr.tu-dominio.com`
 2. **Settings → General:** Copia la **API Key** (necesaria para conectar con Radarr/Sonarr)
 3. **Indexers:** Agrega indexadores manualmente:
@@ -127,7 +216,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 6. **Settings → Download Clients (Opcional):**
    - FlareSolverr: `http://flaresolverr:8191` (para sitios con CloudFlare)
 
-### 🔗 **1b. Configurar Jackett (Complementario)**
+### 🔗 **4b. Configurar Jackett (Complementario)**
 1. Accede a `https://jackett.tu-dominio.com`
 2. Agrega trackers específicos que Prowlarr no tenga o trackers privados
 3. Configura FlareSolverr: `http://flaresolverr:8191`
@@ -139,70 +228,6 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - Categories: 2000,5000,7000 (Movies, TV, Other)
 6. **Test** la conexión y **Save**
 7. Los indexadores de Jackett aparecerán como disponibles en Prowlarr
-
-### 🎥 **2. Configurar Radarr (Antes de configurar Prowlarr)**
-1. Accede a `https://radarr.tu-dominio.com`
-2. **Settings → General:**
-   - Copia la **API Key** (necesaria para Prowlarr)
-3. **Settings → Media Management:**
-   - Root Folder: `/media/library/movies`
-   - Rename Movies: ✅
-   - File Management: Create empty movie folders ✅
-4. **Settings → Download Clients:**
-   - Add → qBittorrent:
-     - Host: `qbittorrent`
-     - Port: `8080`
-     - Username: `admin` (cambiar después)
-     - Password: `adminadmin` (cambiar después)
-     - Category: `movies`
-   - Remote Path Mappings:
-     - Remote Path: `/media/downloads`
-     - Local Path: `/media/downloads`
-5. **Settings → Indexers:**
-   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
-
-### 📺 **3. Configurar Sonarr (Antes de configurar Prowlarr)**
-1. Accede a `https://sonarr.tu-dominio.com`
-2. **Settings → General:**
-   - Copia la **API Key** (necesaria para Prowlarr)
-3. **Settings → Media Management:**
-   - Root Folder: `/media/library/tv`
-   - Rename Episodes: ✅
-   - Episode Naming: Standard Episode Format
-4. **Settings → Download Clients:**
-   - Add → qBittorrent:
-     - Host: `qbittorrent`
-     - Port: `8080`
-     - Username: `admin` (cambiar después)
-     - Password: `adminadmin` (cambiar después)
-     - Category: `tv`
-   - Remote Path Mappings:
-     - Remote Path: `/media/downloads`
-     - Local Path: `/media/downloads`
-5. **Settings → Indexers:**
-   - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
-
-### 💬 **4. Configurar qBittorrent (Configuración inicial)**
-1. Accede a `https://qbittorrent.tu-dominio.com`
-2. **Login inicial:**
-   - Usuario: `admin`
-   - Contraseña: `adminadmin`
-3. **¡IMPORTANTE! Cambiar credenciales inmediatamente:**
-   - Tools → Preferences → Web UI
-   - Username: Cambiar por uno seguro
-   - Password: Cambiar por una contraseña segura
-4. **Settings → Downloads:**
-   - Default Save Path: `/media/downloads/incomplete`
-   - Keep incomplete torrents in: `/media/downloads/incomplete`
-   - Copy .torrent files to: `/media/downloads/torrents`
-   - Keep incomplete torrents: ✅
-5. **Settings → BitTorrent:**
-   - Enable DHT: ✅
-   - Enable PeX: ✅
-   - Enable LSD: ✅
-6. **Categories (automáticas desde Radarr/Sonarr):**
-   - `movies` - Para películas desde Radarr
-   - `tv` - Para series desde Sonarr
 
 ### 🔄 **5. Configurar Tdarr**
 1. Accede a `https://tdarr.tu-dominio.com`
@@ -237,10 +262,11 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 
 ### **Orden de configuración correcto:**
 1. **Primero**: Desplegar el stack completo con `./scripts/deploy.sh media`
-2. **Segundo**: Configurar Radarr y Sonarr (para obtener las API Keys)
-3. **Tercero**: Configurar Prowlarr con las API Keys de Radarr/Sonarr
-4. **Cuarto**: Prowlarr sincroniza indexadores a Radarr/Sonarr automáticamente
-5. **Opcional**: Configurar Jackett para trackers adicionales
+2. **Segundo**: Configurar qBittorrent (obtener contraseña temporal desde logs)
+3. **Tercero**: Configurar Radarr y Sonarr (con las credenciales de qBittorrent)
+4. **Cuarto**: Configurar Prowlarr con las API Keys de Radarr/Sonarr
+5. **Quinto**: Prowlarr sincroniza indexadores a Radarr/Sonarr automáticamente
+6. **Opcional**: Configurar Jackett para trackers adicionales
 
 ### **Pipeline de procesamiento:**
 1. **Descarga**: Radarr/Sonarr → Prowlarr → Indexadores → qBittorrent
@@ -325,7 +351,6 @@ Todos los servicios se muestran en el Home Dashboard:
 ```bash
 docker logs media_jellyfin
 docker logs media_radarr
-docker logs media_transmission
 ```
 
 ## 🚨 Solución de Problemas Comunes

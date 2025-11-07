@@ -8,7 +8,7 @@ Este proyecto configura un servidor doméstico con:
 - **Watchtower** para actualizaciones automáticas de imágenes Docker
 - **Cloudflare DNS Challenge** para certificados Let's Encrypt
 - **Dashboard dinámico** con información del servidor en tiempo real
-- **Stack de medios completo** (Jellyfin, Radarr, Sonarr, Transmission, etc.)
+- **Stack de medios** (Jellyfin, Radarr, Sonarr, etc.)
 - **Hello World** como aplicación de prueba
 - **Gestión centralizada de configuración y variables de entorno**
 
