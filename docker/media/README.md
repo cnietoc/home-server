@@ -39,10 +39,6 @@ Stack completo para gestión, descarga y streaming de contenido multimedia. Incl
   - Descarga de episodios nuevos
   - Gestión de temporadas completas
 
-- **Bazarr** (`bazarr.tu-dominio.com`) 🔒 - Subtítulos
-  - Descarga automática de subtítulos
-  - Múltiples idiomas
-  - Integración con Radarr/Sonarr
 
 ### 🔄 **Procesamiento**
 - **Tdarr** (`tdarr.tu-dominio.com`) 🔒 - Transcodificación
@@ -70,8 +66,7 @@ data/media/              # Todo centralizado en el stack media
     ├── sonarr/          # Configuración Sonarr
     ├── qbittorrent/     # Configuración qBittorrent
     ├── prowlarr/        # Configuración Prowlarr
-    ├── bazarr/          # Configuración Bazarr
-    └── tdarr/           # Configuración Tdarr
+    ├── tdarr/           # Configuración Tdarr
         ├── server/      # Configuración servidor Tdarr
         └── logs/        # Logs de Tdarr
 ```
@@ -209,16 +204,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - `movies` - Para películas desde Radarr
    - `tv` - Para series desde Sonarr
 
-### 💬 **5. Configurar Bazarr**
-1. Accede a `https://bazarr.tu-dominio.com`
-2. **Settings → Sonarr:**
-   - URL: `http://sonarr:8989`
-   - API Key: (copiar desde Sonarr)
-3. **Settings → Radarr:**
-   - URL: `http://radarr:7878`
-   - API Key: (copiar desde Radarr)
-
-### 🔄 **6. Configurar Tdarr**
+### 🔄 **5. Configurar Tdarr**
 1. Accede a `https://tdarr.tu-dominio.com`
 2. **Libraries:** Agrega las rutas de medios:
    - `/media/library/movies` para películas
@@ -232,7 +218,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - Configura Tdarr para reemplazar archivos originales tras optimizar
    - Mantiene una sola versión del archivo (optimizada)
 
-### 📺 **7. Configurar Jellyfin (Reproducción Directa)**
+### 📺 **6. Configurar Jellyfin (Reproducción Directa)**
 1. Accede a `https://jellyfin.tu-dominio.com`
 2. **Configuración → Bibliotecas:**
    - Agrega `/media/library/movies` para películas
@@ -260,8 +246,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 1. **Descarga**: Radarr/Sonarr → Prowlarr → Indexadores → qBittorrent
 2. **Organización**: Sonarr/Radarr mueven archivos completados a `library`
 3. **Transcodificación**: Tdarr procesa archivos en `library` y los reemplaza optimizados
-4. **Subtítulos**: Bazarr descarga subtítulos automáticamente
-5. **Reproducción**: Jellyfin sirve contenido optimizado desde `library`
+4. **Reproducción**: Jellyfin sirve contenido optimizado desde `library`
 
 ### **Ventajas de esta configuración:**
 - **🚀 Jellyfin sin carga**: Solo reproduce, no transcodifica

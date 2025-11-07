@@ -77,10 +77,6 @@ stacks:
         subdomain: "qbittorrent"
         description: "⬇️ Cliente BitTorrent"
         protected: true
-      bazarr:
-        subdomain: "bazarr"
-        description: "💬 Gestor de subtítulos Bazarr"
-        protected: true
       tdarr:
         subdomain: "tdarr"
         description: "🔄 Transcodificador Tdarr"

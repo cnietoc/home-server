@@ -1,7 +1,7 @@
 services:
   # Jellyfin - Servidor de medios
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: ghcr.io/jellyfin/jellyfin:latest
     container_name: ${STACK_NAME}_jellyfin
     restart: unless-stopped
     networks:
@@ -32,7 +32,7 @@ services:
 
   # qBittorrent - Cliente BitTorrent (reemplaza Transmission)
   qbittorrent:
-    image: hotio/qbittorrent:latest
+    image: ghcr.io/hotio/qbittorrent:latest
     container_name: ${STACK_NAME}_qbittorrent
     restart: unless-stopped
     networks:
@@ -60,7 +60,7 @@ services:
 
   # Radarr - Gestor de películas
   radarr:
-    image: hotio/radarr:latest
+    image: ghcr.io/hotio/radarr:latest
     container_name: ${STACK_NAME}_radarr
     restart: unless-stopped
     networks:
@@ -88,7 +88,7 @@ services:
 
   # Sonarr - Gestor de series
   sonarr:
-    image: hotio/sonarr:latest
+    image: ghcr.io/hotio/sonarr:latest
     container_name: ${STACK_NAME}_sonarr
     restart: unless-stopped
     networks:
@@ -116,7 +116,7 @@ services:
 
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
-    image: hotio/prowlarr:latest
+    image: ghcr.io/hotio/prowlarr:latest
     container_name: ${STACK_NAME}_prowlarr
     restart: unless-stopped
     networks:
@@ -137,33 +137,6 @@ services:
       traefik.http.routers.prowlarr.middlewares: "tinyauth@docker"
       traefik.http.services.prowlarr.loadbalancer.server.port: "9696"
 
-  # Bazarr - Gestor de subtítulos
-  bazarr:
-    image: hotio/bazarr:latest
-    container_name: ${STACK_NAME}_bazarr
-    restart: unless-stopped
-    networks:
-      - proxy
-      - media_internal
-    volumes:
-      - ${STACK_DATA}/config/bazarr:/config
-      - ${STACK_DATA}/library/movies:/media/library/movies
-      - ${STACK_DATA}/library/tv:/media/library/tv
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - UMASK=002
-    labels:
-      traefik.enable: true
-      traefik.http.routers.bazarr.rule: "Host(`bazarr.${BASE_DOMAIN}`)"
-      traefik.http.routers.bazarr.tls: "true"
-      traefik.http.routers.bazarr.tls.certresolver: "cloudflare"
-      traefik.http.routers.bazarr.middlewares: "tinyauth@docker"
-      traefik.http.services.bazarr.loadbalancer.server.port: "6767"
-    depends_on:
-      - radarr
-      - sonarr
 
   # Tdarr - Transcodificador de video
   tdarr:
@@ -204,7 +177,7 @@ services:
 
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
-    image: hotio/jackett:latest
+    image: ghcr.io/hotio/jackett:latest
     container_name: ${STACK_NAME}_jackett
     restart: unless-stopped
     networks:
