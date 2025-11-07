@@ -56,11 +56,6 @@ stacks:
         exposed_path: "/media/downloads"
         description: "Carpeta de descargas activas"
         permissions: "rw"  # Lectura/escritura para gestión
-      downloads_complete:
-        path: "/downloads/complete"
-        exposed_path: "/media/complete"
-        description: "Descargas completadas"
-        permissions: "ro"  # Solo lectura
     services:
       jellyfin:
         subdomain: "jellyfin"
