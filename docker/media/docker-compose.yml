@@ -32,27 +32,25 @@ services:
 
   # Transmission - Cliente BitTorrent
   transmission:
-    image: transmission:latest
+    image: lscr.io/linuxserver/transmission:latest
     container_name: ${STACK_NAME}_transmission
     restart: unless-stopped
     networks:
       - proxy
       - media_internal
     volumes:
-      - ${STACK_DATA}/config/transmission:/var/lib/transmission-daemon
+      - ${STACK_DATA}/config/transmission:/config
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
-      - TRANSMISSION_DOWNLOAD_DIR=/downloads/incomplete
-      - TRANSMISSION_INCOMPLETE_DIR=/downloads/incomplete
-      - TRANSMISSION_WATCH_DIR=/downloads/watch
-      - TRANSMISSION_RPC_ENABLED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASS}
+      - WHITELIST=*
+      - PEERPORT=51413
+      - TRANSMISSION_WEB_HOME=/transmission-web-control/
       - TRANSMISSION_RPC_HOST_WHITELIST_ENABLED=false
-      - TRANSMISSION_RPC_AUTHENTICATION_REQUIRED=true
-      - TRANSMISSION_RPC_USERNAME=${TRANSMISSION_USER}
-      - TRANSMISSION_RPC_PASSWORD=${TRANSMISSION_PASS}
-      - TRANSMISSION_RPC_WHITELIST=*
-      - TRANSMISSION_PEER_PORT=51413
     ports:
       - "51413:51413"
       - "51413:51413/udp"
@@ -66,10 +64,9 @@ services:
 
   # Radarr - Gestor de películas
   radarr:
-    image: radarr/radarr:latest
+    image: lscr.io/linuxserver/radarr:latest
     container_name: ${STACK_NAME}_radarr
     restart: unless-stopped
-    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -79,6 +76,8 @@ services:
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.radarr.rule: "Host(`radarr.${BASE_DOMAIN}`)"
@@ -92,10 +91,9 @@ services:
 
   # Sonarr - Gestor de series
   sonarr:
-    image: sonarr/sonarr:latest
+    image: lscr.io/linuxserver/sonarr:latest
     container_name: ${STACK_NAME}_sonarr
     restart: unless-stopped
-    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -105,6 +103,8 @@ services:
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.sonarr.rule: "Host(`sonarr.${BASE_DOMAIN}`)"
@@ -118,10 +118,9 @@ services:
 
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
-    image: prowlarr/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:latest
     container_name: ${STACK_NAME}_prowlarr
     restart: unless-stopped
-    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -129,6 +128,8 @@ services:
       - ${STACK_DATA}/config/prowlarr:/config
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.prowlarr.rule: "Host(`prowlarr.${BASE_DOMAIN}`)"
@@ -139,10 +140,9 @@ services:
 
   # Bazarr - Gestor de subtítulos
   bazarr:
-    image: bazarr/bazarr:latest
+    image: lscr.io/linuxserver/bazarr:latest
     container_name: ${STACK_NAME}_bazarr
     restart: unless-stopped
-    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -152,6 +152,8 @@ services:
       - ${STACK_DATA}/library/tv:/media/library/tv
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.bazarr.rule: "Host(`bazarr.${BASE_DOMAIN}`)"
@@ -184,7 +186,6 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-      - UMASK_SET=002
       - serverIP=0.0.0.0
       - serverPort=8266
       - webUIPort=8265
@@ -203,10 +204,9 @@ services:
 
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
-    image: jackett/jackett:latest
+    image: lscr.io/linuxserver/jackett:latest
     container_name: ${STACK_NAME}_jackett
     restart: unless-stopped
-    user: "${PUID}:${PGID}"
     networks:
       - proxy
       - media_internal
@@ -215,7 +215,8 @@ services:
       - ${STACK_DATA}/downloads/watch:/downloads        # RW - deposita .torrents en watch folder
     environment:
       - TZ=${TZ}
-      - AUTO_UPDATE=true
+      - PUID=${PUID}
+      - PGID=${PGID}
     labels:
       traefik.enable: true
       traefik.http.routers.jackett.rule: "Host(`jackett.${BASE_DOMAIN}`)"
