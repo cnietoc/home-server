@@ -262,7 +262,33 @@ get_nfs_share_info() {
 get_nfs_share_path() {
     local stack_name="$1"
     local share_name="$2"
-    get_nfs_share_info "$stack_name" "$share_name" "path"
+    local raw_path
+    raw_path=$(get_nfs_share_info "$stack_name" "$share_name" "path")
+
+    # Convertir path relativo a absoluto basado en la estructura del repositorio
+    resolve_nfs_path "$raw_path" "$stack_name"
+}
+
+# Función para resolver paths NFS basándose en la estructura del repositorio
+resolve_nfs_path() {
+    local path="$1"
+    local stack_name="$2"
+
+    # Si el path ya es absoluto y apunta fuera del proyecto, dejarlo como está
+    if [[ "$path" =~ ^/data/ || "$path" =~ ^/home/ || "$path" =~ ^/var/ || "$path" =~ ^/opt/ ]]; then
+        echo "$path"
+        return
+    fi
+
+    # Si el path comienza con /, es relativo al directorio de datos del stack
+    if [[ "$path" =~ ^/ ]]; then
+        # Remover la barra inicial y construir path completo
+        local relative_path="${path#/}"
+        echo "${PROJECT_ROOT}/data/media/${relative_path}"
+    else
+        # Si no comienza con /, es relativo al directorio actual
+        echo "${PROJECT_ROOT}/data/media/${path}"
+    fi
 }
 
 # Obtener exposed_path de un share NFS (con fallback al path real)
@@ -277,6 +303,7 @@ get_nfs_share_exposed_path() {
         # Fallback al path real si no hay exposed_path
         get_nfs_share_path "$stack_name" "$share_name"
     else
+        # El exposed_path se mantiene como está (es la ruta que ve NFS)
         echo "$exposed_path"
     fi
 }

@@ -47,12 +47,12 @@ stacks:
       - media  # Configuración específica para servicios de media
     nfs_shares:
       media_library:
-        path: "/data/media/library"
+        path: "/library"
         exposed_path: "/media/library"
         description: "Biblioteca multimedia (películas y series)"
         permissions: "ro"  # Solo lectura para clientes
       downloads:
-        path: "/data/media/downloads"
+        path: "/downloads"
         exposed_path: "/media/downloads"
         description: "Carpeta de descargas activas"
         permissions: "rw"  # Lectura/escritura para gestión

@@ -42,20 +42,30 @@ stacks:
 ```
 
 **Campos de configuración:**
-- **`path`**: Ruta real en el servidor donde están los archivos
+- **`path`**: Ruta en el servidor donde están los archivos. Los paths que comienzan con `/` se interpretan como relativos a `data/media/` del repositorio
 - **`exposed_path`** *(opcional)*: Ruta que se expone a los clientes NFS. Si no se especifica, se usa `path`
 - **`permissions`**: `"ro"` (solo lectura) o `"rw"` (lectura/escritura)
 - **`description`**: Descripción legible de la compartida
 
-**Ejemplo con exposed_path:**
+**Ejemplo con paths relativos:**
 ```yaml
 nfs_shares:
   media_library:
-    path: "/data/media/library"        # Ruta real en el servidor
-    exposed_path: "/media/library"     # Ruta simple para clientes
+    path: "/library"                   # Se convierte a: {repo}/data/media/library
+    exposed_path: "/media/library"     # Ruta simple para clientes NFS
     description: "Biblioteca multimedia"
     permissions: "ro"
+  downloads:
+    path: "/downloads"                 # Se convierte a: {repo}/data/media/downloads
+    exposed_path: "/media/downloads"   # Ruta expuesta por NFS
+    description: "Carpeta de descargas"
+    permissions: "rw"
 ```
+
+**Conversión automática de paths:**
+- `/library` → `{repositorio}/data/media/library`
+- `/downloads/complete` → `{repositorio}/data/media/downloads/complete` 
+- `/data/external/media` → `/data/external/media` (path absoluto, se mantiene)
 
 ### Montaje en clientes
 
