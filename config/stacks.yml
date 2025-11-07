@@ -73,8 +73,8 @@ stacks:
         subdomain: "prowlarr"
         description: "🔍 Indexador Prowlarr"
         protected: true
-      transmission:
-        subdomain: "transmission"
+      qbittorrent:
+        subdomain: "qbittorrent"
         description: "⬇️ Cliente BitTorrent"
         protected: true
       bazarr:

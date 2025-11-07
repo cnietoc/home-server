@@ -12,10 +12,11 @@ Stack completo para gestión, descarga y streaming de contenido multimedia. Incl
   - Soporte para múltiples usuarios
 
 ### ⬇️ **Gestión de Descargas**
-- **Transmission** (`transmission.tu-dominio.com`) 🔒 - Cliente BitTorrent
-  - Descargas automáticas vía torrent
-  - Interfaz web completa
-  - Programación de velocidades
+- **qBittorrent** (`qbittorrent.tu-dominio.com`) 🔒 - Cliente BitTorrent moderno
+  - Web UI nativa y moderna
+  - Categories automáticas para organización
+  - Mejor integración con *arr apps
+  - RSS feeds integrados
   
 - **Prowlarr** (`prowlarr.tu-dominio.com`) 🔒 - Indexador universal
   - Centraliza indexadores de torrents
@@ -67,7 +68,7 @@ data/media/              # Todo centralizado en el stack media
     ├── jellyfin/        # Configuración Jellyfin
     ├── radarr/          # Configuración Radarr
     ├── sonarr/          # Configuración Sonarr
-    ├── transmission/    # Configuración Transmission
+    ├── qbittorrent/     # Configuración qBittorrent
     ├── prowlarr/        # Configuración Prowlarr
     ├── bazarr/          # Configuración Bazarr
     └── tdarr/           # Configuración Tdarr
@@ -81,9 +82,9 @@ data/media/              # Todo centralizado en el stack media
 La mayoría de configuraciones están predefinidas en `docker-compose.yml`. Solo necesitas editar `config/private/media.env` para:
 
 ```bash
-# Credenciales de Transmission (cambiar por seguridad)
-TRANSMISSION_USER=tu_usuario
-TRANSMISSION_PASS=tu_password_seguro
+# Credenciales de qBittorrent (cambiar por seguridad)
+QBITTORRENT_USER=admin
+QBITTORRENT_PASS=adminadmin
 
 # Aceleración por hardware (si tienes GPU compatible)
 ENABLE_INTEL_QSV=false   # Intel Quick Sync Video
@@ -149,17 +150,19 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 2. **Settings → General:**
    - Copia la **API Key** (necesaria para Prowlarr)
 3. **Settings → Media Management:**
-   - Root Folder: `/movies`
+   - Root Folder: `/media/library/movies`
    - Rename Movies: ✅
    - File Management: Create empty movie folders ✅
 4. **Settings → Download Clients:**
-   - Add → Transmission:
-     - Host: `transmission`
-     - Port: `9091`
-     - Category: `radarr`
+   - Add → qBittorrent:
+     - Host: `qbittorrent`
+     - Port: `8080`
+     - Username: `admin` (cambiar después)
+     - Password: `adminadmin` (cambiar después)
+     - Category: `movies`
    - Remote Path Mappings:
-     - Remote Path: `/downloads`
-     - Local Path: `/downloads`
+     - Remote Path: `/media/downloads`
+     - Local Path: `/media/downloads`
 5. **Settings → Indexers:**
    - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
 
@@ -168,21 +171,45 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 2. **Settings → General:**
    - Copia la **API Key** (necesaria para Prowlarr)
 3. **Settings → Media Management:**
-   - Root Folder: `/tv`
+   - Root Folder: `/media/library/tv`
    - Rename Episodes: ✅
    - Episode Naming: Standard Episode Format
 4. **Settings → Download Clients:**
-   - Add → Transmission:
-     - Host: `transmission`
-     - Port: `9091`
-     - Category: `sonarr`
+   - Add → qBittorrent:
+     - Host: `qbittorrent`
+     - Port: `8080`
+     - Username: `admin` (cambiar después)
+     - Password: `adminadmin` (cambiar después)
+     - Category: `tv`
    - Remote Path Mappings:
-     - Remote Path: `/downloads`
-     - Local Path: `/downloads`
+     - Remote Path: `/media/downloads`
+     - Local Path: `/media/downloads`
 5. **Settings → Indexers:**
    - Los indexadores aparecerán **después** de configurar Prowlarr y hacer sync
 
-### 💬 **4. Configurar Bazarr**
+### 💬 **4. Configurar qBittorrent (Configuración inicial)**
+1. Accede a `https://qbittorrent.tu-dominio.com`
+2. **Login inicial:**
+   - Usuario: `admin`
+   - Contraseña: `adminadmin`
+3. **¡IMPORTANTE! Cambiar credenciales inmediatamente:**
+   - Tools → Preferences → Web UI
+   - Username: Cambiar por uno seguro
+   - Password: Cambiar por una contraseña segura
+4. **Settings → Downloads:**
+   - Default Save Path: `/media/downloads/incomplete`
+   - Keep incomplete torrents in: `/media/downloads/incomplete`
+   - Copy .torrent files to: `/media/downloads/torrents`
+   - Keep incomplete torrents: ✅
+5. **Settings → BitTorrent:**
+   - Enable DHT: ✅
+   - Enable PeX: ✅
+   - Enable LSD: ✅
+6. **Categories (automáticas desde Radarr/Sonarr):**
+   - `movies` - Para películas desde Radarr
+   - `tv` - Para series desde Sonarr
+
+### 💬 **5. Configurar Bazarr**
 1. Accede a `https://bazarr.tu-dominio.com`
 2. **Settings → Sonarr:**
    - URL: `http://sonarr:8989`
@@ -191,11 +218,11 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - URL: `http://radarr:7878`
    - API Key: (copiar desde Radarr)
 
-### 🔄 **5. Configurar Tdarr**
+### 🔄 **6. Configurar Tdarr**
 1. Accede a `https://tdarr.tu-dominio.com`
 2. **Libraries:** Agrega las rutas de medios:
-   - `/media/movies` para películas
-   - `/media/tv` para series
+   - `/media/library/movies` para películas
+   - `/media/library/tv` para series
 3. **Plugins:** Configura para tu hardware y preferencias
 4. **Ejemplo para H.264 1080p:**
    - Input: Cualquier formato
@@ -205,12 +232,12 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
    - Configura Tdarr para reemplazar archivos originales tras optimizar
    - Mantiene una sola versión del archivo (optimizada)
 
-### 📺 **6. Configurar Jellyfin (Reproducción Directa)**
+### 📺 **7. Configurar Jellyfin (Reproducción Directa)**
 1. Accede a `https://jellyfin.tu-dominio.com`
 2. **Configuración → Bibliotecas:**
-   - Agrega `/media/movies` para películas
-   - Agrega `/media/tv` para series
-   - Agrega `/media/music` para música (opcional)
+   - Agrega `/media/library/movies` para películas
+   - Agrega `/media/library/tv` para series
+   - Agrega `/media/library/music` para música (opcional)
 3. **Configuración → Reproducción:**
    - ✅ Habilitar reproducción directa de video
    - ✅ Habilitar reproducción directa de audio
@@ -230,7 +257,7 @@ TARGET_BITRATE=5000k     # Bitrate objetivo
 5. **Opcional**: Configurar Jackett para trackers adicionales
 
 ### **Pipeline de procesamiento:**
-1. **Descarga**: Radarr/Sonarr → Prowlarr → Indexadores → Transmission
+1. **Descarga**: Radarr/Sonarr → Prowlarr → Indexadores → qBittorrent
 2. **Organización**: Sonarr/Radarr mueven archivos completados a `library`
 3. **Transcodificación**: Tdarr procesa archivos en `library` y los reemplaza optimizados
 4. **Subtítulos**: Bazarr descarga subtítulos automáticamente
@@ -328,20 +355,21 @@ docker logs media_transmission
 4. Configura las conexiones a Radarr y Sonarr con sus API Keys
 5. Haz clic en "Sync App Indexers" para enviar los indexadores
 
-### **❌ "Transmission no descarga archivos"**
-**Causa**: Path mappings incorrectos entre servicios.
+### **❌ "qBittorrent no descarga archivos"**
+**Causa**: Path mappings incorrectos entre servicios o configuración de usuario incorrecta.
 
 **Solución**:
-- Verificar que todos los servicios usan `/downloads` como directorio
+- Verificar que todos los servicios usan `/media/downloads` como directorio
 - En Radarr/Sonarr: Settings → Download Clients → Remote Path Mappings
-- Remote Path: `/downloads` → Local Path: `/downloads`
+- Remote Path: `/media/downloads` → Local Path: `/media/downloads`
+- Verificar credenciales de qBittorrent (admin/adminadmin por defecto)
 
 ### **❌ "Tdarr no procesa archivos"**
 **Causa**: Configuración de bibliotecas incorrecta.
 
 **Solución**:
 1. Tdarr → Libraries → Add Library
-2. Source: `/media` (directorio completo)
+2. Source: `/media/library` (directorio completo)
 3. Cache: `/cache`
 4. Output: Reemplazar archivos originales
 5. Transcode cache: `/transcode_cache`
@@ -351,8 +379,8 @@ docker logs media_transmission
 
 **Solución**:
 1. Jellyfin → Dashboard → Libraries → Add Library
-2. Movies: `/media/movies`
-3. TV Shows: `/media/tv`
+2. Movies: `/media/library/movies`
+3. TV Shows: `/media/library/tv`
 4. Enable real-time monitoring
 
 ### **❌ "Prowlarr no se conecta a Jackett"**

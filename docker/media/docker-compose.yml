@@ -11,7 +11,7 @@ services:
       - ${STACK_DATA}/config/jellyfin:/config
       - ${STACK_DATA}/config/jellyfin/temp:/cache
       - ${STACK_DATA}/library:/media/library:ro
-      - ${STACK_DATA}/downloads/complete:/downloads:ro
+      - ${STACK_DATA}/downloads/complete:/media/downloads/complete:ro
     ports:
       - "8096:8096"       # Puerto interno (opcional, para acceso directo sin proxy)
     environment:
@@ -30,41 +30,37 @@ services:
       traefik.http.routers.jellyfin.tls.certresolver: "cloudflare"
       traefik.http.services.jellyfin.loadbalancer.server.port: "8096"
 
-  # Transmission - Cliente BitTorrent
-  transmission:
-    image: lscr.io/linuxserver/transmission:latest
-    container_name: ${STACK_NAME}_transmission
+  # qBittorrent - Cliente BitTorrent (reemplaza Transmission)
+  qbittorrent:
+    image: hotio/qbittorrent:latest
+    container_name: ${STACK_NAME}_qbittorrent
     restart: unless-stopped
     networks:
       - proxy
       - media_internal
     volumes:
-      - ${STACK_DATA}/config/transmission:/config
+      - ${STACK_DATA}/config/qbittorrent:/config
       - ${STACK_DATA}/downloads:/media/downloads
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-      - USER=${TRANSMISSION_USER}
-      - PASS=${TRANSMISSION_PASS}
-      - WHITELIST=*
-      - PEERPORT=51413
-      - TRANSMISSION_WEB_HOME=/transmission-web-control/
-      - TRANSMISSION_RPC_HOST_WHITELIST_ENABLED=false
+      - UMASK=002
+      - WEBUI_PORT=8080
     ports:
-      - "51413:51413"
-      - "51413:51413/udp"
+      - "6881:6881"
+      - "6881:6881/udp"
     labels:
       traefik.enable: true
-      traefik.http.routers.transmission.rule: "Host(`transmission.${BASE_DOMAIN}`)"
-      traefik.http.routers.transmission.tls: "true"
-      traefik.http.routers.transmission.tls.certresolver: "cloudflare"
-      traefik.http.routers.transmission.middlewares: "tinyauth@docker"
-      traefik.http.services.transmission.loadbalancer.server.port: "9091"
+      traefik.http.routers.qbittorrent.rule: "Host(`qbittorrent.${BASE_DOMAIN}`)"
+      traefik.http.routers.qbittorrent.tls: "true"
+      traefik.http.routers.qbittorrent.tls.certresolver: "cloudflare"
+      traefik.http.routers.qbittorrent.middlewares: "tinyauth@docker"
+      traefik.http.services.qbittorrent.loadbalancer.server.port: "8080"
 
   # Radarr - Gestor de películas
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: hotio/radarr:latest
     container_name: ${STACK_NAME}_radarr
     restart: unless-stopped
     networks:
@@ -78,6 +74,7 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - UMASK=002
     labels:
       traefik.enable: true
       traefik.http.routers.radarr.rule: "Host(`radarr.${BASE_DOMAIN}`)"
@@ -86,12 +83,12 @@ services:
       traefik.http.routers.radarr.middlewares: "tinyauth@docker"
       traefik.http.services.radarr.loadbalancer.server.port: "7878"
     depends_on:
-      - transmission
+      - qbittorrent
       - prowlarr
 
   # Sonarr - Gestor de series
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
+    image: hotio/sonarr:latest
     container_name: ${STACK_NAME}_sonarr
     restart: unless-stopped
     networks:
@@ -105,6 +102,7 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - UMASK=002
     labels:
       traefik.enable: true
       traefik.http.routers.sonarr.rule: "Host(`sonarr.${BASE_DOMAIN}`)"
@@ -113,12 +111,12 @@ services:
       traefik.http.routers.sonarr.middlewares: "tinyauth@docker"
       traefik.http.services.sonarr.loadbalancer.server.port: "8989"
     depends_on:
-      - transmission
+      - qbittorrent
       - prowlarr
 
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: hotio/prowlarr:latest
     container_name: ${STACK_NAME}_prowlarr
     restart: unless-stopped
     networks:
@@ -130,6 +128,7 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - UMASK=002
     labels:
       traefik.enable: true
       traefik.http.routers.prowlarr.rule: "Host(`prowlarr.${BASE_DOMAIN}`)"
@@ -140,7 +139,7 @@ services:
 
   # Bazarr - Gestor de subtítulos
   bazarr:
-    image: lscr.io/linuxserver/bazarr:latest
+    image: hotio/bazarr:latest
     container_name: ${STACK_NAME}_bazarr
     restart: unless-stopped
     networks:
@@ -154,6 +153,7 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - UMASK=002
     labels:
       traefik.enable: true
       traefik.http.routers.bazarr.rule: "Host(`bazarr.${BASE_DOMAIN}`)"
@@ -204,7 +204,7 @@ services:
 
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
-    image: lscr.io/linuxserver/jackett:latest
+    image: hotio/jackett:latest
     container_name: ${STACK_NAME}_jackett
     restart: unless-stopped
     networks:
@@ -212,11 +212,12 @@ services:
       - media_internal
     volumes:
       - ${STACK_DATA}/config/jackett:/config
-      - ${STACK_DATA}/downloads/watch:/downloads        # RW - deposita .torrents en watch folder
+      - ${STACK_DATA}/downloads/watch:/media/downloads/watch        # RW - deposita .torrents en watch folder
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - UMASK=002
     labels:
       traefik.enable: true
       traefik.http.routers.jackett.rule: "Host(`jackett.${BASE_DOMAIN}`)"
