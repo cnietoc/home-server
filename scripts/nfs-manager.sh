@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script para gestionar NFS shares basado en la configuración de stacks.yml
+# Script para gestionar NFS shares
 # Autor: Home Server
 # Fecha: $(date +%Y-%m-%d)
 
@@ -9,12 +9,59 @@ set -euo pipefail
 # Configuración
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-STACKS_CONFIG="$PROJECT_ROOT/config/stacks.yml"
 EXPORTS_FILE="/etc/exports"
 LOG_FILE="$PROJECT_ROOT/data/logs/nfs.log"
 
 # Cargar utilidades comunes
 source "$SCRIPT_DIR/common/env-loader.sh"
+
+# Cargar funciones de stack-info
+STACK_INFO_SCRIPT="$SCRIPT_DIR/stack-info.sh"
+if [[ ! -f "$STACK_INFO_SCRIPT" ]]; then
+    log_error "No se encontró el script stack-info.sh en $STACK_INFO_SCRIPT"
+    exit 1
+fi
+
+# Función para inicializar stack-info y verificar dependencias
+init_stack_info() {
+    "$STACK_INFO_SCRIPT" init_stack_info
+}
+
+# Función para obtener stacks con configuración NFS
+get_stacks_with_nfs() {
+    "$STACK_INFO_SCRIPT" get_stacks_with_nfs
+}
+
+# Función para obtener shares de un stack
+get_stack_nfs_shares() {
+    local stack_name="$1"
+    "$STACK_INFO_SCRIPT" get_stack_nfs_shares "$stack_name"
+}
+
+# Función para obtener información de un share
+get_nfs_share_path() {
+    local stack_name="$1"
+    local share_name="$2"
+    "$STACK_INFO_SCRIPT" get_nfs_share_path "$stack_name" "$share_name"
+}
+
+get_nfs_share_exposed_path() {
+    local stack_name="$1"
+    local share_name="$2"
+    "$STACK_INFO_SCRIPT" get_nfs_share_exposed_path "$stack_name" "$share_name"
+}
+
+get_nfs_share_description() {
+    local stack_name="$1"
+    local share_name="$2"
+    "$STACK_INFO_SCRIPT" get_nfs_share_description "$stack_name" "$share_name"
+}
+
+get_nfs_share_permissions() {
+    local stack_name="$1"
+    local share_name="$2"
+    "$STACK_INFO_SCRIPT" get_nfs_share_permissions "$stack_name" "$share_name"
+}
 
 # Logging
 log() {
@@ -36,6 +83,15 @@ check_root() {
     fi
 }
 
+# Función para verificar dependencias y configuración
+check_dependencies() {
+    # Verificar yq y stack-info
+    if ! init_stack_info; then
+        log_error "Error inicializando stack-info. Verifica que yq esté instalado y la configuración sea válida"
+        exit 1
+    fi
+}
+
 # Función para instalar NFS server
 install_nfs() {
     log_info "Verificando instalación de NFS server..."
@@ -50,23 +106,6 @@ install_nfs() {
     fi
 }
 
-# Función para extraer configuración NFS del stacks.yml
-extract_nfs_config() {
-    if ! command -v yq &> /dev/null; then
-        log_error "yq no está instalado. Instálalo con: sudo apt-get install yq"
-        exit 1
-    fi
-
-    # Verificar si el archivo existe
-    if [[ ! -f "$STACKS_CONFIG" ]]; then
-        log_error "No se encontró el archivo de configuración: $STACKS_CONFIG"
-        exit 1
-    fi
-
-    # Extraer stacks que tienen configuración NFS
-    yq eval '.stacks | to_entries | .[] | select(.value.nfs_shares) | .key' "$STACKS_CONFIG" 2>/dev/null || true
-}
-
 # Función para generar configuración de exports
 generate_exports() {
     local exports_content="# NFS exports generados automáticamente por nfs-manager.sh\n"
@@ -74,7 +113,7 @@ generate_exports() {
     exports_content+="# NO EDITAR MANUALMENTE - será sobrescrito\n\n"
 
     local stacks_with_nfs
-    stacks_with_nfs=$(extract_nfs_config)
+    stacks_with_nfs=$(get_stacks_with_nfs)
 
     if [[ -z "$stacks_with_nfs" ]]; then
         log_info "No se encontraron stacks con configuración NFS"
@@ -87,21 +126,16 @@ generate_exports() {
         exports_content+="\n# Stack: $stack_name\n"
 
         local shares
-        shares=$(yq eval ".stacks.$stack_name.nfs_shares | to_entries | .[] | .key" "$STACKS_CONFIG" 2>/dev/null || true)
+        shares=$(get_stack_nfs_shares "$stack_name")
 
         while IFS= read -r share_name; do
             [[ -z "$share_name" ]] && continue
 
             local path permissions description exposed_path
-            path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.path" "$STACKS_CONFIG")
-            permissions=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.permissions" "$STACKS_CONFIG")
-            description=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.description" "$STACKS_CONFIG")
-
-            # Usar exposed_path si está definido, sino usar path
-            exposed_path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.exposed_path // \"\"" "$STACKS_CONFIG")
-            if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
-                exposed_path="$path"
-            fi
+            path=$(get_nfs_share_path "$stack_name" "$share_name")
+            permissions=$(get_nfs_share_permissions "$stack_name" "$share_name")
+            description=$(get_nfs_share_description "$stack_name" "$share_name")
+            exposed_path=$(get_nfs_share_exposed_path "$stack_name" "$share_name")
 
             # Configurar permisos NFS
             local nfs_opts
@@ -127,7 +161,7 @@ create_nfs_directories() {
     log_info "Creando directorios NFS..."
 
     local stacks_with_nfs
-    stacks_with_nfs=$(extract_nfs_config)
+    stacks_with_nfs=$(get_stacks_with_nfs)
 
     [[ -z "$stacks_with_nfs" ]] && return
 
@@ -135,18 +169,14 @@ create_nfs_directories() {
         [[ -z "$stack_name" ]] && continue
 
         local shares
-        shares=$(yq eval ".stacks.$stack_name.nfs_shares | to_entries | .[] | .key" "$STACKS_CONFIG" 2>/dev/null || true)
+        shares=$(get_stack_nfs_shares "$stack_name")
 
         while IFS= read -r share_name; do
             [[ -z "$share_name" ]] && continue
 
             local path exposed_path
-            path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.path" "$STACKS_CONFIG")
-            exposed_path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.exposed_path // \"\"" "$STACKS_CONFIG")
-
-            if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
-                exposed_path="$path"
-            fi
+            path=$(get_nfs_share_path "$stack_name" "$share_name")
+            exposed_path=$(get_nfs_share_exposed_path "$stack_name" "$share_name")
 
             # Crear directorio real si no existe
             if [[ ! -d "$path" ]]; then
@@ -189,7 +219,7 @@ setup_bind_mounts_fstab() {
     sed -i '/# NFS Manager bind mounts/,/# End NFS Manager bind mounts/d' /etc/fstab
 
     local stacks_with_nfs
-    stacks_with_nfs=$(extract_nfs_config)
+    stacks_with_nfs=$(get_stacks_with_nfs)
 
     [[ -z "$stacks_with_nfs" ]] && return
 
@@ -199,18 +229,14 @@ setup_bind_mounts_fstab() {
         [[ -z "$stack_name" ]] && continue
 
         local shares
-        shares=$(yq eval ".stacks.$stack_name.nfs_shares | to_entries | .[] | .key" "$STACKS_CONFIG" 2>/dev/null || true)
+        shares=$(get_stack_nfs_shares "$stack_name")
 
         while IFS= read -r share_name; do
             [[ -z "$share_name" ]] && continue
 
             local path exposed_path
-            path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.path" "$STACKS_CONFIG")
-            exposed_path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.exposed_path // \"\"" "$STACKS_CONFIG")
-
-            if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
-                exposed_path="$path"
-            fi
+            path=$(get_nfs_share_path "$stack_name" "$share_name")
+            exposed_path=$(get_nfs_share_exposed_path "$stack_name" "$share_name")
 
             # Si necesitamos bind mount, añadirlo a fstab
             if [[ "$exposed_path" != "$path" ]]; then
@@ -236,6 +262,7 @@ setup_bind_mounts_fstab() {
 setup_nfs() {
     log_info "🚀 Configurando NFS..."
 
+    check_dependencies
     install_nfs
     create_nfs_directories
     setup_bind_mounts_fstab
@@ -257,7 +284,7 @@ show_nfs_status() {
     echo "=============================="
 
     local stacks_with_nfs
-    stacks_with_nfs=$(extract_nfs_config)
+    stacks_with_nfs=$(get_stacks_with_nfs)
 
     if [[ -z "$stacks_with_nfs" ]]; then
         echo "❌ No hay stacks con configuración NFS"
@@ -271,25 +298,20 @@ show_nfs_status() {
         echo "🔗 Stack: $stack_name"
 
         local description
-        description=$(yq eval ".stacks.$stack_name.description" "$STACKS_CONFIG")
+        description=$("$STACK_INFO_SCRIPT" get_stack_description "$stack_name")
         echo "   $description"
 
         local shares
-        shares=$(yq eval ".stacks.$stack_name.nfs_shares | to_entries | .[] | .key" "$STACKS_CONFIG" 2>/dev/null || true)
+        shares=$(get_stack_nfs_shares "$stack_name")
 
         while IFS= read -r share_name; do
             [[ -z "$share_name" ]] && continue
 
             local path permissions description exposed_path
-            path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.path" "$STACKS_CONFIG")
-            permissions=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.permissions" "$STACKS_CONFIG")
-            description=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.description" "$STACKS_CONFIG")
-
-            # Usar exposed_path si está definido, sino usar path
-            exposed_path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.exposed_path // \"\"" "$STACKS_CONFIG")
-            if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
-                exposed_path="$path"
-            fi
+            path=$(get_nfs_share_path "$stack_name" "$share_name")
+            permissions=$(get_nfs_share_permissions "$stack_name" "$share_name")
+            description=$(get_nfs_share_description "$stack_name" "$share_name")
+            exposed_path=$(get_nfs_share_exposed_path "$stack_name" "$share_name")
 
             echo "   • $share_name: $exposed_path ($permissions)"
             if [[ "$exposed_path" != "$path" ]]; then
@@ -314,27 +336,25 @@ show_nfs_status() {
 remove_nfs() {
     log_info "🗑️  Removiendo configuración NFS..."
 
+    check_dependencies
+
     # Desmontar bind mounts
     local stacks_with_nfs
-    stacks_with_nfs=$(extract_nfs_config)
+    stacks_with_nfs=$(get_stacks_with_nfs)
 
     if [[ -n "$stacks_with_nfs" ]]; then
         while IFS= read -r stack_name; do
             [[ -z "$stack_name" ]] && continue
 
             local shares
-            shares=$(yq eval ".stacks.$stack_name.nfs_shares | to_entries | .[] | .key" "$STACKS_CONFIG" 2>/dev/null || true)
+            shares=$(get_stack_nfs_shares "$stack_name")
 
             while IFS= read -r share_name; do
                 [[ -z "$share_name" ]] && continue
 
                 local path exposed_path
-                path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.path" "$STACKS_CONFIG")
-                exposed_path=$(yq eval ".stacks.$stack_name.nfs_shares.$share_name.exposed_path // \"\"" "$STACKS_CONFIG")
-
-                if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
-                    exposed_path="$path"
-                fi
+                path=$(get_nfs_share_path "$stack_name" "$share_name")
+                exposed_path=$(get_nfs_share_exposed_path "$stack_name" "$share_name")
 
                 # Desmontar bind mount si existe
                 if [[ "$exposed_path" != "$path" ]] && mountpoint -q "$exposed_path"; then
@@ -363,12 +383,12 @@ remove_nfs() {
 
 # Función para mostrar ayuda
 show_help() {
-    echo "NFS Manager - Gestión de compartidas NFS basado en stacks.yml"
+    echo "NFS Manager - Gestión de compartidas NFS basado en stack-info.sh"
     echo ""
     echo "Uso: sudo $0 [comando]"
     echo ""
     echo "Comandos:"
-    echo "  setup     - Configurar NFS basado en stacks.yml"
+    echo "  setup     - Configurar NFS basado en configuración de stacks"
     echo "  status    - Mostrar estado de las compartidas NFS"
     echo "  remove    - Remover configuración NFS"
     echo "  help      - Mostrar esta ayuda"
@@ -392,6 +412,7 @@ main() {
             setup_nfs
             ;;
         "status")
+            check_dependencies
             show_nfs_status
             ;;
         "remove")

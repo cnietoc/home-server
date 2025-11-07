@@ -208,6 +208,93 @@ stack_exists() {
     [[ "$exists" == "true" ]]
 }
 
+# Obtener stacks que tienen configuración NFS
+get_stacks_with_nfs() {
+    if ! check_yq; then
+        return 1
+    fi
+
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | to_entries | .[] | select(.value.nfs_shares) | .key' "$STACK_CONFIG" 2>/dev/null || true
+    else
+        # Para yq-python, usar sintaxis diferente
+        run_yq '.stacks | to_entries[] | select(.value.nfs_shares) | .key' "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' || true
+    fi
+}
+
+# Obtener lista de shares NFS de un stack
+get_stack_nfs_shares() {
+    local stack_name="$1"
+
+    if ! check_yq; then
+        return 1
+    fi
+
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        run_yq ".stacks.$stack_name.nfs_shares | keys | .[]" "$STACK_CONFIG" 2>/dev/null || true
+    else
+        # Para yq-python, usar sintaxis diferente y limpiar comillas
+        run_yq ".stacks.$stack_name.nfs_shares | keys[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' || true
+    fi
+}
+
+# Obtener información específica de un share NFS
+get_nfs_share_info() {
+    local stack_name="$1"
+    local share_name="$2"
+    local field="$3"  # path, exposed_path, description, permissions
+
+    if ! check_yq; then
+        return 1
+    fi
+
+    local value
+    value=$(run_yq ".stacks.$stack_name.nfs_shares.$share_name.$field" "$STACK_CONFIG" 2>/dev/null)
+
+    if [[ "$value" == "null" ]]; then
+        echo ""
+    else
+        echo "$value"
+    fi
+}
+
+# Obtener path real de un share NFS
+get_nfs_share_path() {
+    local stack_name="$1"
+    local share_name="$2"
+    get_nfs_share_info "$stack_name" "$share_name" "path"
+}
+
+# Obtener exposed_path de un share NFS (con fallback al path real)
+get_nfs_share_exposed_path() {
+    local stack_name="$1"
+    local share_name="$2"
+
+    local exposed_path
+    exposed_path=$(get_nfs_share_info "$stack_name" "$share_name" "exposed_path")
+
+    if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
+        # Fallback al path real si no hay exposed_path
+        get_nfs_share_path "$stack_name" "$share_name"
+    else
+        echo "$exposed_path"
+    fi
+}
+
+# Obtener descripción de un share NFS
+get_nfs_share_description() {
+    local stack_name="$1"
+    local share_name="$2"
+    get_nfs_share_info "$stack_name" "$share_name" "description"
+}
+
+# Obtener permisos de un share NFS
+get_nfs_share_permissions() {
+    local stack_name="$1"
+    local share_name="$2"
+    get_nfs_share_info "$stack_name" "$share_name" "permissions"
+}
+
 # Cargar configuración de stacks usando las funciones wrapper
 load_stack_info() {
     if ! init_stack_info; then
@@ -520,6 +607,14 @@ COMANDOS WRAPPER (para otros scripts):
   stack_exists [stack]           - Verificar si un stack existe
   init_stack_info               - Inicializar y verificar dependencias
 
+  # Comandos NFS:
+  get_stacks_with_nfs           - Obtener stacks que tienen configuración NFS
+  get_stack_nfs_shares [stack]  - Obtener lista de shares NFS de un stack
+  get_nfs_share_path [stack] [share] - Obtener path real de un share
+  get_nfs_share_exposed_path [stack] [share] - Obtener path expuesto de un share
+  get_nfs_share_description [stack] [share] - Obtener descripción de un share
+  get_nfs_share_permissions [stack] [share] - Obtener permisos de un share
+
 EJEMPLOS:
   $0 services platform           # Servicios del stack platform
   $0 list                        # Ver toda la configuración
@@ -647,6 +742,40 @@ main() {
             ;;
         "init_stack_info")
             init_stack_info
+            ;;
+        # Comandos NFS
+        "get_stacks_with_nfs")
+            get_stacks_with_nfs
+            ;;
+        "get_stack_nfs_shares")
+            if [[ -z "${2:-}" ]]; then
+                exit 1
+            fi
+            get_stack_nfs_shares "$2"
+            ;;
+        "get_nfs_share_path")
+            if [[ -z "${2:-}" || -z "${3:-}" ]]; then
+                exit 1
+            fi
+            get_nfs_share_path "$2" "$3"
+            ;;
+        "get_nfs_share_exposed_path")
+            if [[ -z "${2:-}" || -z "${3:-}" ]]; then
+                exit 1
+            fi
+            get_nfs_share_exposed_path "$2" "$3"
+            ;;
+        "get_nfs_share_description")
+            if [[ -z "${2:-}" || -z "${3:-}" ]]; then
+                exit 1
+            fi
+            get_nfs_share_description "$2" "$3"
+            ;;
+        "get_nfs_share_permissions")
+            if [[ -z "${2:-}" || -z "${3:-}" ]]; then
+                exit 1
+            fi
+            get_nfs_share_permissions "$2" "$3"
             ;;
         *)
             echo "❌ Comando desconocido: ${1:-}"
