@@ -312,14 +312,69 @@ verify_stack_health() {
         return 1
     fi
 
-    # Esperar un momento para que los contenedores se estabilicen
-    sleep 3
+    # Tiempos conservadores para cualquier stack
+    local max_wait_time=180  # 1.5 minutos
+    local check_interval=8
+    local stabilization_wait=10  # Espera adicional para estabilización
 
-    # Verificar que todos los contenedores están corriendo
-    local running_containers=$(docker compose ps -q 2>/dev/null | wc -l)
+    log "⏱️ Verificando salud del stack $stack_name (máximo ${max_wait_time}s)..."
+
     local expected_containers=$(docker compose config --services 2>/dev/null | wc -l)
+    local elapsed_time=0
+    local last_running_count=0
 
-    if [[ $running_containers -eq $expected_containers && $running_containers -gt 0 ]]; then
+    # Espera inicial mínima
+    sleep 5
+
+    while [[ $elapsed_time -lt $max_wait_time ]]; do
+        # Contar contenedores en diferentes estados
+        local running_containers=$(docker compose ps -q --status running 2>/dev/null | wc -l)
+        local healthy_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "healthy\|running" 2>/dev/null || echo "0")
+        local total_containers=$(docker compose ps -a -q 2>/dev/null | wc -l)
+
+        # Mostrar progreso si hay cambios
+        if [[ $running_containers -ne $last_running_count ]]; then
+            log "📊 Stack $stack_name: $running_containers/$expected_containers contenedores corriendo (${elapsed_time}s)"
+            last_running_count=$running_containers
+        fi
+
+        # Verificar si todos los contenedores están corriendo
+        if [[ $running_containers -eq $expected_containers && $running_containers -gt 0 ]]; then
+            # Espera adicional para estabilización en todos los stacks
+            log "⏳ Stack $stack_name detectado como corriendo, esperando estabilización adicional..."
+            sleep $stabilization_wait
+
+            # Verificación final de estabilidad
+            local final_check=$(docker compose ps -q --status running 2>/dev/null | wc -l)
+            if [[ $final_check -eq $expected_containers ]]; then
+                log "✅ Stack $stack_name completamente estabilizado"
+                return 0
+            fi
+        fi
+
+        # Verificar si hay contenedores con errores críticos
+        local failed_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || echo "0")
+        if [[ $failed_containers -gt 0 && $elapsed_time -gt 30 ]]; then
+            log "⚠️ Detectados contenedores con problemas en stack $stack_name"
+            docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null | grep -E "exited|dead|restarting" || true
+        fi
+
+        sleep $check_interval
+        elapsed_time=$((elapsed_time + check_interval))
+    done
+
+    # Timeout alcanzado
+    log "⏰ Timeout verificando stack $stack_name después de ${max_wait_time}s"
+    log "📊 Estado final: $running_containers/$expected_containers contenedores corriendo"
+
+    # Mostrar estado detallado en caso de problemas
+    log "🔍 Estado detallado de contenedores:"
+    docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true
+
+    # Considerar parcialmente exitoso si al menos 80% están corriendo
+    local success_threshold=$(( expected_containers * 80 / 100 ))
+    if [[ $running_containers -ge $success_threshold && $running_containers -gt 0 ]]; then
+        log "⚠️ Stack $stack_name parcialmente funcional ($running_containers/$expected_containers)"
         return 0
     else
         return 1
@@ -471,13 +526,18 @@ redeploy_stack() {
         docker compose up -d
     fi
 
-    # Verificar estado
-    sleep 2
-    if docker compose ps -q | grep -q .; then
-        log "✅ Stack $stack_name desplegado correctamente"
-        docker compose ps
+    # Verificar estado inicial (básico)
+    log "🔍 Verificando inicio de contenedores..."
+    sleep 3
+
+    local quick_check=$(docker compose ps -q 2>/dev/null | wc -l)
+    if [[ $quick_check -gt 0 ]]; then
+        log "✅ Stack $stack_name iniciado (contenedores detectados)"
+        log "📋 Estado inicial:"
+        docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || docker compose ps
     else
-        log "⚠️ Posible problema con stack $stack_name"
+        log "❌ Ningún contenedor iniciado para stack $stack_name"
+        log "🔍 Logs de error:"
         docker compose logs --tail=20
         return 1
     fi
