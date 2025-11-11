@@ -55,30 +55,27 @@ services:
   samba:
     volumes:
       - ${STACK_DATA}/samba:/config
+    environment:
+      - SAMBA_USERNAME=${SAMBA_USERNAME:-smbuser}
+      - SAMBA_PASSWORD=${SAMBA_PASSWORD:-changeme}
+      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
 EOF
 
-        # Crear configuración básica sin shares
-        # Cargar variables específicas de Samba si existen
-        local samba_username="${SAMBA_USERNAME:-smbuser}"
-        local samba_password="${SAMBA_PASSWORD:-changeme}"
-        local samba_workgroup="${SAMBA_WORKGROUP:-WORKGROUP}"
-        local puid="${PUID:-1000}"
-        local pgid="${PGID:-1000}"
-
+        # Crear configuración básica sin shares usando variables de entorno
         cat > "$config_dir/config.yml" << EOF
 # Configuración de Samba generada automáticamente
 # Generado: $(date)
 auth:
-  - user: $samba_username
-    group: users
-    uid: $puid
-    gid: $pgid
-    password: $samba_password
+  - user: \${SAMBA_USERNAME:-smbuser}
+    group: \${SAMBA_USERNAME:-smbuser}
+    uid: \${PUID:-1000}
+    gid: \${PGID:-1000}
+    password: \${SAMBA_PASSWORD:-changeme}
 
 global:
-  - "force user = $samba_username"
-  - "force group = users"
-  - "workgroup = $samba_workgroup"
+  - "force user = \${SAMBA_USERNAME:-smbuser}"
+  - "force group = \${SAMBA_USERNAME:-smbuser}"
+  - "workgroup = \${SAMBA_WORKGROUP:-WORKGROUP}"
   - "server string = Home Server Samba"
   - "security = user"
   - "guest account = nobody"
@@ -102,28 +99,64 @@ services:
       - ${STACK_DATA}/samba:/config
 EOF
 
-    # Generar configuración YAML para crazymax/samba
-    # Cargar variables específicas de Samba si existen
-    local samba_username="${SAMBA_USERNAME:-smbuser}"
-    local samba_password="${SAMBA_PASSWORD:-changeme}"
-    local samba_workgroup="${SAMBA_WORKGROUP:-WORKGROUP}"
-    local puid="${PUID:-1000}"
-    local pgid="${PGID:-1000}"
+    # Añadir volúmenes dinámicos
+    local volumes_added=false
 
+    # Procesar shares de cada stack para añadir volúmenes
+    while IFS= read -r stack_name; do
+        [[ -z "$stack_name" ]] && continue
+
+        local shares
+        shares=$(get_stack_shares "$stack_name" 2>/dev/null || echo "")
+
+        while IFS= read -r share_name; do
+            [[ -z "$share_name" ]] && continue
+
+            local path permissions
+            path=$(get_share_path "$stack_name" "$share_name" 2>/dev/null || echo "")
+            permissions=$(get_share_permissions "$stack_name" "$share_name" 2>/dev/null || echo "ro")
+            local exposed_path
+            exposed_path=$(get_share_exposed_path "$stack_name" "$share_name" 2>/dev/null || echo "")
+
+            [[ -z "$path" ]] && continue
+
+            local container_path="/data/${exposed_path#/}"
+
+            # Añadir volumen al override
+            if [[ "$permissions" == "ro" ]]; then
+                echo "      - $path:$container_path:ro" >> "$override_file"
+            else
+                echo "      - $path:$container_path" >> "$override_file"
+            fi
+
+            volumes_added=true
+
+        done <<< "$shares"
+    done <<< "$stacks_with_shares"
+
+    # Añadir sección de environment
+    cat >> "$override_file" << 'EOF'
+    environment:
+      - SAMBA_USERNAME=${SAMBA_USERNAME:-smbuser}
+      - SAMBA_PASSWORD=${SAMBA_PASSWORD:-changeme}
+      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
+EOF
+
+    # Generar configuración YAML para crazymax/samba usando variables de entorno
     cat > "$config_dir/config.yml" << EOF
 # Configuración de Samba generada automáticamente
 # Generado: $(date)
 auth:
-  - user: $samba_username
-    group: users
-    uid: $puid
-    gid: $pgid
-    password: $samba_password
+  - user: \${SAMBA_USERNAME:-smbuser}
+    group: \${SAMBA_USERNAME:-smbuser}
+    uid: \${PUID:-1000}
+    gid: \${PGID:-1000}
+    password: \${SAMBA_PASSWORD:-changeme}
 
 global:
-  - "force user = $samba_username"
-  - "force group = users"
-  - "workgroup = $samba_workgroup"
+  - "force user = \${SAMBA_USERNAME:-smbuser}"
+  - "force group = \${SAMBA_USERNAME:-smbuser}"
+  - "workgroup = \${SAMBA_WORKGROUP:-WORKGROUP}"
   - "server string = Home Server Samba"
   - "security = user"
   - "guest account = nobody"
@@ -139,7 +172,7 @@ EOF
 
     local share_count=0
 
-    # Procesar shares de cada stack
+    # Procesar shares de cada stack para generar configuración YAML
     while IFS= read -r stack_name; do
         [[ -z "$stack_name" ]] && continue
 
@@ -166,12 +199,6 @@ EOF
 
             echo "    📂 Share: $samba_share_name ($path -> $container_path)"
 
-            # Añadir volumen al override
-            if [[ "$permissions" == "ro" ]]; then
-                echo "      - $path:$container_path:ro" >> "$override_file"
-            else
-                echo "      - $path:$container_path" >> "$override_file"
-            fi
 
             # Añadir configuración del share al config.yml
             cat >> "$config_dir/config.yml" << EOF
@@ -180,7 +207,7 @@ EOF
     browsable: yes
     readonly: $([ "$permissions" = "ro" ] && echo "yes" || echo "no")
     guestok: no
-    validusers: $samba_username
+    validusers: \${SAMBA_USERNAME:-smbuser}
     comment: "$description"
 EOF
 

@@ -134,7 +134,7 @@ services:
       - "445:445"     # SMB
       - "139:139"     # NetBIOS
     volumes:
-      - ${STACK_DATA}/samba:/config
+      - ${STACK_DATA}/samba:/data
       # Los mappings de volúmenes se añaden dinámicamente via pre-deploy script
     environment:
       - TZ=${TZ}
