@@ -320,6 +320,7 @@ verify_stack_health() {
     log "⏱️ Verificando salud del stack $stack_name (máximo ${max_wait_time}s)..."
 
     local expected_containers=$(docker compose config --services 2>/dev/null | wc -l)
+    expected_containers=${expected_containers:-0}
     local elapsed_time=0
     local last_running_count=0
 
@@ -329,10 +330,13 @@ verify_stack_health() {
     while [[ $elapsed_time -lt $max_wait_time ]]; do
         # Contar contenedores en diferentes estados
         local running_containers=$(docker compose ps -q --status running 2>/dev/null | wc -l)
-        local healthy_containers
-        healthy_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "healthy\|running" 2>/dev/null || echo "0")
+        running_containers=${running_containers:-0}
+
+        local healthy_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "healthy\|running" 2>/dev/null)
         healthy_containers=${healthy_containers:-0}
+
         local total_containers=$(docker compose ps -a -q 2>/dev/null | wc -l)
+        total_containers=${total_containers:-0}
 
         # Mostrar progreso si hay cambios
         if [[ $running_containers -ne $last_running_count ]]; then
@@ -348,6 +352,7 @@ verify_stack_health() {
 
             # Verificación final de estabilidad
             local final_check=$(docker compose ps -q --status running 2>/dev/null | wc -l)
+            final_check=${final_check:-0}
             if [[ $final_check -eq $expected_containers ]]; then
                 log "✅ Stack $stack_name completamente estabilizado"
                 return 0
@@ -355,8 +360,7 @@ verify_stack_health() {
         fi
 
         # Verificar si hay contenedores con errores críticos
-        local failed_containers
-        failed_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || echo "0")
+        local failed_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null)
         failed_containers=${failed_containers:-0}
         if [[ $failed_containers -gt 0 && $elapsed_time -gt 30 ]]; then
             log "⚠️ Detectados contenedores con problemas en stack $stack_name"
