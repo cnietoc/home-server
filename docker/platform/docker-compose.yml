@@ -141,4 +141,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - UMASK=002
-      - WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
+      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
+      - SAMBA_LOG_LEVEL=2
+      - WSDD2_ENABLE=1
+      - WSDD2_NETBIOS_NAME=docker_samba
