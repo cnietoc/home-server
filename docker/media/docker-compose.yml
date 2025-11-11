@@ -2,7 +2,7 @@ services:
   # Jellyfin - Servidor de medios
   jellyfin:
     image: ghcr.io/jellyfin/jellyfin:latest
-    container_name: ${STACK_NAME}_jellyfin
+    container_name: ${STACK_NAME}-jellyfin
     restart: unless-stopped
     networks:
       - proxy
@@ -11,6 +11,7 @@ services:
       - ${STACK_DATA}/config/jellyfin:/config
       - ${STACK_DATA}/config/jellyfin/temp:/cache
       - ${STACK_DATA}/library:/media/library:ro
+      - ${STACK_DATA}/recordings:/media/recordings/:rw
       - ${STACK_DATA}/downloads/complete:/media/downloads/complete:ro
     ports:
       - "8096:8096"       # Puerto interno (opcional, para acceso directo sin proxy)
@@ -33,7 +34,7 @@ services:
   # qBittorrent - Cliente BitTorrent
   qbittorrent:
     image: ghcr.io/hotio/qbittorrent:latest
-    container_name: ${STACK_NAME}_qbittorrent
+    container_name: ${STACK_NAME}-qbittorrent
     restart: unless-stopped
     networks:
       - proxy
@@ -61,7 +62,7 @@ services:
   # Radarr - Gestor de películas
   radarr:
     image: ghcr.io/hotio/radarr:latest
-    container_name: ${STACK_NAME}_radarr
+    container_name: ${STACK_NAME}-radarr
     restart: unless-stopped
     networks:
       - proxy
@@ -89,7 +90,7 @@ services:
   # Sonarr - Gestor de series
   sonarr:
     image: ghcr.io/hotio/sonarr:latest
-    container_name: ${STACK_NAME}_sonarr
+    container_name: ${STACK_NAME}-sonarr
     restart: unless-stopped
     networks:
       - proxy
@@ -117,7 +118,7 @@ services:
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
     image: ghcr.io/hotio/prowlarr:latest
-    container_name: ${STACK_NAME}_prowlarr
+    container_name: ${STACK_NAME}-prowlarr
     restart: unless-stopped
     networks:
       - proxy
@@ -141,7 +142,7 @@ services:
   # Tdarr - Transcodificador de video
   tdarr:
     image: ghcr.io/haveagitgat/tdarr:latest
-    container_name: ${STACK_NAME}_tdarr
+    container_name: ${STACK_NAME}-tdarr
     restart: unless-stopped
     networks:
       - proxy
@@ -178,7 +179,7 @@ services:
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
     image: ghcr.io/hotio/jackett:latest
-    container_name: ${STACK_NAME}_jackett
+    container_name: ${STACK_NAME}-jackett
     restart: unless-stopped
     networks:
       - proxy
@@ -202,7 +203,7 @@ services:
   # Flaresolverr - Resuelve CloudFlare challenges para Prowlarr
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: ${STACK_NAME}_flaresolverr
+    container_name: ${STACK_NAME}-flaresolverr
     restart: unless-stopped
     networks:
       - media_internal
