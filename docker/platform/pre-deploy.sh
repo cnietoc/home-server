@@ -70,12 +70,14 @@ EOF
 # Generado: $(date)
 auth:
   - user: $samba_username
-    group: $samba_username
+    group: users
     uid: $puid
     gid: $pgid
     password: $samba_password
 
 global:
+  - "force user = $samba_username"
+  - "force group = users"
   - "workgroup = $samba_workgroup"
   - "server string = Home Server Samba"
   - "security = user"
@@ -113,18 +115,24 @@ EOF
 # Generado: $(date)
 auth:
   - user: $samba_username
-    group: $samba_username
+    group: users
     uid: $puid
     gid: $pgid
     password: $samba_password
 
 global:
+  - "force user = $samba_username"
+  - "force group = users"
   - "workgroup = $samba_workgroup"
   - "server string = Home Server Samba"
   - "security = user"
   - "guest account = nobody"
   - "map to guest = never"
   - "browseable = yes"
+  - "create mask = 0664"
+  - "directory mask = 0775"
+  - "follow symlinks = yes"
+  - "wide links = yes"
 
 share:
 EOF
