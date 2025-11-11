@@ -194,7 +194,7 @@ EOF
 
             # Generar nombre del share usando exposed_path (reemplazar / por _)
             local samba_share_name="${exposed_path#/}"
-            samba_share_name="${samba_share_name//\//_}"  # Reemplazar / por _ para nombres seguros
+            # samba_share_name="${samba_share_name//\//_}"  # Reemplazar / por _ para nombres seguros
             local container_path="/data/${exposed_path#/}"
 
             echo "    📂 Share: $samba_share_name ($path -> $container_path)"
