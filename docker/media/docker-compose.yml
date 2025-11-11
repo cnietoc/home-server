@@ -207,6 +207,8 @@ services:
     restart: unless-stopped
     networks:
       - media_internal
+    volumes:
+      - ${STACK_DATA}/config/flaresolverr:/config
     environment:
       - LOG_LEVEL=info
       - LOG_HTML=false
