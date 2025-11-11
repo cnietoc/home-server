@@ -124,7 +124,7 @@ services:
       - WATCHTOWER_NO_STARTUP_MESSAGE=true
 
   samba:
-    image: dperson/samba:latest
+    image: crazymax/samba:latest
     container_name: ${STACK_NAME}-samba
     restart: unless-stopped
     hostname: ${STACK_NAME}-samba

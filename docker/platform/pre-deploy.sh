@@ -29,6 +29,10 @@ configure_samba() {
     echo "🔧 Configurando Samba dinámicamente basado en shares..."
 
     local override_file="$PLATFORM_SCRIPT_DIR/docker-compose.override.yml"
+    local config_dir="$PLATFORM_PROJECT_ROOT/data/platform/samba"
+
+    # Crear directorio de configuración
+    mkdir -p "$config_dir"
 
     # Obtener stacks que tienen shares
     local stacks_with_shares
@@ -47,6 +51,27 @@ services:
     volumes:
       - ${STACK_DATA}/samba:/config
 EOF
+
+        # Crear configuración básica sin shares
+        cat > "$config_dir/config.yml" << EOF
+# Configuración de Samba generada automáticamente
+# Generado: $(date)
+auth:
+  - user: \${SAMBA_USERNAME:-smbuser}
+    group: \${SAMBA_USERNAME:-smbuser}
+    uid: \${PUID}
+    gid: \${PGID}
+    password: \${SAMBA_PASSWORD:-changeme}
+
+global:
+  - "workgroup = \${SAMBA_WORKGROUP:-WORKGROUP}"
+  - "server string = Home Server Samba"
+  - "security = user"
+  - "guest account = nobody"
+  - "map to guest = never"
+
+share: []
+EOF
         return 0
     fi
 
@@ -63,13 +88,28 @@ services:
       - ${STACK_DATA}/samba:/config
 EOF
 
-    # Generar comandos para dperson/samba
-    local samba_commands=()
-    local share_count=0
+    # Generar configuración YAML para crazymax/samba
+    cat > "$config_dir/config.yml" << 'EOF'
+# Configuración de Samba generada automáticamente
+auth:
+  - user: ${SAMBA_USERNAME:-smbuser}
+    group: ${SAMBA_USERNAME:-smbuser}
+    uid: ${PUID}
+    gid: ${PGID}
+    password: ${SAMBA_PASSWORD:-changeme}
 
-    # Configuración de usuario y workgroup
-    samba_commands+=("-u" "\${SAMBA_USERNAME:-smbuser};\${SAMBA_PASSWORD:-changeme}")
-    samba_commands+=("-w" "\${SAMBA_WORKGROUP:-WORKGROUP}")
+global:
+  - "workgroup = ${SAMBA_WORKGROUP:-WORKGROUP}"
+  - "server string = Home Server Samba"
+  - "security = user"
+  - "guest account = nobody"
+  - "map to guest = never"
+  - "browseable = yes"
+
+share:
+EOF
+
+    local share_count=0
 
     # Procesar shares de cada stack
     while IFS= read -r stack_name; do
@@ -91,9 +131,10 @@ EOF
 
             [[ -z "$path" ]] && continue
 
-            # Generar nombre del share usando exposed_path
+            # Generar nombre del share usando exposed_path (reemplazar / por _)
             local samba_share_name="${exposed_path#/}"
-            local container_path="/shares/${samba_share_name}"
+            samba_share_name="${samba_share_name//\//_}"  # Reemplazar / por _ para nombres seguros
+            local container_path="/data/${exposed_path#/}"
 
             echo "    📂 Share: $samba_share_name ($path -> $container_path)"
 
@@ -104,11 +145,16 @@ EOF
                 echo "      - $path:$container_path" >> "$override_file"
             fi
 
-            # Configurar share para dperson/samba: -s "name;path;browsable;readonly;guest;users"
-            local readonly="no"
-            [[ "$permissions" == "ro" ]] && readonly="yes"
-
-            samba_commands+=("-s" "$samba_share_name;$container_path;yes;$readonly;no;\${SAMBA_USERNAME:-smbuser}")
+            # Añadir configuración del share al config.yml
+            cat >> "$config_dir/config.yml" << EOF
+  - name: $samba_share_name
+    path: $container_path
+    browsable: yes
+    readonly: $([ "$permissions" = "ro" ] && echo "yes" || echo "no")
+    guestok: no
+    validusers: \${SAMBA_USERNAME:-smbuser}
+    comment: "$description"
+EOF
 
             share_count=$((share_count + 1))
 
@@ -116,17 +162,10 @@ EOF
 
     done <<< "$stacks_with_shares"
 
-    # Añadir comandos al override
-    if [[ ${#samba_commands[@]} -gt 0 ]]; then
-        echo "    command:" >> "$override_file"
-        for cmd in "${samba_commands[@]}"; do
-            echo "      - \"$cmd\"" >> "$override_file"
-        done
-    fi
-
     echo "✅ Samba configurado con $share_count shares"
     echo "📝 Archivos generados:"
     echo "  - $override_file"
+    echo "  - $config_dir/config.yml"
 }
 
 # Ejecutar configuración
