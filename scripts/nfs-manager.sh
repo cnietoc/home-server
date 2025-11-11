@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script para gestionar NFS shares
+# Script para gestionar NFS/Samba shares
 # Autor: Home Server
 # Fecha: $(date +%Y-%m-%d)
 
@@ -27,40 +27,40 @@ init_stack_info() {
     "$STACK_INFO_SCRIPT" init_stack_info
 }
 
-# Función para obtener stacks con configuración NFS
+# Función para obtener stacks con configuración de shares
 get_stacks_with_nfs() {
-    "$STACK_INFO_SCRIPT" get_stacks_with_nfs
+    "$STACK_INFO_SCRIPT" get_stacks_with_shares
 }
 
 # Función para obtener shares de un stack
 get_stack_nfs_shares() {
     local stack_name="$1"
-    "$STACK_INFO_SCRIPT" get_stack_nfs_shares "$stack_name"
+    "$STACK_INFO_SCRIPT" get_stack_shares "$stack_name"
 }
 
 # Función para obtener información de un share
 get_nfs_share_path() {
     local stack_name="$1"
     local share_name="$2"
-    "$STACK_INFO_SCRIPT" get_nfs_share_path "$stack_name" "$share_name"
+    "$STACK_INFO_SCRIPT" get_share_path "$stack_name" "$share_name"
 }
 
 get_nfs_share_exposed_path() {
     local stack_name="$1"
     local share_name="$2"
-    "$STACK_INFO_SCRIPT" get_nfs_share_exposed_path "$stack_name" "$share_name"
+    "$STACK_INFO_SCRIPT" get_share_exposed_path "$stack_name" "$share_name"
 }
 
 get_nfs_share_description() {
     local stack_name="$1"
     local share_name="$2"
-    "$STACK_INFO_SCRIPT" get_nfs_share_description "$stack_name" "$share_name"
+    "$STACK_INFO_SCRIPT" get_share_description "$stack_name" "$share_name"
 }
 
 get_nfs_share_permissions() {
     local stack_name="$1"
     local share_name="$2"
-    "$STACK_INFO_SCRIPT" get_nfs_share_permissions "$stack_name" "$share_name"
+    "$STACK_INFO_SCRIPT" get_share_permissions "$stack_name" "$share_name"
 }
 
 # Logging

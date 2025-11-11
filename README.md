@@ -316,6 +316,50 @@ labels:
 
 > **Nota**: Asegúrate de que tu dominio esté configurado en Cloudflare y apunte a tu servidor.
 
+## 📁 Compartir Archivos (NFS y Samba)
+
+El sistema incluye gestión completa de compartidas de archivos a través de NFS y Samba/CIFS para acceder a tu biblioteca multimedia y descargas desde cualquier dispositivo de la red.
+
+### Características
+
+- **🗄️ NFS Server**: Para sistemas Unix/Linux (configuración manual)
+- **💻 Samba/CIFS**: Para Windows/macOS (configuración automática)
+- **⚙️ Una sola configuración**: Los shares en `stacks.yml` sirven para ambos protocolos
+- **🔒 Gestión de permisos**: Lectura/escritura por share
+- **📊 Configuración dinámica**: Samba se configura automáticamente al desplegar
+
+### Configuración rápida
+
+```bash
+# 1. Configurar shares en stacks.yml (ya incluido en stack media)
+# 2. Desplegar platform (configura Samba automáticamente)
+./scripts/deploy.sh platform
+
+# 3. Configurar NFS manualmente  
+sudo ./scripts/nfs-manager.sh setup
+
+# 4. Verificar estado
+sudo ./scripts/nfs-manager.sh status
+```
+
+### Acceso desde clientes
+
+**NFS (Linux/macOS):**
+```bash
+# Montar biblioteca multimedia (solo lectura)
+sudo mount -t nfs servidor:/media/library /mnt/media
+
+# Montar carpeta de descargas (lectura/escritura)  
+sudo mount -t nfs servidor:/media/downloads /mnt/downloads
+```
+
+**Samba/CIFS (Windows/macOS/Linux):**
+- **Windows**: `\\servidor\media_library`, `\\servidor\media_downloads`
+- **macOS**: `smb://servidor/media_library`
+- **Linux**: `sudo mount -t cifs //servidor/media_library /mnt/media`
+
+Ver documentación completa: [docs/NFS_MANAGEMENT.md](docs/NFS_MANAGEMENT.md)
+
 ## 🤖 Mantenimiento Automático
 
 El sistema incluye un completo sistema de mantenimiento automático que se ejecuta en segundo plano para mantener tu servidor funcionando de forma óptima.

@@ -5,17 +5,17 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-STACK_CONFIG="$PROJECT_ROOT/config/stacks.yml"
+STACK_INFO_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STACK_INFO_PROJECT_ROOT="$(dirname "$STACK_INFO_SCRIPT_DIR")"
+STACK_INFO_CONFIG="$STACK_INFO_PROJECT_ROOT/config/stacks.yml"
 
-source "$SCRIPT_DIR/common/env-loader.sh"
+source "$STACK_INFO_SCRIPT_DIR/common/env-loader.sh"
 
 
 
 # Detectar qué versión de yq está instalada y configurar sintaxis
-YQ_VERSION=""
-YQ_SYNTAX=""
+STACK_INFO_YQ_VERSION=""
+STACK_INFO_YQ_SYNTAX=""
 
 detect_yq_version() {
     if ! command -v yq >/dev/null 2>&1; then
@@ -23,30 +23,30 @@ detect_yq_version() {
     fi
 
     # Verificar si el archivo existe
-    if [[ ! -f "$STACK_CONFIG" ]]; then
+    if [[ ! -f "$STACK_INFO_CONFIG" ]]; then
         return 1
     fi
 
     # Probar con sintaxis de yq-go primero (más común)
-    if yq eval '.stacks' "$STACK_CONFIG" >/dev/null 2>&1; then
-        YQ_VERSION="go"
-        YQ_SYNTAX="eval"
+    if yq eval '.stacks' "$STACK_INFO_CONFIG" >/dev/null 2>&1; then
+        STACK_INFO_YQ_VERSION="go"
+        STACK_INFO_YQ_SYNTAX="eval"
         return 0
     # Probar con sintaxis de yq-python
-    elif yq '.stacks' "$STACK_CONFIG" >/dev/null 2>&1; then
-        YQ_VERSION="python"
-        YQ_SYNTAX=""
+    elif yq '.stacks' "$STACK_INFO_CONFIG" >/dev/null 2>&1; then
+        STACK_INFO_YQ_VERSION="python"
+        STACK_INFO_YQ_SYNTAX=""
         return 0
     # Probar detectar por la ayuda de yq
     elif yq --help 2>&1 | grep -q "yaml-output"; then
         # Es la versión Python (tiene --yaml-output)
-        YQ_VERSION="python"
-        YQ_SYNTAX=""
+        STACK_INFO_YQ_VERSION="python"
+        STACK_INFO_YQ_SYNTAX=""
         return 0
     elif yq --help 2>&1 | grep -q "eval"; then
         # Es la versión Go (tiene eval)
-        YQ_VERSION="go"
-        YQ_SYNTAX="eval"
+        STACK_INFO_YQ_VERSION="go"
+        STACK_INFO_YQ_SYNTAX="eval"
         return 0
     else
         return 1
@@ -58,13 +58,13 @@ check_yq() {
     if detect_yq_version; then
         # Debug: mostrar versión detectada
         if [[ "${DEBUG:-}" == "1" ]]; then
-            echo "🔍 yq detectado: versión $YQ_VERSION" >&2
+            echo "🔍 yq detectado: versión $STACK_INFO_YQ_VERSION" >&2
         fi
         return 0
     else
         error "yq no está instalado o no funciona correctamente."
-        error "Archivo de configuración: $STACK_CONFIG"
-        error "¿Existe el archivo? $(ls -la "$STACK_CONFIG" 2>/dev/null || echo "NO")"
+        error "Archivo de configuración: $STACK_INFO_CONFIG"
+        error "¿Existe el archivo? $(ls -la "$STACK_INFO_CONFIG" 2>/dev/null || echo "NO")"
         error "Versión de yq instalada: $(yq --version 2>/dev/null || echo "ERROR")"
         error ""
         error "Instálalo con:"
@@ -81,15 +81,15 @@ run_yq() {
     local file="$2"
     local result
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
         result=$(yq eval "$query" "$file")
-    elif [[ "$YQ_VERSION" == "python" ]]; then
+    elif [[ "$STACK_INFO_YQ_VERSION" == "python" ]]; then
         # Para yq-python, el archivo va antes de la query
         result=$(yq "$query" "$file")
         # Limpiar comillas extras que puede agregar yq-python
         result=$(echo "$result" | sed 's/^"//; s/"$//')
     else
-        error "Versión de yq no detectada correctamente. YQ_VERSION=$YQ_VERSION"
+        error "Versión de yq no detectada correctamente. STACK_INFO_YQ_VERSION=$STACK_INFO_YQ_VERSION"
         return 1
     fi
 
@@ -98,8 +98,8 @@ run_yq() {
 
 # Función de inicialización para otros scripts
 init_stack_info() {
-    if [[ ! -f "$STACK_CONFIG" ]]; then
-        error "Archivo de configuración no encontrado: $STACK_CONFIG"
+    if [[ ! -f "$STACK_INFO_CONFIG" ]]; then
+        error "Archivo de configuración no encontrado: $STACK_INFO_CONFIG"
         return 1
     fi
 
@@ -119,11 +119,11 @@ get_available_stacks() {
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | keys | .[]' "$STACK_CONFIG"
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
     else
         # Para yq-python, usar sintaxis diferente y limpiar comillas
-        run_yq '.stacks | keys[]' "$STACK_CONFIG" | sed 's/"//g'
+        run_yq '.stacks | keys[]' "$STACK_INFO_CONFIG" | sed 's/"//g'
     fi
 }
 
@@ -136,11 +136,11 @@ get_stack_config_files() {
     fi
 
     local config_files
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_CONFIG")
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
     else
         # Para yq-python, extraer elementos del array sin comillas
-        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
     fi
 
     # Siempre incluir common como base, luego agregar los específicos del stack
@@ -160,7 +160,7 @@ get_stack_description() {
     fi
 
     local description
-    description=$(run_yq ".stacks.$stack_name.description" "$STACK_CONFIG" 2>/dev/null)
+    description=$(run_yq ".stacks.$stack_name.description" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$description" == "null" ]]; then
         echo ""
@@ -179,7 +179,7 @@ get_service_subdomain() {
     fi
 
     local subdomain
-    subdomain=$(run_yq ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_CONFIG" 2>/dev/null)
+    subdomain=$(run_yq ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$subdomain" == "null" ]]; then
         echo ""
@@ -197,49 +197,49 @@ stack_exists() {
     fi
 
     local exists
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_CONFIG" 2>/dev/null)
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
     else
         # Para yq-python, verificar si el stack existe de manera diferente
-        exists=$(run_yq ".stacks.$stack_name" "$STACK_CONFIG" 2>/dev/null)
+        exists=$(run_yq ".stacks.$stack_name" "$STACK_INFO_CONFIG" 2>/dev/null)
         [[ "$exists" != "null" && -n "$exists" ]] && exists="true" || exists="false"
     fi
 
     [[ "$exists" == "true" ]]
 }
 
-# Obtener stacks que tienen configuración NFS
-get_stacks_with_nfs() {
+# Obtener stacks que tienen configuración de shares
+get_stacks_with_shares() {
     if ! check_yq; then
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | to_entries | .[] | select(.value.nfs_shares) | .key' "$STACK_CONFIG" 2>/dev/null || true
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente
-        run_yq '.stacks | to_entries[] | select(.value.nfs_shares) | .key' "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' || true
+        run_yq '.stacks | to_entries[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
     fi
 }
 
-# Obtener lista de shares NFS de un stack
-get_stack_nfs_shares() {
+# Obtener lista de shares de un stack
+get_stack_shares() {
     local stack_name="$1"
 
     if ! check_yq; then
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq ".stacks.$stack_name.nfs_shares | keys | .[]" "$STACK_CONFIG" 2>/dev/null || true
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente y limpiar comillas
-        run_yq ".stacks.$stack_name.nfs_shares | keys[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g' || true
+        run_yq ".stacks.$stack_name.shares | keys[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
     fi
 }
 
-# Obtener información específica de un share NFS
-get_nfs_share_info() {
+# Obtener información específica de un share
+get_share_info() {
     local stack_name="$1"
     local share_name="$2"
     local field="$3"  # path, exposed_path, description, permissions
@@ -249,7 +249,7 @@ get_nfs_share_info() {
     fi
 
     local value
-    value=$(run_yq ".stacks.$stack_name.nfs_shares.$share_name.$field" "$STACK_CONFIG" 2>/dev/null)
+    value=$(run_yq ".stacks.$stack_name.shares.$share_name.$field" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$value" == "null" ]]; then
         echo ""
@@ -258,19 +258,19 @@ get_nfs_share_info() {
     fi
 }
 
-# Obtener path real de un share NFS
-get_nfs_share_path() {
+# Obtener path real de un share
+get_share_path() {
     local stack_name="$1"
     local share_name="$2"
     local raw_path
-    raw_path=$(get_nfs_share_info "$stack_name" "$share_name" "path")
+    raw_path=$(get_share_info "$stack_name" "$share_name" "path")
 
     # Convertir path relativo a absoluto basado en la estructura del repositorio
-    resolve_nfs_path "$raw_path" "$stack_name"
+    resolve_share_path "$raw_path" "$stack_name"
 }
 
-# Función para resolver paths NFS basándose en la estructura del repositorio
-resolve_nfs_path() {
+# Función para resolver paths de shares basándose en la estructura del repositorio
+resolve_share_path() {
     local path="$1"
     local stack_name="$2"
 
@@ -284,42 +284,42 @@ resolve_nfs_path() {
     if [[ "$path" =~ ^/ ]]; then
         # Remover la barra inicial y construir path completo
         local relative_path="${path#/}"
-        echo "${PROJECT_ROOT}/data/media/${relative_path}"
+        echo "${STACK_INFO_PROJECT_ROOT}/data/media/${relative_path}"
     else
         # Si no comienza con /, es relativo al directorio actual
-        echo "${PROJECT_ROOT}/data/media/${path}"
+        echo "${STACK_INFO_PROJECT_ROOT}/data/media/${path}"
     fi
 }
 
-# Obtener exposed_path de un share NFS (con fallback al path real)
-get_nfs_share_exposed_path() {
+# Obtener exposed_path de un share (con fallback al path real)
+get_share_exposed_path() {
     local stack_name="$1"
     local share_name="$2"
 
     local exposed_path
-    exposed_path=$(get_nfs_share_info "$stack_name" "$share_name" "exposed_path")
+    exposed_path=$(get_share_info "$stack_name" "$share_name" "exposed_path")
 
     if [[ -z "$exposed_path" || "$exposed_path" == "null" ]]; then
         # Fallback al path real si no hay exposed_path
-        get_nfs_share_path "$stack_name" "$share_name"
+        get_share_path "$stack_name" "$share_name"
     else
-        # El exposed_path se mantiene como está (es la ruta que ve NFS)
+        # El exposed_path se mantiene como está
         echo "$exposed_path"
     fi
 }
 
-# Obtener descripción de un share NFS
-get_nfs_share_description() {
+# Obtener descripción de un share
+get_share_description() {
     local stack_name="$1"
     local share_name="$2"
-    get_nfs_share_info "$stack_name" "$share_name" "description"
+    get_share_info "$stack_name" "$share_name" "description"
 }
 
-# Obtener permisos de un share NFS
-get_nfs_share_permissions() {
+# Obtener permisos de un share
+get_share_permissions() {
     local stack_name="$1"
     local share_name="$2"
-    get_nfs_share_info "$stack_name" "$share_name" "permissions"
+    get_share_info "$stack_name" "$share_name" "permissions"
 }
 
 # Cargar configuración de stacks usando las funciones wrapper
@@ -354,11 +354,11 @@ load_stack_info() {
 
         # Servicios - obtener nombres de servicios usando run_yq
         local service_names
-        if [[ "$YQ_VERSION" == "go" ]]; then
-            service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_CONFIG" 2>/dev/null)
+        if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+            service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
         else
             # Para yq-python, usar sintaxis diferente y limpiar comillas
-            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_CONFIG" 2>/dev/null | sed 's/"//g')
+            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g')
         fi
 
         local service_entries=""
@@ -367,8 +367,8 @@ load_stack_info() {
 
             # Obtener subdomain y descripción del servicio usando run_yq
             local subdomain desc
-            subdomain=$(run_yq ".stacks.$stack.services.$service.subdomain" "$STACK_CONFIG" 2>/dev/null)
-            desc=$(run_yq ".stacks.$stack.services.$service.description" "$STACK_CONFIG" 2>/dev/null)
+            subdomain=$(run_yq ".stacks.$stack.services.$service.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
+            desc=$(run_yq ".stacks.$stack.services.$service.description" "$STACK_INFO_CONFIG" 2>/dev/null)
 
             # Limpiar valores null
             [[ "$desc" == "null" ]] && desc=""
@@ -634,13 +634,13 @@ COMANDOS WRAPPER (para otros scripts):
   stack_exists [stack]           - Verificar si un stack existe
   init_stack_info               - Inicializar y verificar dependencias
 
-  # Comandos NFS:
-  get_stacks_with_nfs           - Obtener stacks que tienen configuración NFS
-  get_stack_nfs_shares [stack]  - Obtener lista de shares NFS de un stack
-  get_nfs_share_path [stack] [share] - Obtener path real de un share
-  get_nfs_share_exposed_path [stack] [share] - Obtener path expuesto de un share
-  get_nfs_share_description [stack] [share] - Obtener descripción de un share
-  get_nfs_share_permissions [stack] [share] - Obtener permisos de un share
+  # Comandos de shares:
+  get_stacks_with_shares         - Obtener stacks que tienen configuración de shares
+  get_stack_shares [stack]       - Obtener lista de shares de un stack
+  get_share_path [stack] [share] - Obtener path real de un share
+  get_share_exposed_path [stack] [share] - Obtener path expuesto de un share
+  get_share_description [stack] [share] - Obtener descripción de un share
+  get_share_permissions [stack] [share] - Obtener permisos de un share
 
 EJEMPLOS:
   $0 services platform           # Servicios del stack platform
@@ -652,7 +652,7 @@ EJEMPLOS:
   $0 stack_exists platform && echo "existe"
 
 ARCHIVO DE CONFIGURACIÓN:
-  $STACK_CONFIG
+  $STACK_INFO_CONFIG
 
 FORMATO DEL ARCHIVO (YAML):
   stacks:
@@ -770,39 +770,39 @@ main() {
         "init_stack_info")
             init_stack_info
             ;;
-        # Comandos NFS
-        "get_stacks_with_nfs")
-            get_stacks_with_nfs
+        # Comandos de shares
+        "get_stacks_with_shares")
+            get_stacks_with_shares
             ;;
-        "get_stack_nfs_shares")
+        "get_stack_shares")
             if [[ -z "${2:-}" ]]; then
                 exit 1
             fi
-            get_stack_nfs_shares "$2"
+            get_stack_shares "$2"
             ;;
-        "get_nfs_share_path")
+        "get_share_path")
             if [[ -z "${2:-}" || -z "${3:-}" ]]; then
                 exit 1
             fi
-            get_nfs_share_path "$2" "$3"
+            get_share_path "$2" "$3"
             ;;
-        "get_nfs_share_exposed_path")
+        "get_share_exposed_path")
             if [[ -z "${2:-}" || -z "${3:-}" ]]; then
                 exit 1
             fi
-            get_nfs_share_exposed_path "$2" "$3"
+            get_share_exposed_path "$2" "$3"
             ;;
-        "get_nfs_share_description")
+        "get_share_description")
             if [[ -z "${2:-}" || -z "${3:-}" ]]; then
                 exit 1
             fi
-            get_nfs_share_description "$2" "$3"
+            get_share_description "$2" "$3"
             ;;
-        "get_nfs_share_permissions")
+        "get_share_permissions")
             if [[ -z "${2:-}" || -z "${3:-}" ]]; then
                 exit 1
             fi
-            get_nfs_share_permissions "$2" "$3"
+            get_share_permissions "$2" "$3"
             ;;
         *)
             echo "❌ Comando desconocido: ${1:-}"
@@ -813,4 +813,7 @@ main() {
     esac
 }
 
-main "$@"
+# Solo ejecutar main si el script se ejecuta directamente, no si se hace source
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

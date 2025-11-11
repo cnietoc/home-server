@@ -122,3 +122,25 @@ services:
       - WATCHTOWER_ROLLING_RESTART=true
       - WATCHTOWER_TIMEOUT=90s
       - WATCHTOWER_NO_STARTUP_MESSAGE=true
+
+  samba:
+    image: hotio/samba:latest
+    container_name: ${STACK_NAME}-samba
+    restart: unless-stopped
+    hostname: ${STACK_NAME}-samba
+    networks:
+      - proxy
+    ports:
+      - "445:445"     # SMB
+      - "139:139"     # NetBIOS
+    volumes:
+      - ${STACK_DATA}/samba:/config
+      # Los mappings de volúmenes se añaden dinámicamente via pre-deploy script
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
+      - SAMBA_USERNAME=${SAMBA_USERNAME:-smbuser}
+      - SAMBA_PASSWORD=${SAMBA_PASSWORD:-changeme}
