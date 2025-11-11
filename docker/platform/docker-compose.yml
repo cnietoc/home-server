@@ -124,7 +124,7 @@ services:
       - WATCHTOWER_NO_STARTUP_MESSAGE=true
 
   samba:
-    image: hotio/samba:latest
+    image: dperson/samba:latest
     container_name: ${STACK_NAME}-samba
     restart: unless-stopped
     hostname: ${STACK_NAME}-samba
@@ -141,6 +141,4 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - UMASK=002
-      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
-      - SAMBA_USERNAME=${SAMBA_USERNAME:-smbuser}
-      - SAMBA_PASSWORD=${SAMBA_PASSWORD:-changeme}
+      - WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}

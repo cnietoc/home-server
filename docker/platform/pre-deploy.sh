@@ -29,10 +29,6 @@ configure_samba() {
     echo "🔧 Configurando Samba dinámicamente basado en shares..."
 
     local override_file="$PLATFORM_SCRIPT_DIR/docker-compose.override.yml"
-    local config_dir="$PLATFORM_PROJECT_ROOT/data/platform/samba"
-
-    # Crear directorio de configuración
-    mkdir -p "$config_dir"
 
     # Obtener stacks que tienen shares
     local stacks_with_shares
@@ -41,11 +37,10 @@ configure_samba() {
     if [[ -z "$stacks_with_shares" ]]; then
         echo "ℹ️ No se encontraron stacks con shares, Samba no tendrá shares configuradas"
 
-        # Crear override vacío
+        # Crear override básico sin shares
         cat > "$override_file" << 'EOF'
 # Docker compose override generado automáticamente para Samba
 # Este archivo se regenera en cada deploy
-version: '3.8'
 
 services:
   samba:
@@ -57,43 +52,7 @@ EOF
 
     echo "📁 Encontrados stacks con shares: $(echo "$stacks_with_shares" | tr '\n' ' ')"
 
-    # Generar configuración de Samba
-    local samba_conf="$config_dir/smb.conf"
-
-    cat > "$samba_conf" << EOF
-# Archivo smb.conf generado automáticamente
-# Generado: $(date)
-
-[global]
-    workgroup = ${SAMBA_WORKGROUP:-WORKGROUP}
-    server string = Home Server Samba
-    security = user
-    map to guest = never
-    guest account = nobody
-
-    # Configuración de red
-    bind interfaces only = no
-    interfaces = eth0
-
-    # Configuración de logs
-    log file = /var/log/samba/%m.log
-    max log size = 1000
-
-    # Configuración de seguridad
-    encrypt passwords = yes
-    null passwords = no
-
-    # Configuración de navegación
-    browseable = yes
-
-    # Configuración de performance
-    socket options = TCP_NODELAY IPTOS_LOWDELAY SO_RCVBUF=131072 SO_SNDBUF=131072
-    read raw = yes
-    write raw = yes
-
-EOF
-
-    # Generar override de docker-compose con volúmenes dinámicos
+    # Generar override con volúmenes dinámicos
     cat > "$override_file" << 'EOF'
 # Docker compose override generado automáticamente para Samba
 # Este archivo se regenera en cada deploy
@@ -104,8 +63,15 @@ services:
       - ${STACK_DATA}/samba:/config
 EOF
 
-    # Procesar cada stack con shares
+    # Generar comandos para dperson/samba
+    local samba_commands=()
     local share_count=0
+
+    # Configuración de usuario y workgroup
+    samba_commands+=("-u" "\${SAMBA_USERNAME:-smbuser};\${SAMBA_PASSWORD:-changeme}")
+    samba_commands+=("-w" "\${SAMBA_WORKGROUP:-WORKGROUP}")
+
+    # Procesar shares de cada stack
     while IFS= read -r stack_name; do
         [[ -z "$stack_name" ]] && continue
 
@@ -125,8 +91,8 @@ EOF
 
             [[ -z "$path" ]] && continue
 
-            # Generar nombre del share usando exposed_path (sin barra inicial para evitar doble barra)
-            local samba_share_name="${exposed_path#/}"  # Remover barra inicial si existe
+            # Generar nombre del share usando exposed_path
+            local samba_share_name="${exposed_path#/}"
             local container_path="/shares/${samba_share_name}"
 
             echo "    📂 Share: $samba_share_name ($path -> $container_path)"
@@ -138,27 +104,11 @@ EOF
                 echo "      - $path:$container_path" >> "$override_file"
             fi
 
-            # Añadir configuración al smb.conf
-            cat >> "$samba_conf" << EOF
+            # Configurar share para dperson/samba: -s "name;path;browsable;readonly;guest;users"
+            local readonly="no"
+            [[ "$permissions" == "ro" ]] && readonly="yes"
 
-[$samba_share_name]
-    comment = $description
-    path = $container_path
-    browseable = yes
-    guest ok = no
-    public = no
-    valid users = ${SAMBA_USERNAME:-smbuser}
-EOF
-
-            if [[ "$permissions" == "ro" ]]; then
-                echo "    writable = no" >> "$samba_conf"
-                echo "    read only = yes" >> "$samba_conf"
-            else
-                echo "    writable = yes" >> "$samba_conf"
-                echo "    read only = no" >> "$samba_conf"
-                echo "    create mask = 0664" >> "$samba_conf"
-                echo "    directory mask = 0775" >> "$samba_conf"
-            fi
+            samba_commands+=("-s" "$samba_share_name;$container_path;yes;$readonly;no;\${SAMBA_USERNAME:-smbuser}")
 
             share_count=$((share_count + 1))
 
@@ -166,10 +116,17 @@ EOF
 
     done <<< "$stacks_with_shares"
 
+    # Añadir comandos al override
+    if [[ ${#samba_commands[@]} -gt 0 ]]; then
+        echo "    command:" >> "$override_file"
+        for cmd in "${samba_commands[@]}"; do
+            echo "      - \"$cmd\"" >> "$override_file"
+        done
+    fi
+
     echo "✅ Samba configurado con $share_count shares"
     echo "📝 Archivos generados:"
     echo "  - $override_file"
-    echo "  - $samba_conf"
 }
 
 # Ejecutar configuración
