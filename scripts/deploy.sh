@@ -329,7 +329,9 @@ verify_stack_health() {
     while [[ $elapsed_time -lt $max_wait_time ]]; do
         # Contar contenedores en diferentes estados
         local running_containers=$(docker compose ps -q --status running 2>/dev/null | wc -l)
-        local healthy_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "healthy\|running" 2>/dev/null || echo "0")
+        local healthy_containers
+        healthy_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "healthy\|running" 2>/dev/null || echo "0")
+        healthy_containers=${healthy_containers:-0}
         local total_containers=$(docker compose ps -a -q 2>/dev/null | wc -l)
 
         # Mostrar progreso si hay cambios
@@ -353,7 +355,9 @@ verify_stack_health() {
         fi
 
         # Verificar si hay contenedores con errores críticos
-        local failed_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || echo "0")
+        local failed_containers
+        failed_containers=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || echo "0")
+        failed_containers=${failed_containers:-0}
         if [[ $failed_containers -gt 0 && $elapsed_time -gt 30 ]]; then
             log "⚠️ Detectados contenedores con problemas en stack $stack_name"
             docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null | grep -E "exited|dead|restarting" || true
