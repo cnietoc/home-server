@@ -8,9 +8,14 @@ set -euo pipefail
 # Calcular directorios con nombres únicos para evitar conflictos
 PLATFORM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_PROJECT_ROOT="$(dirname "$(dirname "$PLATFORM_SCRIPT_DIR")")"
+PLATFORM_STACK_DIR="$PLATFORM_SCRIPT_DIR"
 
-# Cargar variables de entorno usando env-loader
-source "$PLATFORM_PROJECT_ROOT/scripts/common/env-loader.sh"
+# Cargar variables de entorno del stack
+if [[ -f "$PLATFORM_STACK_DIR/.env" ]]; then
+    set -a  # automatically export all variables
+    source "$PLATFORM_STACK_DIR/.env"
+    set +a  # turn off automatic export
+fi
 
 # Cargar funciones de stack-info directamente
 source "$PLATFORM_PROJECT_ROOT/scripts/stack-info.sh" || {
@@ -53,18 +58,25 @@ services:
 EOF
 
         # Crear configuración básica sin shares
+        # Cargar variables específicas de Samba si existen
+        local samba_username="${SAMBA_USERNAME:-smbuser}"
+        local samba_password="${SAMBA_PASSWORD:-changeme}"
+        local samba_workgroup="${SAMBA_WORKGROUP:-WORKGROUP}"
+        local puid="${PUID:-1000}"
+        local pgid="${PGID:-1000}"
+
         cat > "$config_dir/config.yml" << EOF
 # Configuración de Samba generada automáticamente
 # Generado: $(date)
 auth:
-  - user: \${SAMBA_USERNAME:-smbuser}
-    group: \${SAMBA_USERNAME:-smbuser}
-    uid: \${PUID}
-    gid: \${PGID}
-    password: \${SAMBA_PASSWORD:-changeme}
+  - user: $samba_username
+    group: $samba_username
+    uid: $puid
+    gid: $pgid
+    password: $samba_password
 
 global:
-  - "workgroup = \${SAMBA_WORKGROUP:-WORKGROUP}"
+  - "workgroup = $samba_workgroup"
   - "server string = Home Server Samba"
   - "security = user"
   - "guest account = nobody"
@@ -89,17 +101,25 @@ services:
 EOF
 
     # Generar configuración YAML para crazymax/samba
-    cat > "$config_dir/config.yml" << 'EOF'
+    # Cargar variables específicas de Samba si existen
+    local samba_username="${SAMBA_USERNAME:-smbuser}"
+    local samba_password="${SAMBA_PASSWORD:-changeme}"
+    local samba_workgroup="${SAMBA_WORKGROUP:-WORKGROUP}"
+    local puid="${PUID:-1000}"
+    local pgid="${PGID:-1000}"
+
+    cat > "$config_dir/config.yml" << EOF
 # Configuración de Samba generada automáticamente
+# Generado: $(date)
 auth:
-  - user: ${SAMBA_USERNAME:-smbuser}
-    group: ${SAMBA_USERNAME:-smbuser}
-    uid: ${PUID}
-    gid: ${PGID}
-    password: ${SAMBA_PASSWORD:-changeme}
+  - user: $samba_username
+    group: $samba_username
+    uid: $puid
+    gid: $pgid
+    password: $samba_password
 
 global:
-  - "workgroup = ${SAMBA_WORKGROUP:-WORKGROUP}"
+  - "workgroup = $samba_workgroup"
   - "server string = Home Server Samba"
   - "security = user"
   - "guest account = nobody"
@@ -152,7 +172,7 @@ EOF
     browsable: yes
     readonly: $([ "$permissions" = "ro" ] && echo "yes" || echo "no")
     guestok: no
-    validusers: \${SAMBA_USERNAME:-smbuser}
+    validusers: $samba_username
     comment: "$description"
 EOF
 
