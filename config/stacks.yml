@@ -35,8 +35,9 @@ stacks:
         # Sin subdomain porque es un servicio en segundo plano
     backups:
       exclude:
-        - samba/cache        # No incluir configuración de Samba en las copias de seguridad
-        - samba/lib
+        - samba/cache/
+        - samba/lib/
+        - traefik/logs/
 
   # Home page del servidor
   home:
