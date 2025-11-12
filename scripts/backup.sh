@@ -258,24 +258,31 @@ backup_stack() {
             fi
         done < "$files_to_backup"
 
+        # Crear archivo temporal para ordenar extensiones por frecuencia
+        local temp_sort=$(mktemp)
+        for ext in "${!ext_count[@]}"; do
+            printf "%d %s\n" "${ext_count[$ext]}" "$ext" >> "$temp_sort"
+        done
+
         # Mostrar extensiones ordenadas por frecuencia
         if [[ ${#ext_count[@]} -gt 0 ]]; then
-            for ext in "${!ext_count[@]}"; do
-                printf "%d %s\n" "${ext_count[$ext]}" "$ext"
-            done | sort -nr | while IFS= read -r count ext; do
-                printf "   📋 %-10s: %3d archivos\n" "$ext" "$count"
+            sort -nr "$temp_sort" | while IFS= read -r count ext; do
+                printf "   📋 %-15s: %3d archivos\n" "$ext" "$count"
             done
         fi
 
         # Mostrar archivos sin extensión si los hay
         if [[ $files_without_ext -gt 0 ]]; then
-            printf "   📋 %-10s: %3d archivos\n" "(sin ext)" "$files_without_ext"
+            printf "   📋 %-15s: %3d archivos\n" "(sin ext)" "$files_without_ext"
         fi
 
         # Si no hay archivos con extensión
         if [[ ${#ext_count[@]} -eq 0 && $files_without_ext -eq 0 ]]; then
             log "   📋 No se detectaron archivos"
         fi
+
+        # Limpiar archivo temporal
+        rm -f "$temp_sort"
     else
         log "   ℹ️ No se encontraron archivos para procesar"
     fi
