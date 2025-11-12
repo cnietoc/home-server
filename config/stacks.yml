@@ -98,10 +98,13 @@ stacks:
         - library  # No incluir la biblioteca multimedia en las copias de seguridad
         - downloads  # No incluir las descargas activas en las copias de seguridad
         - recordings  # No incluir grabaciones de TV en las copias de seguridad
-        - "**/*.zip" # Excluir archivos ZIP
         - config/tdarr/server/Tdarr/Samples/
         - config/tdarr/server/Tdarr/DB2/JobReports/
         - config/qbittorrent/data/BT_backup/
+        - config/sonarr/logs/
+        - config/jackett/*.txt
+        - config/jellyfin/log/
+        - config/jellyfin/temp/
 
   # Hello World - Ejemplo básico
   helloworld:
