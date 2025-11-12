@@ -21,9 +21,6 @@ services:
       - PGID=${PGID}
       - JELLYFIN_CACHE_DIR=/cache
       - JELLYFIN_PublishedServerUrl=https://jellyfin.${BASE_DOMAIN}
-      # Configuraciones para reproducción directa sin transcodificación
-      - JELLYFIN_FFmpeg_probesize=50000000
-      - JELLYFIN_FFmpeg_analyzeduration=50000000
     labels:
       traefik.enable: true
       traefik.http.routers.jellyfin.rule: "Host(`jellyfin.${BASE_DOMAIN}`)"
