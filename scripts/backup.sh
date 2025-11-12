@@ -26,6 +26,8 @@ BACKUP_BASE_DIR="$BACKUP_PROJECT_ROOT/data/backups"
 DATA_BASE_DIR="$BACKUP_PROJECT_ROOT/data"
 DOCKER_DIR="$BACKUP_PROJECT_ROOT/docker"
 SAFE_MODE=false
+CLEANUP_MODE=false
+KEEP_BACKUPS=5
 
 # Función de logging
 log() {
@@ -34,6 +36,91 @@ log() {
 
 error() {
     log "❌ $*" >&2
+}
+
+# Limpiar backups antiguos manteniendo solo los más recientes
+cleanup_old_backups() {
+    local keep_count="$1"
+
+    if [[ ! -d "$BACKUP_BASE_DIR" ]]; then
+        log "⚠️ Directorio de backups no existe: $BACKUP_BASE_DIR"
+        return 1
+    fi
+
+    log "🧹 Limpiando backups antiguos (manteniendo $keep_count más recientes por stack)..."
+
+    # Obtener todos los stacks disponibles para limpiar
+    local all_stacks
+    all_stacks=$(get_available_stacks)
+
+    local total_deleted=0
+    local total_size_freed=0
+
+    while IFS= read -r stack; do
+        [[ -z "$stack" ]] && continue
+
+        log "📁 Procesando stack: $stack"
+
+        # Buscar backups de este stack específico
+        local stack_backups
+        stack_backups=$(find "$BACKUP_BASE_DIR" -name "${stack}-*.tar.gz" -type f 2>/dev/null || true)
+
+        if [[ -z "$stack_backups" ]]; then
+            log "   ℹ️ No se encontraron backups para stack '$stack'"
+            continue
+        fi
+
+        # Contar backups existentes
+        local backup_count=$(echo "$stack_backups" | wc -l)
+        log "   📊 Encontrados $backup_count backups para stack '$stack'"
+
+        if [[ $backup_count -le $keep_count ]]; then
+            log "   ✅ Se mantienen todos los backups (≤ $keep_count)"
+            continue
+        fi
+
+        # Ordenar por fecha de modificación (más recientes primero) y obtener los que hay que eliminar
+        local to_delete_count=$((backup_count - keep_count))
+        local files_to_delete
+        files_to_delete=$(echo "$stack_backups" | xargs ls -t | tail -n "$to_delete_count")
+
+        log "   🗑️ Eliminando $to_delete_count backups antiguos:"
+
+        while IFS= read -r file_to_delete; do
+            [[ -z "$file_to_delete" ]] && continue
+
+            # Obtener tamaño del archivo antes de borrarlo
+            local file_size=$(du -h "$file_to_delete" | cut -f1)
+            local file_size_bytes=$(du -b "$file_to_delete" | cut -f1 2>/dev/null || stat -c%s "$file_to_delete" 2>/dev/null || echo "0")
+
+            log "      - $(basename "$file_to_delete") ($file_size)"
+
+            if rm -f "$file_to_delete"; then
+                total_deleted=$((total_deleted + 1))
+                total_size_freed=$((total_size_freed + file_size_bytes))
+            else
+                error "      ❌ Error al eliminar: $(basename "$file_to_delete")"
+            fi
+        done <<< "$files_to_delete"
+
+        # Mostrar backups restantes
+        local remaining_backups
+        remaining_backups=$(find "$BACKUP_BASE_DIR" -name "${stack}-*.tar.gz" -type f | wc -l)
+        log "   ✅ Quedan $remaining_backups backups para stack '$stack'"
+
+    done <<< "$all_stacks"
+
+    # Mostrar resumen de limpieza
+    if [[ $total_deleted -gt 0 ]]; then
+        local freed_size_readable=$(numfmt --to=iec-i --suffix=B "$total_size_freed" 2>/dev/null || echo "${total_size_freed}B")
+        log "🎉 Limpieza completada:"
+        log "   📁 Archivos eliminados: $total_deleted"
+        log "   💾 Espacio liberado: $freed_size_readable"
+    else
+        log "✅ No hay backups antiguos que eliminar"
+    fi
+
+    return 0
 }
 
 # Verificar que el directorio de backups está configurado
@@ -508,6 +595,17 @@ main() {
                 log "🔒 Modo seguro activado: los servicios se detendrán durante el backup"
                 shift
                 ;;
+            --cleanup|-c)
+                CLEANUP_MODE=true
+                # Verificar si el siguiente argumento es un número (cantidad de backups a mantener)
+                if [[ $# -gt 1 && $2 =~ ^[0-9]+$ ]]; then
+                    KEEP_BACKUPS="$2"
+                    shift 2
+                else
+                    shift
+                fi
+                log "🧹 Modo limpieza activado: manteniendo $KEEP_BACKUPS backups por stack"
+                ;;
             --help|-h)
                 show_help
                 exit 0
@@ -533,6 +631,13 @@ main() {
     local start_time=$(date +%s)
     log "🚀 Iniciando proceso de backup ($(date))"
 
+    # Si solo se solicita limpieza, ejecutar y salir
+    if [[ "$CLEANUP_MODE" == "true" && ${#stacks_to_backup[@]} -eq 0 && "$backup_all" == "false" ]]; then
+        cleanup_old_backups "$KEEP_BACKUPS"
+        log "🎉 Proceso de limpieza completado"
+        exit 0
+    fi
+
     # Determinar qué stacks respaldar
     if [[ "$backup_all" == "true" ]]; then
         # Respaldar todos los stacks disponibles
@@ -544,7 +649,7 @@ main() {
         done <<< "$all_stacks"
     fi
 
-    # Si no se especificaron stacks, mostrar ayuda
+    # Si no se especificaron stacks y no es solo limpieza, mostrar ayuda
     if [[ ${#stacks_to_backup[@]} -eq 0 ]]; then
         error "No se especificaron stacks para backup"
         echo ""
@@ -592,6 +697,13 @@ main() {
     fi
 
     show_backup_summary "$start_time"
+
+    # Ejecutar limpieza de backups antiguos si está activada
+    if [[ "$CLEANUP_MODE" == "true" ]]; then
+        log "────────────────────────────────────────"
+        cleanup_old_backups "$KEEP_BACKUPS"
+    fi
+
     log "🎉 Proceso de backup completado"
 
     # Código de salida basado en resultados
@@ -613,9 +725,10 @@ DESCRIPCIÓN:
   directorios especificados en la configuración de exclusiones.
 
 OPCIONES:
-  --all, -a     Respaldar todos los stacks disponibles
-  --safe, -s    Modo seguro: detener servicios antes del backup y reiniciarlos después
-  --help, -h    Mostrar esta ayuda
+  --all, -a           Respaldar todos los stacks disponibles
+  --safe, -s          Modo seguro: detener servicios antes del backup y reiniciarlos después
+  --cleanup, -c [N]   Limpiar backups antiguos, mantener N más recientes por stack (por defecto: 5)
+  --help, -h          Mostrar esta ayuda
 
 ARGUMENTOS:
   stack1, stack2, ...  Nombres de stacks específicos a respaldar
@@ -626,6 +739,9 @@ EJEMPLOS:
   $0 --all                    # Backup de todos los stacks
   $0 --safe media             # Backup seguro de media (detiene y reinicia servicios)
   $0 --all --safe             # Backup seguro de todos los stacks
+  $0 --cleanup                # Solo limpiar backups antiguos (mantener 5 por stack)
+  $0 --cleanup 10             # Solo limpiar backups antiguos (mantener 10 por stack)
+  $0 --all --cleanup 3        # Backup de todos + limpiar manteniendo 3 por stack
 
 CONFIGURACIÓN:
   Los backups se configuran en stacks.yml:
