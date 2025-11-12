@@ -28,6 +28,7 @@ DOCKER_DIR="$BACKUP_PROJECT_ROOT/docker"
 SAFE_MODE=false
 CLEANUP_MODE=false
 KEEP_BACKUPS=5
+VERBOSE_MODE=false
 
 # Función de logging
 log() {
@@ -419,7 +420,14 @@ backup_stack() {
     # Mostrar archivos que se van a incluir en el backup y generar resumen
     local file_count=0
     local temp_file_sizes=$(mktemp)
-    log "📄 Archivos incluidos en el backup:"
+
+    # Solo mostrar lista detallada si verbose está activado
+    if [[ "$VERBOSE_MODE" == "true" ]]; then
+        log "📄 Archivos incluidos en el backup:"
+    else
+        log "📄 Procesando archivos para backup..."
+    fi
+
     while IFS= read -r file; do
         [[ -z "$file" ]] && continue
         # Mostrar path relativo al stack (quitar el prefijo del stack)
@@ -443,9 +451,14 @@ backup_stack() {
             fi
             echo "$file_size_bytes|$relative_path|$ext" >> "$temp_file_sizes"
 
-            printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
+            # Solo mostrar detalles de archivos si verbose está activado
+            if [[ "$VERBOSE_MODE" == "true" ]]; then
+                printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
+            fi
         else
-            printf "   📄 %s\n" "$relative_path"
+            if [[ "$VERBOSE_MODE" == "true" ]]; then
+                printf "   📄 %s\n" "$relative_path"
+            fi
         fi
         file_count=$((file_count + 1))
     done < "$files_to_backup"
@@ -606,6 +619,11 @@ main() {
                 fi
                 log "🧹 Modo limpieza activado: manteniendo $KEEP_BACKUPS backups por stack"
                 ;;
+            --verbose|-v)
+                VERBOSE_MODE=true
+                log "📝 Modo verbose activado: mostrando lista detallada de archivos"
+                shift
+                ;;
             --help|-h)
                 show_help
                 exit 0
@@ -725,10 +743,11 @@ DESCRIPCIÓN:
   directorios especificados en la configuración de exclusiones.
 
 OPCIONES:
-  --all, -a           Respaldar todos los stacks disponibles
-  --safe, -s          Modo seguro: detener servicios antes del backup y reiniciarlos después
-  --cleanup, -c [N]   Limpiar backups antiguos, mantener N más recientes por stack (por defecto: 5)
-  --help, -h          Mostrar esta ayuda
+  --all, -a               Respaldar todos los stacks disponibles
+  --safe, -s              Modo seguro: detener servicios antes del backup y reiniciarlos después
+  --cleanup, -c [N]       Limpiar backups antiguos, mantener N más recientes por stack (por defecto: 5)
+  --verbose, -v           Mostrar lista detallada de todos los archivos incluidos en el backup
+  --help, -h              Mostrar esta ayuda
 
 ARGUMENTOS:
   stack1, stack2, ...  Nombres de stacks específicos a respaldar
@@ -739,6 +758,7 @@ EJEMPLOS:
   $0 --all                    # Backup de todos los stacks
   $0 --safe media             # Backup seguro de media (detiene y reinicia servicios)
   $0 --all --safe             # Backup seguro de todos los stacks
+  $0 --verbose media          # Backup con lista detallada de archivos
   $0 --cleanup                # Solo limpiar backups antiguos (mantener 5 por stack)
   $0 --cleanup 10             # Solo limpiar backups antiguos (mantener 10 por stack)
   $0 --all --cleanup 3        # Backup de todos + limpiar manteniendo 3 por stack
