@@ -107,13 +107,27 @@ check_stack_services() {
     local stack_name="$1"
     local stack_docker_dir="$DOCKER_DIR/$stack_name"
 
-    if [[ ! -d "$stack_docker_dir" || ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
+    log "🔍 DEBUG check_stack_services: Verificando stack '$stack_name'"
+    log "🔍 DEBUG check_stack_services: Directorio Docker: $stack_docker_dir"
+    log "🔍 DEBUG check_stack_services: ¿Existe directorio? $(test -d "$stack_docker_dir" && echo "SÍ" || echo "NO")"
+
+    if [[ ! -d "$stack_docker_dir" ]]; then
+        log "🔍 DEBUG check_stack_services: Directorio no existe, retornando false"
         return 1  # No tiene servicios Docker
+    fi
+
+    log "🔍 DEBUG check_stack_services: ¿Existe docker-compose.yml? $(test -f "$stack_docker_dir/docker-compose.yml" && echo "SÍ" || echo "NO")"
+
+    if [[ ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
+        log "🔍 DEBUG check_stack_services: docker-compose.yml no existe, retornando false"
+        return 1
     fi
 
     # Verificar si hay contenedores ejecutándose para este stack
     local running_containers
     running_containers=$(cd "$stack_docker_dir" && docker-compose ps -q 2>/dev/null | wc -l)
+
+    log "🔍 DEBUG check_stack_services: Contenedores ejecutándose: $running_containers"
 
     [[ "$running_containers" -gt 0 ]]
 }
@@ -297,7 +311,11 @@ backup_stack() {
     fi
 
     # AHORA que sabemos que hay archivos para backup, en modo safe detener servicios si es necesario
+    # AHORA que sabemos que hay archivos para backup, en modo safe detener servicios si es necesario
     if [[ "$SAFE_MODE" == "true" ]]; then
+        log "🔍 DEBUG: Verificando servicios para stack '$stack_name'..."
+        log "🔍 DEBUG: Directorio Docker esperado: $DOCKER_DIR/$stack_name"
+
         if check_stack_services "$stack_name"; then
             services_were_running=true
             log "🔍 Servicios detectados para stack '$stack_name'"
@@ -313,6 +331,8 @@ backup_stack() {
         else
             log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
         fi
+    else
+        log "🔍 DEBUG: Modo safe no activado, saltando parada de servicios"
     fi
 
     # Mostrar archivos que se van a incluir en el backup y generar resumen
