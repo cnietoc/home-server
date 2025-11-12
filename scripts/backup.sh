@@ -241,7 +241,7 @@ backup_stack() {
                 else
                     printf "   📄 %s\n" "$relative_path"
                 fi
-                ((file_count++))
+                file_count=$((file_count + 1))
             done < "$files_to_backup"
 
             # Mostrar resumen por tipo de archivo
@@ -255,6 +255,11 @@ backup_stack() {
                     done <<< "$extensions_summary"
                 else
                     log "   📋 Sin archivos con extensión detectados"
+                fi
+            else
+                log "   ℹ️ No se encontraron archivos para procesar"
+            fi
+        fi
                 fi
             else
                 log "   ℹ️ No se encontraron archivos para procesar"
