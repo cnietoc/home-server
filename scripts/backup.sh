@@ -151,7 +151,7 @@ backup_stack() {
     log "📄 Comprimiendo archivos..."
 
     # Crear lista de archivos a incluir (solo archivos, no directorios)
-    (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print) | while IFS= read -r file; do
+    (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print 2>/dev/null) | while IFS= read -r file; do
         local should_exclude=false
 
         # Verificar contra cada patrón de exclusión (usar el archivo original, no el procesado)
