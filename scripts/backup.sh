@@ -260,11 +260,6 @@ backup_stack() {
                 log "   ℹ️ No se encontraron archivos para procesar"
             fi
         fi
-                fi
-            else
-                log "   ℹ️ No se encontraron archivos para procesar"
-            fi
-        fi
 
         # Verificar si el backup contiene archivos
         files_backed_up=$(tar -tzf "$temp_backup_file" 2>/dev/null | wc -l | tr -d ' ')
