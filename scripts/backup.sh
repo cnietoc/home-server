@@ -162,24 +162,6 @@ backup_stack() {
 
     log "🔄 Iniciando backup del stack: $stack_name"
 
-    # En modo safe, verificar y parar servicios si es necesario
-    if [[ "$SAFE_MODE" == "true" ]]; then
-        if check_stack_services "$stack_name"; then
-            services_were_running=true
-            log "🔍 Servicios detectados para stack '$stack_name'"
-
-            if stop_stack_services "$stack_name"; then
-                services_stopped_successfully=true
-                # Esperar un momento para que los archivos se liberen
-                log "⏳ Esperando 5 segundos para que se liberen los archivos..."
-                sleep 5
-            else
-                log "⚠️ No se pudieron detener los servicios, continuando con backup (archivos pueden estar en uso)"
-            fi
-        else
-            log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
-        fi
-    fi
 
     local stack_data_dir="$DATA_BASE_DIR/$stack_name"
 
@@ -303,6 +285,25 @@ backup_stack() {
         rm -f "$temp_backup_file" "$tar_output_file" "$files_to_backup"
         rm -f "$exclusion_file" "$tar_exclude_file"
         return 0
+    fi
+
+    # AHORA que sabemos que hay archivos para backup, en modo safe detener servicios si es necesario
+    if [[ "$SAFE_MODE" == "true" ]]; then
+        if check_stack_services "$stack_name"; then
+            services_were_running=true
+            log "🔍 Servicios detectados para stack '$stack_name'"
+
+            if stop_stack_services "$stack_name"; then
+                services_stopped_successfully=true
+                # Esperar un momento para que los archivos se liberen
+                log "⏳ Esperando 5 segundos para que se liberen los archivos..."
+                sleep 5
+            else
+                log "⚠️ No se pudieron detener los servicios, continuando con backup (archivos pueden estar en uso)"
+            fi
+        else
+            log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
+        fi
     fi
 
     # Mostrar archivos que se van a incluir en el backup y generar resumen
