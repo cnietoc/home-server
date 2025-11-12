@@ -243,14 +243,38 @@ backup_stack() {
     # Mostrar resumen por tipo de archivo
     if [[ $file_count -gt 0 ]]; then
         log "📊 Resumen por tipo de archivo:"
-        local extensions_summary=$(cat "$files_to_backup" | grep -E '\.[^/]*$' | sed 's/.*\.//' | sort | uniq -c | sort -nr)
-        if [[ -n "$extensions_summary" ]]; then
-            while IFS= read -r count ext; do
-                [[ -z "$count" || -z "$ext" ]] && continue
+
+        # Crear resumen de extensiones de manera más robusta
+        declare -A ext_count
+        local files_without_ext=0
+
+        while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            if [[ "$file" =~ \.([^./]+)$ ]]; then
+                local ext="${BASH_REMATCH[1]}"
+                ext_count["$ext"]=$((${ext_count["$ext"]:-0} + 1))
+            else
+                files_without_ext=$((files_without_ext + 1))
+            fi
+        done < "$files_to_backup"
+
+        # Mostrar extensiones ordenadas por frecuencia
+        if [[ ${#ext_count[@]} -gt 0 ]]; then
+            for ext in "${!ext_count[@]}"; do
+                printf "%d %s\n" "${ext_count[$ext]}" "$ext"
+            done | sort -nr | while IFS= read -r count ext; do
                 printf "   📋 %-10s: %3d archivos\n" "$ext" "$count"
-            done <<< "$extensions_summary"
-        else
-            log "   📋 Sin archivos con extensión detectados"
+            done
+        fi
+
+        # Mostrar archivos sin extensión si los hay
+        if [[ $files_without_ext -gt 0 ]]; then
+            printf "   📋 %-10s: %3d archivos\n" "(sin ext)" "$files_without_ext"
+        fi
+
+        # Si no hay archivos con extensión
+        if [[ ${#ext_count[@]} -eq 0 && $files_without_ext -eq 0 ]]; then
+            log "   📋 No se detectaron archivos"
         fi
     else
         log "   ℹ️ No se encontraron archivos para procesar"
