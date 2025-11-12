@@ -159,9 +159,10 @@ backup_stack() {
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
             # Convertir patrón gitignore a bash pattern
-            if [[ "$pattern" == "**/*.zip" ]]; then
-                # Caso específico para **/*.zip
-                if [[ "$file" == *.zip ]]; then
+            if [[ "$pattern" =~ ^\*\*/\*\. ]]; then
+                # Patrones como **/*.zip, **/*.log, etc.
+                local extension="${pattern##**/}"  # Obtiene "*.zip", "*.log", etc.
+                if [[ "$file" == $extension ]]; then
                     should_exclude=true
                     break
                 fi
