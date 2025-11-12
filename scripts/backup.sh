@@ -68,7 +68,7 @@ stop_stack_services() {
     fi
 
     log "🛑 Deteniendo servicios del stack: $stack_name"
-    if (cd "$stack_docker_dir" && docker compose down 2>/dev/null); then
+    if (cd "$stack_docker_dir" && docker compose down); then
         log "✅ Servicios detenidos correctamente"
         return 0
     else
@@ -93,7 +93,7 @@ start_stack_services() {
     fi
 
     log "🚀 Iniciando servicios del stack: $stack_name"
-    if (cd "$stack_docker_dir" && docker compose up -d 2>/dev/null); then
+    if (cd "$stack_docker_dir" && docker compose up -d); then
         log "✅ Servicios iniciados correctamente"
         return 0
     else
@@ -107,19 +107,11 @@ check_stack_services() {
     local stack_name="$1"
     local stack_docker_dir="$DOCKER_DIR/$stack_name"
 
-    log "🔍 DEBUG check_stack_services: Verificando stack '$stack_name'"
-    log "🔍 DEBUG check_stack_services: Directorio Docker: $stack_docker_dir"
-    log "🔍 DEBUG check_stack_services: ¿Existe directorio? $(test -d "$stack_docker_dir" && echo "SÍ" || echo "NO")"
-
     if [[ ! -d "$stack_docker_dir" ]]; then
-        log "🔍 DEBUG check_stack_services: Directorio no existe, retornando false"
         return 1  # No tiene servicios Docker
     fi
 
-    log "🔍 DEBUG check_stack_services: ¿Existe docker-compose.yml? $(test -f "$stack_docker_dir/docker-compose.yml" && echo "SÍ" || echo "NO")"
-
     if [[ ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
-        log "🔍 DEBUG check_stack_services: docker-compose.yml no existe, retornando false"
         return 1
     fi
 
@@ -127,7 +119,6 @@ check_stack_services() {
     local running_containers
     running_containers=$(cd "$stack_docker_dir" && docker compose ps -q 2>/dev/null | wc -l)
 
-    log "🔍 DEBUG check_stack_services: Contenedores ejecutándose: $running_containers"
 
     [[ "$running_containers" -gt 0 ]]
 }
@@ -220,6 +211,25 @@ backup_stack() {
         fi
     done < "$exclusion_file"
 
+    # EN MODO SAFE, DETENER SERVICIOS ANTES DE GENERAR LA LISTA DE ARCHIVOS
+    if [[ "$SAFE_MODE" == "true" ]]; then
+        if check_stack_services "$stack_name"; then
+            services_were_running=true
+            log "🔍 Servicios detectados para stack '$stack_name'"
+
+            if stop_stack_services "$stack_name"; then
+                services_stopped_successfully=true
+                # Esperar un momento para que los archivos se liberen y se estabilicen
+                log "⏳ Esperando 5 segundos para que se liberen los archivos..."
+                sleep 5
+            else
+                log "⚠️ No se pudieron detener los servicios, continuando con backup (archivos pueden estar en uso)"
+            fi
+        else
+            log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
+        fi
+    fi
+
     # Crear el backup
     local files_backed_up=0
     local backup_size=0
@@ -230,6 +240,8 @@ backup_stack() {
     local temp_backup_file="${backup_file}.tmp"
     local tar_output_file=$(mktemp)
     local files_to_backup=$(mktemp)
+
+    log "📄 Generando lista de archivos para backup..."
 
     # Crear lista de archivos a incluir usando un enfoque más eficiente
     # Primero crear lista de todos los archivos
@@ -305,33 +317,17 @@ backup_stack() {
         log "ℹ️ No hay archivos para respaldar después de aplicar exclusiones, saltando"
         rm -f "$temp_backup_file" "$tar_output_file" "$files_to_backup"
         rm -f "$exclusion_file" "$tar_exclude_file"
+
+        # En modo safe, si habíamos parado servicios, reiniciarlos antes de salir
+        if [[ "$SAFE_MODE" == "true" && "$services_were_running" == "true" && "$services_stopped_successfully" == "true" ]]; then
+            log "🔄 Reiniciando servicios tras cancelar backup sin archivos"
+            start_stack_services "$stack_name"
+        fi
+
         return 0
     fi
 
-    # AHORA que sabemos que hay archivos para backup, en modo safe detener servicios si es necesario
-    # AHORA que sabemos que hay archivos para backup, en modo safe detener servicios si es necesario
-    if [[ "$SAFE_MODE" == "true" ]]; then
-        log "🔍 DEBUG: Verificando servicios para stack '$stack_name'..."
-        log "🔍 DEBUG: Directorio Docker esperado: $DOCKER_DIR/$stack_name"
-
-        if check_stack_services "$stack_name"; then
-            services_were_running=true
-            log "🔍 Servicios detectados para stack '$stack_name'"
-
-            if stop_stack_services "$stack_name"; then
-                services_stopped_successfully=true
-                # Esperar un momento para que los archivos se liberen
-                log "⏳ Esperando 5 segundos para que se liberen los archivos..."
-                sleep 5
-            else
-                log "⚠️ No se pudieron detener los servicios, continuando con backup (archivos pueden estar en uso)"
-            fi
-        else
-            log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
-        fi
-    else
-        log "🔍 DEBUG: Modo safe no activado, saltando parada de servicios"
-    fi
+    # Continuar con el backup...
 
     # Mostrar archivos que se van a incluir en el backup y generar resumen
     local file_count=0
