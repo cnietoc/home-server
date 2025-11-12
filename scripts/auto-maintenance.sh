@@ -175,7 +175,7 @@ run_backup() {
     local temp_log="/tmp/backup_$$.log"
 
     # Ejecutar backup de todos los stacks con limpieza automática
-    if "$SCRIPT_DIR/backup.sh" --all --cleanup 3 >> "$temp_log" 2>&1; then
+    if "$SCRIPT_DIR/backup.sh" --all --cleanup --safe 3 >> "$temp_log" 2>&1; then
         local backup_exit_code=0
     else
         local backup_exit_code=$?
