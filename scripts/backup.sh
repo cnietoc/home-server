@@ -159,15 +159,38 @@ backup_stack() {
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
             # Convertir patrón gitignore a bash pattern
-            if [[ "$pattern" =~ \*\* ]]; then
-                # Patrón con ** - verificar si coincide en cualquier parte del path
-                if [[ "$file" == *"${pattern//\*\*/}"* ]]; then
+            local bash_pattern=""
+            if [[ "$pattern" =~ \*\*/ ]]; then
+                # Patrón **/ - coincide con cualquier directorio
+                bash_pattern="${pattern//\*\*\//}"
+                if [[ "$file" == *"$bash_pattern" ]]; then
+                    should_exclude=true
+                    break
+                fi
+            elif [[ "$pattern" =~ /\*\* ]]; then
+                # Patrón /** - coincide con cualquier cosa después de una ruta específica
+                bash_pattern="${pattern//\/\*\*/}"
+                if [[ "$file" == "$bash_pattern"* ]]; then
+                    should_exclude=true
+                    break
+                fi
+            elif [[ "$pattern" =~ \*\*.*\* ]]; then
+                # Patrones como **/*.zip - coinciden con archivos en cualquier subdirectorio
+                local extension="${pattern##**/}"
+                if [[ "$file" == *"$extension" ]]; then
+                    should_exclude=true
+                    break
+                fi
+            elif [[ "$pattern" =~ \*\* ]]; then
+                # Otros patrones con ** - convertir a coincidencia parcial
+                bash_pattern="${pattern//\*\*/}"
+                if [[ "$file" == *"$bash_pattern"* ]]; then
                     should_exclude=true
                     break
                 fi
             else
-                # Patrón normal - verificar si coincide
-                if [[ "$file" == *"$pattern"* ]]; then
+                # Patrón normal - verificar si coincide exactamente o como substring
+                if [[ "$file" == *"$pattern"* || "$file" == "$pattern" ]]; then
                     should_exclude=true
                     break
                 fi
