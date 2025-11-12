@@ -154,22 +154,38 @@ backup_stack() {
     (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print) | while IFS= read -r file; do
         local should_exclude=false
 
+        # Debug: mostrar archivo siendo evaluado si es un .zip
+        if [[ "$file" == *.zip ]]; then
+            echo "DEBUG: Evaluando archivo ZIP: $file" >&2
+        fi
+
         # Verificar contra cada patrón de exclusión
         while IFS= read -r pattern; do
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
+            # Debug para patrones ZIP
+            if [[ "$file" == *.zip && "$pattern" == *zip* ]]; then
+                echo "DEBUG: Comparando '$file' contra patrón '$pattern'" >&2
+            fi
+
             # Convertir patrón gitignore a bash pattern
-            local bash_pattern=""
-            if [[ "$pattern" =~ \*\*/ ]]; then
+            if [[ "$pattern" == "**/*.zip" ]]; then
+                # Caso específico para **/*.zip
+                if [[ "$file" == *.zip ]]; then
+                    echo "DEBUG: Archivo $file excluido por patrón **/*.zip" >&2
+                    should_exclude=true
+                    break
+                fi
+            elif [[ "$pattern" =~ \*\*/ ]]; then
                 # Patrón **/ - coincide con cualquier directorio
-                bash_pattern="${pattern//\*\*\//}"
+                local bash_pattern="${pattern//\*\*\//}"
                 if [[ "$file" == *"$bash_pattern" ]]; then
                     should_exclude=true
                     break
                 fi
             elif [[ "$pattern" =~ /\*\* ]]; then
                 # Patrón /** - coincide con cualquier cosa después de una ruta específica
-                bash_pattern="${pattern//\/\*\*/}"
+                local bash_pattern="${pattern//\/\*\*/}"
                 if [[ "$file" == "$bash_pattern"* ]]; then
                     should_exclude=true
                     break
@@ -183,7 +199,7 @@ backup_stack() {
                 fi
             elif [[ "$pattern" =~ \*\* ]]; then
                 # Otros patrones con ** - convertir a coincidencia parcial
-                bash_pattern="${pattern//\*\*/}"
+                local bash_pattern="${pattern//\*\*/}"
                 if [[ "$file" == *"$bash_pattern"* ]]; then
                     should_exclude=true
                     break
@@ -196,6 +212,11 @@ backup_stack() {
                 fi
             fi
         done < "$tar_exclude_file"
+
+        # Debug: mostrar resultado de exclusión para archivos ZIP
+        if [[ "$file" == *.zip ]]; then
+            echo "DEBUG: Archivo $file - should_exclude=$should_exclude" >&2
+        fi
 
         # Solo añadir si no está excluido
         if [[ "$should_exclude" == "false" ]]; then
