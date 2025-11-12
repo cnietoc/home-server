@@ -219,11 +219,18 @@ backup_stack() {
 
     log "📄 Comprimiendo archivos..."
 
-    # Crear lista de archivos a incluir (solo archivos, no directorios)
-    (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print 2>/dev/null) | while IFS= read -r file; do
+    # Crear lista de archivos a incluir usando un enfoque más eficiente
+    # Primero crear lista de todos los archivos
+    local temp_all_files=$(mktemp)
+    (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print 2>/dev/null) > "$temp_all_files"
+
+    # Luego filtrar las exclusiones sin subshell
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+
         local should_exclude=false
 
-        # Verificar contra cada patrón de exclusión (usar el archivo original, no el procesado)
+        # Verificar contra cada patrón de exclusión
         while IFS= read -r pattern; do
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
@@ -272,12 +279,14 @@ backup_stack() {
             fi
         done < "$exclusion_file"
 
-
         # Solo añadir si no está excluido
         if [[ "$should_exclude" == "false" ]]; then
-            echo "$file"
+            echo "$file" >> "$files_to_backup"
         fi
-    done > "$files_to_backup"
+    done < "$temp_all_files"
+
+    # Limpiar archivo temporal
+    rm -f "$temp_all_files"
 
     # Verificar si hay archivos para respaldar
     if [[ ! -s "$files_to_backup" ]]; then
@@ -420,7 +429,7 @@ backup_stack() {
     fi
 
     # Limpiar archivos temporales
-    rm -f "$exclusion_file" "$tar_exclude_file" "$tar_output_file" "$files_to_backup"
+    rm -f "$exclusion_file" "$tar_exclude_file" "$tar_output_file" "$files_to_backup" "$temp_all_files"
 
     # En modo safe, reiniciar servicios si fueron detenidos exitosamente
     if [[ "$SAFE_MODE" == "true" && "$services_were_running" == "true" && "$services_stopped_successfully" == "true" ]]; then
