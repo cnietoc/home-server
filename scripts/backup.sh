@@ -219,40 +219,35 @@ backup_stack() {
     fi
 
     # Crear backup usando la lista de archivos filtrada
-    if (cd "$DATA_BASE_DIR" && tar -czvf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
+    if (cd "$DATA_BASE_DIR" && tar -czf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
 
-        # Mostrar archivos que se comprimieron con información adicional
-        if [[ -s "$tar_output_file" ]]; then
+        # Mostrar archivos que se están incluyendo en el backup
+        if [[ -s "$files_to_backup" ]]; then
             local file_count=0
             log "📄 Archivos incluidos en el backup:"
             while IFS= read -r file; do
-                # Mostrar archivos procesados
-                if [[ "$file" =~ ^a\ (.+)$ ]]; then
-                    local clean_file="${BASH_REMATCH[1]}"
-                    # Mostrar path relativo al stack (quitar el prefijo del stack)
-                    local relative_path="${clean_file#$stack_name/}"
+                [[ -z "$file" ]] && continue
+                # Mostrar path relativo al stack (quitar el prefijo del stack)
+                local relative_path="${file#$stack_name/}"
 
-                    # Obtener información adicional del archivo
-                    local full_path="$DATA_BASE_DIR/$clean_file"
-                    if [[ -f "$full_path" ]]; then
-                        local file_size=$(du -h "$full_path" 2>/dev/null | cut -f1 || echo "?")
-                        local file_modified=$(stat -c %Y "$full_path" 2>/dev/null || stat -f %m "$full_path" 2>/dev/null || echo "0")
-                        local file_date=$(date -d "@$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+                # Obtener información adicional del archivo
+                local full_path="$DATA_BASE_DIR/$file"
+                if [[ -f "$full_path" ]]; then
+                    local file_size=$(du -h "$full_path" 2>/dev/null | cut -f1 || echo "?")
+                    local file_modified=$(stat -c %Y "$full_path" 2>/dev/null || stat -f %m "$full_path" 2>/dev/null || echo "0")
+                    local file_date=$(date -d "@$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
 
-                        printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
-                    else
-                        printf "   📄 %s\n" "$relative_path"
-                    fi
-                    ((file_count++))
+                    printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
+                else
+                    printf "   📄 %s\n" "$relative_path"
                 fi
-            done < "$tar_output_file"
+                ((file_count++))
+            done < "$files_to_backup"
 
-            if [[ $file_count -eq 0 ]]; then
-                log "   ℹ️ No se encontraron archivos en la salida de tar"
-            else
-                # Mostrar resumen por tipo de archivo
+            # Mostrar resumen por tipo de archivo
+            if [[ $file_count -gt 0 ]]; then
                 log "📊 Resumen por tipo de archivo:"
-                local extensions_summary=$(tar -tzf "$temp_backup_file" 2>/dev/null | grep -E '\.[^/]*$' | sed 's/.*\.//' | sort | uniq -c | sort -nr)
+                local extensions_summary=$(cat "$files_to_backup" | grep -E '\.[^/]*$' | sed 's/.*\.//' | sort | uniq -c | sort -nr)
                 if [[ -n "$extensions_summary" ]]; then
                     while IFS= read -r count ext; do
                         [[ -z "$count" || -z "$ext" ]] && continue
@@ -261,6 +256,8 @@ backup_stack() {
                 else
                     log "   📋 Sin archivos con extensión detectados"
                 fi
+            else
+                log "   ℹ️ No se encontraron archivos para procesar"
             fi
         fi
 
