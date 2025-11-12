@@ -24,6 +24,8 @@ services:
       - PGID=${PGID}
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+      # Temporal fix
+      - DOCKER_API_VERSION=1.52
     command:
       # API y Dashboard
       - --api.dashboard=true
@@ -123,6 +125,8 @@ services:
       - WATCHTOWER_TIMEOUT=90s
       - WATCHTOWER_NO_STARTUP_MESSAGE=true
 
+      # Temporal fix
+      - DOCKER_API_VERSION=1.52
   samba:
     image: crazymax/samba:latest
     container_name: ${STACK_NAME}-samba
