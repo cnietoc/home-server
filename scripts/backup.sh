@@ -24,6 +24,8 @@ source "$BACKUP_PROJECT_ROOT/scripts/common/env-loader.sh" || {
 BACKUP_DATE=$(date +%Y%m%d-%H%M%S)
 BACKUP_BASE_DIR="$BACKUP_PROJECT_ROOT/data/backups"
 DATA_BASE_DIR="$BACKUP_PROJECT_ROOT/data"
+DOCKER_DIR="$BACKUP_PROJECT_ROOT/docker"
+SAFE_MODE=false
 
 # Función de logging
 log() {
@@ -50,7 +52,71 @@ check_backup_directory() {
     return 0
 }
 
-# Crear archivo .gitignore temporal para exclusiones
+# Parar servicios de un stack
+stop_stack_services() {
+    local stack_name="$1"
+    local stack_docker_dir="$DOCKER_DIR/$stack_name"
+
+    if [[ ! -d "$stack_docker_dir" ]]; then
+        log "⚠️ Directorio Docker no encontrado para stack '$stack_name': $stack_docker_dir"
+        return 1
+    fi
+
+    if [[ ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
+        log "⚠️ docker-compose.yml no encontrado para stack '$stack_name'"
+        return 1
+    fi
+
+    log "🛑 Deteniendo servicios del stack: $stack_name"
+    if (cd "$stack_docker_dir" && docker-compose down 2>/dev/null); then
+        log "✅ Servicios detenidos correctamente"
+        return 0
+    else
+        log "❌ Error al detener servicios del stack '$stack_name'"
+        return 1
+    fi
+}
+
+# Levantar servicios de un stack
+start_stack_services() {
+    local stack_name="$1"
+    local stack_docker_dir="$DOCKER_DIR/$stack_name"
+
+    if [[ ! -d "$stack_docker_dir" ]]; then
+        log "⚠️ Directorio Docker no encontrado para stack '$stack_name': $stack_docker_dir"
+        return 1
+    fi
+
+    if [[ ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
+        log "⚠️ docker-compose.yml no encontrado para stack '$stack_name'"
+        return 1
+    fi
+
+    log "🚀 Iniciando servicios del stack: $stack_name"
+    if (cd "$stack_docker_dir" && docker-compose up -d 2>/dev/null); then
+        log "✅ Servicios iniciados correctamente"
+        return 0
+    else
+        log "❌ Error al iniciar servicios del stack '$stack_name'"
+        return 1
+    fi
+}
+
+# Verificar si un stack tiene servicios Docker ejecutándose
+check_stack_services() {
+    local stack_name="$1"
+    local stack_docker_dir="$DOCKER_DIR/$stack_name"
+
+    if [[ ! -d "$stack_docker_dir" || ! -f "$stack_docker_dir/docker-compose.yml" ]]; then
+        return 1  # No tiene servicios Docker
+    fi
+
+    # Verificar si hay contenedores ejecutándose para este stack
+    local running_containers
+    running_containers=$(cd "$stack_docker_dir" && docker-compose ps -q 2>/dev/null | wc -l)
+
+    [[ "$running_containers" -gt 0 ]]
+}
 create_exclusion_file() {
     local stack_name="$1"
     local temp_file="$2"
@@ -91,8 +157,29 @@ EOF
 # Crear backup de un stack específico
 backup_stack() {
     local stack_name="$1"
+    local services_were_running=false
+    local services_stopped_successfully=false
 
     log "🔄 Iniciando backup del stack: $stack_name"
+
+    # En modo safe, verificar y parar servicios si es necesario
+    if [[ "$SAFE_MODE" == "true" ]]; then
+        if check_stack_services "$stack_name"; then
+            services_were_running=true
+            log "🔍 Servicios detectados para stack '$stack_name'"
+
+            if stop_stack_services "$stack_name"; then
+                services_stopped_successfully=true
+                # Esperar un momento para que los archivos se liberen
+                log "⏳ Esperando 5 segundos para que se liberen los archivos..."
+                sleep 5
+            else
+                log "⚠️ No se pudieron detener los servicios, continuando con backup (archivos pueden estar en uso)"
+            fi
+        else
+            log "ℹ️ No se detectaron servicios ejecutándose para stack '$stack_name'"
+        fi
+    fi
 
     local stack_data_dir="$DATA_BASE_DIR/$stack_name"
 
@@ -334,6 +421,17 @@ backup_stack() {
     # Limpiar archivos temporales
     rm -f "$exclusion_file" "$tar_exclude_file" "$tar_output_file" "$files_to_backup"
 
+    # En modo safe, reiniciar servicios si fueron detenidos exitosamente
+    if [[ "$SAFE_MODE" == "true" && "$services_were_running" == "true" && "$services_stopped_successfully" == "true" ]]; then
+        log "🔄 Reiniciando servicios del stack: $stack_name"
+        if ! start_stack_services "$stack_name"; then
+            error "❌ Error crítico: No se pudieron reiniciar los servicios del stack '$stack_name'"
+            error "⚠️ Los servicios permanecen detenidos. Reinícialos manualmente con:"
+            error "   cd $DOCKER_DIR/$stack_name && docker-compose up -d"
+            # No retornamos error aquí para que el backup se considere exitoso
+        fi
+    fi
+
     return $result
 }
 
@@ -377,6 +475,11 @@ main() {
         case $1 in
             --all|-a)
                 backup_all=true
+                shift
+                ;;
+            --safe|-s)
+                SAFE_MODE=true
+                log "🔒 Modo seguro activado: los servicios se detendrán durante el backup"
                 shift
                 ;;
             --help|-h)
@@ -485,6 +588,7 @@ DESCRIPCIÓN:
 
 OPCIONES:
   --all, -a     Respaldar todos los stacks disponibles
+  --safe, -s    Modo seguro: detener servicios antes del backup y reiniciarlos después
   --help, -h    Mostrar esta ayuda
 
 ARGUMENTOS:
@@ -494,6 +598,8 @@ EJEMPLOS:
   $0 media                    # Backup solo del stack media
   $0 platform home            # Backup de platform y home
   $0 --all                    # Backup de todos los stacks
+  $0 --safe media             # Backup seguro de media (detiene y reinicia servicios)
+  $0 --all --safe             # Backup seguro de todos los stacks
 
 CONFIGURACIÓN:
   Los backups se configuran en stacks.yml:
