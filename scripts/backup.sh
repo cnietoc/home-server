@@ -150,6 +150,11 @@ backup_stack() {
 
     log "📄 Comprimiendo archivos..."
 
+    # Debug: mostrar contenido del archivo de exclusiones
+    echo "DEBUG: Contenido del archivo de exclusiones:" >&2
+    cat "$exclusion_file" >&2
+    echo "DEBUG: Fin del archivo de exclusiones" >&2
+
     # Crear lista de archivos a incluir (solo archivos, no directorios)
     (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print) | while IFS= read -r file; do
         local should_exclude=false
@@ -159,7 +164,7 @@ backup_stack() {
             echo "DEBUG: Evaluando archivo ZIP: $file" >&2
         fi
 
-        # Verificar contra cada patrón de exclusión
+        # Verificar contra cada patrón de exclusión (usar el archivo original, no el procesado)
         while IFS= read -r pattern; do
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
@@ -194,6 +199,7 @@ backup_stack() {
                 # Patrones como **/*.zip - coinciden con archivos en cualquier subdirectorio
                 local extension="${pattern##**/}"
                 if [[ "$file" == *"$extension" ]]; then
+                    echo "DEBUG: Archivo $file excluido por patrón $pattern (extensión: $extension)" >&2
                     should_exclude=true
                     break
                 fi
@@ -211,7 +217,7 @@ backup_stack() {
                     break
                 fi
             fi
-        done < "$tar_exclude_file"
+        done < "$exclusion_file"
 
         # Debug: mostrar resultado de exclusión para archivos ZIP
         if [[ "$file" == *.zip ]]; then
