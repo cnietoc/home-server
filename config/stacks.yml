@@ -89,6 +89,12 @@ stacks:
         subdomain: "jackett"
         description: "🔍 Agregador de trackers Jackett"
         protected: true
+    backups:
+      exclude:
+        - library  # No incluir la biblioteca multimedia en las copias de seguridad
+        - downloads  # No incluir las descargas activas en las copias de seguridad
+        - recordings  # No incluir grabaciones de TV en las copias de seguridad
+        - "**/*.zip" # Excluir archivos ZIP
 
   # Hello World - Ejemplo básico
   helloworld:

@@ -21,19 +21,23 @@ home-server/
 │   ├── stacks.yml           # Configuración de stacks y servicios
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
 ├── docker/
-│   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower)
+│   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower + Samba)
 │   ├── home/               # Stack principal - Dashboard del Home Server
 │   ├── media/              # Stack de medios (Jellyfin, Radarr, Sonarr, etc.)
 │   └── helloworld/         # Stack de aplicación de prueba
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
 │   ├── install-docker.sh   # Instalación de Docker (Ubuntu)
+│   ├── link.sh             # Script para enlaces (config/backups)
+│   ├── backup.sh           # Script para crear backups automáticos
 │   ├── onedrive-manager.sh # Gestión completa de OneDrive con rclone
 │   ├── setup-security.sh   # Configuración de seguridad del servidor
 │   ├── setup-ssh.sh        # Configuración SSH con claves de GitHub
 │   ├── update-dns.sh       # Actualización automática de DNS Cloudflare
 │   └── auto-maintenance.sh # Mantenimiento automático programado
 └── data/                   # Datos persistentes (volúmenes Docker)
+    ├── media/              # Biblioteca multimedia y descargas
+    └── backups -> /ruta/backups  # Enlace a tu directorio de backups (crear)
 ```
 
 ## ⚙️ Configuración Inicial
@@ -47,7 +51,7 @@ Crea una carpeta fuera del repositorio para almacenar tus archivos de configurac
 mkdir -p ~/config/home-server
 
 # Enlazar la carpeta de configuración
-./scripts/link-config.sh ~/config/home-server
+./scripts/link.sh config ~/config/home-server
 ```
 
 ### 2. Instalar y configurar OneDrive (opcional)
@@ -359,6 +363,152 @@ sudo mount -t nfs servidor:/media/downloads /mnt/downloads
 - **Linux**: `sudo mount -t cifs //servidor/media_library /mnt/media`
 
 Ver documentación completa: [docs/NFS_MANAGEMENT.md](docs/NFS_MANAGEMENT.md)
+
+## 💾 Gestión de Backups
+
+El sistema incluye un completo sistema de gestión de backups para proteger todos los datos importantes de tu home server.
+
+### 🎯 ¿Qué se puede respaldar?
+
+- **Configuración del sistema**: Archivos `.env` con todas las credenciales y configuraciones
+- **Datos de aplicaciones**: Configuraciones de Radarr, Sonarr, Jellyfin, etc.
+- **Metadatos multimedia**: Información de películas, series, configuraciones personalizadas
+- **Base de datos**: Dumps de bases de datos de los servicios
+- **Biblioteca multimedia**: Opcional, dependiendo del espacio disponible
+
+### ⚙️ Sistema de Enlaces Dinámicos
+
+El sistema utiliza enlaces simbólicos para permitir flexibilidad en la ubicación de backups:
+
+#### Características
+
+- **🔗 Enlace dinámico**: Configura la ruta de backups una vez y úsala en todos los scripts
+- **📂 Estructura organizada**: Separación clara entre tipos de backup
+- **🔄 Scripts automatizables**: Preparado para automatización con cron/systemd
+- **💽 Soporte multi-destino**: Disco local, NAS, cloud storage, etc.
+
+### 📋 Configuración Paso a Paso
+
+#### 1. Preparar destino de backups
+
+```bash
+# Ejemplos de destinos comunes:
+
+# Disco externo
+mkdir -p /mnt/backup-drive/home-server-backups
+
+# NAS montado
+mkdir -p /mnt/nas/backups/home-server
+
+# Directorio local
+mkdir -p ~/Backups/home-server
+
+# Cloud storage montado (OneDrive, Google Drive, etc.)
+mkdir -p ~/OneDrive/Backups/home-server
+```
+
+#### 2. Configurar enlace de backups
+
+```bash
+# Configurar enlace usando el script principal
+./scripts/link.sh backups /mnt/backup-drive/home-server-backups
+
+# Ejemplos con diferentes destinos:
+./scripts/link.sh backups /mnt/nas/backups/home-server
+./scripts/link.sh backups ~/Backups/home-server
+./scripts/link.sh backups ~/OneDrive/Backups/home-server
+```
+
+#### 3. Verificar configuración
+
+```bash
+# Verificar que el enlace funciona
+ls -la data/backups
+
+# Debe mostrar algo como:
+# lrwxrwxrwx 1 user user 35 Nov 12 10:30 data/backups -> /mnt/backup-drive/home-server-backups
+
+# Probar escritura (crear archivo de prueba)
+echo "test" > data/backups/test.txt && rm data/backups/test.txt
+echo "✅ Enlace configurado correctamente"
+```
+
+### 🗂️ Estructura de Backups
+
+Una vez configurado, el sistema organizará los backups con esta estructura recomendada:
+
+```
+/tu/directorio/backups/
+├── config/                     # 📁 Backups de configuración
+│   ├── 20251112-130500-config.tar.gz
+│   ├── 20251111-130500-config.tar.gz
+│   └── latest -> 20251112-130500-config.tar.gz
+├── databases/                  # 🗄️ Dumps de bases de datos
+│   ├── 20251112-jellyfin-db.sql
+│   ├── 20251111-jellyfin-db.sql
+│   └── latest/
+│       └── jellyfin-db.sql -> ../20251112-jellyfin-db.sql
+├── media-metadata/             # 🎬 Configuración de servicios de media
+│   ├── 20251112-000000/
+│   │   ├── radarr-config.tar.gz
+│   │   ├── sonarr-config.tar.gz
+│   │   ├── jellyfin-config.tar.gz
+│   │   └── prowlarr-config.tar.gz
+│   ├── 20251111-000000/
+│   └── latest -> 20251112-000000/
+├── docker-volumes/             # 🐳 Backups de volúmenes Docker críticos
+│   ├── 20251112-volumes.tar.gz
+│   └── latest -> 20251112-volumes.tar.gz
+└── logs/                       # 📝 Logs de operaciones de backup
+    ├── backup-20251112.log
+    ├── backup-20251111.log
+    └── latest.log -> backup-20251112.log
+```
+
+### 🔧 Cambiar Destino de Backups
+
+Si necesitas cambiar la ubicación de tus backups:
+
+```bash
+# 1. Opcional: Mover backups existentes
+cp -r data/backups/* /nueva/ubicacion/backups/
+
+# 2. Reconfigurar enlace
+./scripts/link.sh backups /nueva/ubicacion/backups
+
+# 3. Verificar nuevo enlace
+ls -la data/backups
+```
+
+### 💡 Consejos y Mejores Prácticas
+
+```
+
+
+### 🚀 Scripts de Backup Automatizados
+
+El sistema incluye un script completamente funcional para crear backups automáticos:
+
+```bash
+# Backup de stacks específicos
+./scripts/backup.sh media platform
+
+# Backup de todos los stacks
+./scripts/backup.sh --all
+
+# Ver ayuda completa
+./scripts/backup.sh --help
+```
+
+**Características del script:**
+- **🎯 Configuración por stack**: Cada stack puede tener exclusiones específicas en `stacks.yml`
+- **📁 Respaldo inteligente**: Solo incluye contenido de `data/{stack}` 
+- **🚫 Exclusiones gitignore**: Patrones como `**/*.zip`, directorios específicos
+- **📅 Timestamps**: Archivos con fecha y hora `stack-YYYYMMDD-HHMMSS.tar.gz`
+- **📊 Estadísticas**: Tamaño y número de archivos incluidos
+- **⚡ Backup completo**: Opción `--all` para respaldar todos los stacks
+
+> **📋 Próximos desarrollos**: Rotación automática de backups antiguos, verificación de integridad, y notificaciones de estado.
 
 ## 🤖 Mantenimiento Automático
 

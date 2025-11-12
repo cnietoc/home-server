@@ -322,6 +322,72 @@ get_share_permissions() {
     get_share_info "$stack_name" "$share_name" "permissions"
 }
 
+# === Funciones de Backup ===
+
+# Obtener stacks que tienen configuración de backup
+get_stacks_with_backup_config() {
+    if ! check_yq; then
+        return 1
+    fi
+
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
+    else
+        # Para yq-python, usar sintaxis diferente
+        run_yq '.stacks | to_entries[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
+    fi
+}
+
+# Verificar si un stack tiene configuración de backup
+stack_has_backup_config() {
+    local stack_name="$1"
+
+    if ! check_yq; then
+        return 1
+    fi
+
+    local backup_config
+    backup_config=$(run_yq ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null)
+
+    [[ "$backup_config" != "null" && -n "$backup_config" ]]
+}
+
+# Obtener lista de exclusiones de backup para un stack
+get_backup_exclusions() {
+    local stack_name="$1"
+
+    if ! check_yq; then
+        return 1
+    fi
+
+    if ! stack_has_backup_config "$stack_name"; then
+        return 0  # Sin exclusiones si no hay config
+    fi
+
+    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        run_yq ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
+    else
+        # Para yq-python, usar sintaxis diferente y limpiar comillas
+        run_yq ".stacks.$stack_name.backups.exclude[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
+    fi
+}
+
+# Obtener configuración completa de backup de un stack
+get_stack_backup_config() {
+    local stack_name="$1"
+
+    if ! check_yq; then
+        return 1
+    fi
+
+    if ! stack_has_backup_config "$stack_name"; then
+        echo "null"
+        return 0
+    fi
+
+    run_yq ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null || echo "null"
+}
+
 # Cargar configuración de stacks usando las funciones wrapper
 load_stack_info() {
     if ! init_stack_info; then
@@ -642,6 +708,12 @@ COMANDOS WRAPPER (para otros scripts):
   get_share_description [stack] [share] - Obtener descripción de un share
   get_share_permissions [stack] [share] - Obtener permisos de un share
 
+  # Comandos de backup:
+  get_stacks_with_backup_config  - Obtener stacks que tienen configuración de backup
+  stack_has_backup_config [stack] - Verificar si un stack tiene configuración de backup
+  get_backup_exclusions [stack]  - Obtener exclusiones de backup de un stack
+  get_stack_backup_config [stack] - Obtener configuración completa de backup
+
 EJEMPLOS:
   $0 services platform           # Servicios del stack platform
   $0 list                        # Ver toda la configuración
@@ -803,6 +875,28 @@ main() {
                 exit 1
             fi
             get_share_permissions "$2" "$3"
+            ;;
+        # Comandos de backup
+        "get_stacks_with_backup_config")
+            get_stacks_with_backup_config
+            ;;
+        "stack_has_backup_config")
+            if [[ -z "${2:-}" ]]; then
+                exit 1
+            fi
+            stack_has_backup_config "$2"
+            ;;
+        "get_backup_exclusions")
+            if [[ -z "${2:-}" ]]; then
+                exit 1
+            fi
+            get_backup_exclusions "$2"
+            ;;
+        "get_stack_backup_config")
+            if [[ -z "${2:-}" ]]; then
+                exit 1
+            fi
+            get_stack_backup_config "$2"
             ;;
         *)
             echo "❌ Comando desconocido: ${1:-}"
