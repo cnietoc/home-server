@@ -68,7 +68,7 @@ stop_stack_services() {
     fi
 
     log "🛑 Deteniendo servicios del stack: $stack_name"
-    if (cd "$stack_docker_dir" && docker-compose down 2>/dev/null); then
+    if (cd "$stack_docker_dir" && docker compose down 2>/dev/null); then
         log "✅ Servicios detenidos correctamente"
         return 0
     else
@@ -93,7 +93,7 @@ start_stack_services() {
     fi
 
     log "🚀 Iniciando servicios del stack: $stack_name"
-    if (cd "$stack_docker_dir" && docker-compose up -d 2>/dev/null); then
+    if (cd "$stack_docker_dir" && docker compose up -d 2>/dev/null); then
         log "✅ Servicios iniciados correctamente"
         return 0
     else
@@ -125,7 +125,7 @@ check_stack_services() {
 
     # Verificar si hay contenedores ejecutándose para este stack
     local running_containers
-    running_containers=$(cd "$stack_docker_dir" && docker-compose ps -q 2>/dev/null | wc -l)
+    running_containers=$(cd "$stack_docker_dir" && docker compose ps -q 2>/dev/null | wc -l)
 
     log "🔍 DEBUG check_stack_services: Contenedores ejecutándose: $running_containers"
 
@@ -230,8 +230,6 @@ backup_stack() {
     local temp_backup_file="${backup_file}.tmp"
     local tar_output_file=$(mktemp)
     local files_to_backup=$(mktemp)
-
-    log "📄 Comprimiendo archivos..."
 
     # Crear lista de archivos a incluir usando un enfoque más eficiente
     # Primero crear lista de todos los archivos
@@ -416,6 +414,8 @@ backup_stack() {
     # Limpiar archivo temporal principal
     rm -f "$temp_file_sizes"
 
+    log "📄 Comprimiendo archivos..."
+
     # Crear backup usando la lista de archivos filtrada
     if (cd "$DATA_BASE_DIR" && tar -czf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
 
@@ -457,7 +457,7 @@ backup_stack() {
         if ! start_stack_services "$stack_name"; then
             error "❌ Error crítico: No se pudieron reiniciar los servicios del stack '$stack_name'"
             error "⚠️ Los servicios permanecen detenidos. Reinícialos manualmente con:"
-            error "   cd $DOCKER_DIR/$stack_name && docker-compose up -d"
+            error "   cd $DOCKER_DIR/$stack_name && docker compose up -d"
             # No retornamos error aquí para que el backup se considere exitoso
         fi
     fi
