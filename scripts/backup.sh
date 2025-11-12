@@ -329,8 +329,6 @@ backup_stack() {
     local tar_output_file=$(mktemp)
     local files_to_backup=$(mktemp)
 
-    log "📄 Generando lista de archivos para backup..."
-
     # Crear lista de archivos a incluir usando un enfoque más eficiente
     # Primero crear lista de todos los archivos
     local temp_all_files=$(mktemp)
