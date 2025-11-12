@@ -244,53 +244,36 @@ backup_stack() {
     if [[ $file_count -gt 0 ]]; then
         log "📊 Resumen por tipo de archivo:"
 
-        # Crear resumen de extensiones de manera más robusta
-        declare -A ext_count
-        local files_without_ext=0
+        # Usar un enfoque más simple y directo
+        local temp_ext_list=$(mktemp)
 
+        # Extraer extensiones de todos los archivos
         while IFS= read -r file; do
             [[ -z "$file" ]] && continue
-            if [[ "$file" =~ \.([^./]+)$ ]]; then
-                local ext="${BASH_REMATCH[1]}"
-                ext_count["$ext"]=$((${ext_count["$ext"]:-0} + 1))
+            local basename_file=$(basename "$file")
+            if [[ "$basename_file" == *.* ]]; then
+                echo "${basename_file##*.}"
             else
-                files_without_ext=$((files_without_ext + 1))
+                echo "SIN_EXTENSION"
             fi
-        done < "$files_to_backup"
+        done < "$files_to_backup" > "$temp_ext_list"
 
-        # Crear archivo temporal para ordenar extensiones por frecuencia
-        local temp_sort=$(mktemp)
-        for ext in "${!ext_count[@]}"; do
-            printf "%d %s\n" "${ext_count[$ext]}" "$ext" >> "$temp_sort"
-        done
-
-        # Mostrar extensiones ordenadas por frecuencia
-        if [[ ${#ext_count[@]} -gt 0 ]]; then
-            # Ordenar el archivo temporal
-            sort -nr "$temp_sort" > "${temp_sort}.sorted"
-
-            # Leer desde el archivo ordenado sin subshell
-            while IFS= read -r count ext; do
+        # Contar y ordenar extensiones
+        if [[ -s "$temp_ext_list" ]]; then
+            sort "$temp_ext_list" | uniq -c | sort -nr | while read -r count ext; do
                 [[ -z "$count" || -z "$ext" ]] && continue
-                printf "   📋 %-15s: %3d archivos\n" "$ext" "$count"
-            done < "${temp_sort}.sorted"
-
-            # Limpiar archivo temporal adicional
-            rm -f "${temp_sort}.sorted"
-        fi
-
-        # Mostrar archivos sin extensión si los hay
-        if [[ $files_without_ext -gt 0 ]]; then
-            printf "   📋 %-15s: %3d archivos\n" "(sin ext)" "$files_without_ext"
-        fi
-
-        # Si no hay archivos con extensión
-        if [[ ${#ext_count[@]} -eq 0 && $files_without_ext -eq 0 ]]; then
+                if [[ "$ext" == "SIN_EXTENSION" ]]; then
+                    printf "   📋 %-15s: %3d archivos\n" "(sin ext)" "$count"
+                else
+                    printf "   📋 %-15s: %3d archivos\n" "$ext" "$count"
+                fi
+            done
+        else
             log "   📋 No se detectaron archivos"
         fi
 
-        # Limpiar archivos temporales
-        rm -f "$temp_sort" "${temp_sort}.sorted"
+        # Limpiar archivo temporal
+        rm -f "$temp_ext_list"
     else
         log "   ℹ️ No se encontraron archivos para procesar"
     fi
