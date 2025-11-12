@@ -218,48 +218,46 @@ backup_stack() {
         return 0
     fi
 
+    # Mostrar archivos que se van a incluir en el backup y generar resumen
+    local file_count=0
+    log "📄 Archivos incluidos en el backup:"
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        # Mostrar path relativo al stack (quitar el prefijo del stack)
+        local relative_path="${file#$stack_name/}"
+
+        # Obtener información adicional del archivo
+        local full_path="$DATA_BASE_DIR/$file"
+        if [[ -f "$full_path" ]]; then
+            local file_size=$(du -h "$full_path" 2>/dev/null | cut -f1 || echo "?")
+            local file_modified=$(stat -c %Y "$full_path" 2>/dev/null || stat -f %m "$full_path" 2>/dev/null || echo "0")
+            local file_date=$(date -d "@$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+
+            printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
+        else
+            printf "   📄 %s\n" "$relative_path"
+        fi
+        file_count=$((file_count + 1))
+    done < "$files_to_backup"
+
+    # Mostrar resumen por tipo de archivo
+    if [[ $file_count -gt 0 ]]; then
+        log "📊 Resumen por tipo de archivo:"
+        local extensions_summary=$(cat "$files_to_backup" | grep -E '\.[^/]*$' | sed 's/.*\.//' | sort | uniq -c | sort -nr)
+        if [[ -n "$extensions_summary" ]]; then
+            while IFS= read -r count ext; do
+                [[ -z "$count" || -z "$ext" ]] && continue
+                printf "   📋 %-10s: %3d archivos\n" "$ext" "$count"
+            done <<< "$extensions_summary"
+        else
+            log "   📋 Sin archivos con extensión detectados"
+        fi
+    else
+        log "   ℹ️ No se encontraron archivos para procesar"
+    fi
+
     # Crear backup usando la lista de archivos filtrada
     if (cd "$DATA_BASE_DIR" && tar -czf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
-
-        # Mostrar archivos que se están incluyendo en el backup
-        if [[ -s "$files_to_backup" ]]; then
-            local file_count=0
-            log "📄 Archivos incluidos en el backup:"
-            while IFS= read -r file; do
-                [[ -z "$file" ]] && continue
-                # Mostrar path relativo al stack (quitar el prefijo del stack)
-                local relative_path="${file#$stack_name/}"
-
-                # Obtener información adicional del archivo
-                local full_path="$DATA_BASE_DIR/$file"
-                if [[ -f "$full_path" ]]; then
-                    local file_size=$(du -h "$full_path" 2>/dev/null | cut -f1 || echo "?")
-                    local file_modified=$(stat -c %Y "$full_path" 2>/dev/null || stat -f %m "$full_path" 2>/dev/null || echo "0")
-                    local file_date=$(date -d "@$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
-
-                    printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
-                else
-                    printf "   📄 %s\n" "$relative_path"
-                fi
-                file_count=$((file_count + 1))
-            done < "$files_to_backup"
-
-            # Mostrar resumen por tipo de archivo
-            if [[ $file_count -gt 0 ]]; then
-                log "📊 Resumen por tipo de archivo:"
-                local extensions_summary=$(cat "$files_to_backup" | grep -E '\.[^/]*$' | sed 's/.*\.//' | sort | uniq -c | sort -nr)
-                if [[ -n "$extensions_summary" ]]; then
-                    while IFS= read -r count ext; do
-                        [[ -z "$count" || -z "$ext" ]] && continue
-                        printf "   📋 %-10s: %3d archivos\n" "$ext" "$count"
-                    done <<< "$extensions_summary"
-                else
-                    log "   📋 Sin archivos con extensión detectados"
-                fi
-            else
-                log "   ℹ️ No se encontraron archivos para procesar"
-            fi
-        fi
 
         # Verificar si el backup contiene archivos
         files_backed_up=$(tar -tzf "$temp_backup_file" 2>/dev/null | wc -l | tr -d ' ')
