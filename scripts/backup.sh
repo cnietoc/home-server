@@ -266,9 +266,17 @@ backup_stack() {
 
         # Mostrar extensiones ordenadas por frecuencia
         if [[ ${#ext_count[@]} -gt 0 ]]; then
-            sort -nr "$temp_sort" | while IFS= read -r count ext; do
+            # Ordenar el archivo temporal
+            sort -nr "$temp_sort" > "${temp_sort}.sorted"
+
+            # Leer desde el archivo ordenado sin subshell
+            while IFS= read -r count ext; do
+                [[ -z "$count" || -z "$ext" ]] && continue
                 printf "   📋 %-15s: %3d archivos\n" "$ext" "$count"
-            done
+            done < "${temp_sort}.sorted"
+
+            # Limpiar archivo temporal adicional
+            rm -f "${temp_sort}.sorted"
         fi
 
         # Mostrar archivos sin extensión si los hay
@@ -281,8 +289,8 @@ backup_stack() {
             log "   📋 No se detectaron archivos"
         fi
 
-        # Limpiar archivo temporal
-        rm -f "$temp_sort"
+        # Limpiar archivos temporales
+        rm -f "$temp_sort" "${temp_sort}.sorted"
     else
         log "   ℹ️ No se encontraron archivos para procesar"
     fi
