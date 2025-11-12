@@ -3,7 +3,7 @@
 # Script para crear backups automáticos de stacks
 # Utiliza la configuración definida en stacks.yml
 
-set -euo pipefail
+set -uo pipefail  # Removido -e para manejar errores manualmente
 
 BACKUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_PROJECT_ROOT="$(dirname "$BACKUP_SCRIPT_DIR")"
@@ -98,17 +98,19 @@ backup_stack() {
 
     # Verificar que existe el directorio del stack
     if [[ ! -d "$stack_data_dir" ]]; then
-        log "ℹ️ Directorio del stack no existe, creando backup vacío: $stack_data_dir"
-        # Crear backup vacío para mantener consistencia
-        local backup_file="$BACKUP_BASE_DIR/${stack_name}-${BACKUP_DATE}.tar.gz"
-        tar -czf "$backup_file" --files-from /dev/null
-        log "✅ Backup vacío creado: $(basename "$backup_file")"
+        log "ℹ️ Directorio del stack no existe, saltando: $stack_data_dir"
+        return 0
+    fi
+
+    # Verificar si el directorio tiene contenido (excluyendo archivos ocultos)
+    if [[ -z "$(find "$stack_data_dir" -type f 2>/dev/null | head -1)" ]]; then
+        log "ℹ️ Directorio del stack está vacío, saltando: $stack_data_dir"
         return 0
     fi
 
     # Crear archivo temporal de exclusiones
     local exclusion_file=$(mktemp)
-    trap "rm -f '$exclusion_file'" EXIT
+    local tar_exclude_file=$(mktemp)
 
     create_exclusion_file "$stack_name" "$exclusion_file"
 
@@ -118,11 +120,6 @@ backup_stack() {
     log "📦 Creando backup: $(basename "$backup_file")"
     log "📁 Directorio origen: $stack_data_dir"
 
-    # Crear backup usando tar con exclusiones estilo gitignore
-    # Usamos --exclude-from pero procesamos el archivo para convertir patrones gitignore a tar
-    local tar_exclude_file=$(mktemp)
-    trap "rm -f '$exclusion_file' '$tar_exclude_file'" EXIT
-
     # Convertir patrones gitignore a formato tar
     while IFS= read -r pattern; do
         [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
@@ -130,11 +127,11 @@ backup_stack() {
         # Convertir patrones globstar (**) a formato tar
         if [[ "$pattern" =~ \*\* ]]; then
             # Patrón con ** - convertir a múltiples exclusiones
-            pattern="${pattern//\*\*\/*/}"
-            pattern="${pattern//\*\*/}"
-            echo "$pattern" >> "$tar_exclude_file"
-            echo "*/$pattern" >> "$tar_exclude_file"
-            echo "*/*/$pattern" >> "$tar_exclude_file"
+            local clean_pattern="${pattern//\*\*\/*/}"
+            clean_pattern="${clean_pattern//\*\*/}"
+            echo "$clean_pattern" >> "$tar_exclude_file"
+            echo "*/$clean_pattern" >> "$tar_exclude_file"
+            echo "*/*/$clean_pattern" >> "$tar_exclude_file"
         else
             echo "$pattern" >> "$tar_exclude_file"
         fi
@@ -143,30 +140,45 @@ backup_stack() {
     # Crear el backup
     local files_backed_up=0
     local backup_size=0
+    local backup_created=false
+    local result=0
 
-    if tar -czf "$backup_file" \
+    # Crear backup temporal primero
+    local temp_backup_file="${backup_file}.tmp"
+
+    if tar -czf "$temp_backup_file" \
         --exclude-from="$tar_exclude_file" \
         -C "$DATA_BASE_DIR" \
         "$stack_name" 2>/dev/null; then
 
-        # Obtener estadísticas del backup
-        backup_size=$(du -h "$backup_file" | cut -f1)
-        files_backed_up=$(tar -tzf "$backup_file" 2>/dev/null | wc -l)
+        # Verificar si el backup contiene archivos
+        files_backed_up=$(tar -tzf "$temp_backup_file" 2>/dev/null | wc -l | tr -d ' ')
 
-        log "✅ Backup completado: $(basename "$backup_file")"
-        log "📊 Tamaño: $backup_size"
-        log "📄 Archivos incluidos: $files_backed_up"
+        if [[ "$files_backed_up" -gt 1 ]]; then  # > 1 porque tar siempre incluye el directorio raíz
+            # Mover backup temporal al nombre final
+            mv "$temp_backup_file" "$backup_file"
+            backup_created=true
+
+            # Obtener estadísticas del backup
+            backup_size=$(du -h "$backup_file" | cut -f1)
+
+            log "✅ Backup completado: $(basename "$backup_file")"
+            log "📊 Tamaño: $backup_size"
+            log "📄 Archivos incluidos: $((files_backed_up - 1))"  # -1 para no contar el directorio raíz
+        else
+            log "ℹ️ No hay archivos para respaldar después de aplicar exclusiones, saltando"
+            rm -f "$temp_backup_file"
+        fi
     else
         error "Falló la creación del backup para: $stack_name"
-        rm -f "$backup_file"  # Limpiar archivo parcial
-        return 1
+        rm -f "$temp_backup_file"
+        result=1
     fi
 
     # Limpiar archivos temporales
     rm -f "$exclusion_file" "$tar_exclude_file"
-    trap - EXIT
 
-    return 0
+    return $result
 }
 
 # Mostrar resumen de backup
@@ -263,18 +275,33 @@ main() {
     # Procesar cada stack
     local successful_backups=0
     local failed_backups=0
+    local skipped_backups=0
 
     for stack in "${stacks_to_backup[@]}"; do
-        if backup_stack "$stack"; then
-            ((successful_backups++))
-        else
-            ((failed_backups++))
+        log "────────────────────────────────────────"
+
+        # Verificar que el stack existe
+        if ! stack_exists "$stack"; then
+            log "⚠️ Stack '$stack' no existe en la configuración, saltando"
+            skipped_backups=$((skipped_backups + 1))
+            continue
         fi
-        echo ""  # Separador entre stacks
+
+        # Ejecutar backup con manejo de errores
+        if backup_stack "$stack"; then
+            successful_backups=$((successful_backups + 1))
+        else
+            failed_backups=$((failed_backups + 1))
+        fi
     done
 
+
     # Mostrar resumen
+    log "────────────────────────────────────────"
     log "✅ Backups exitosos: $successful_backups"
+    if [[ $skipped_backups -gt 0 ]]; then
+        log "⏭️ Backups saltados: $skipped_backups"
+    fi
     if [[ $failed_backups -gt 0 ]]; then
         log "❌ Backups fallidos: $failed_backups"
     fi
