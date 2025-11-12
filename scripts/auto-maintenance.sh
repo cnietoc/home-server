@@ -59,42 +59,17 @@ run_dns_update() {
 
     # Cargar configuración
     if ! load_common_config || ! load_config "cloudflare"; then
-        cron_log "❌ Error cargando configuración"
+        cron_log "❌ Error cargando configuración DNS"
         return 1
     fi
 
-    # Crear archivo temporal para la salida
-    local temp_log="/tmp/dns_update_$$.log"
-
-    # Ejecutar actualización redirigiendo la salida
-    if "$SCRIPT_DIR/update-dns.sh" >> "$temp_log" 2>&1; then
-        local dns_exit_code=0
+    # Ejecutar script de DNS y agregar salida directamente al log
+    if "$SCRIPT_DIR/update-dns.sh" >> "$CRON_LOG" 2>&1; then
+        cron_log "✅ Actualización DNS completada"
     else
-        local dns_exit_code=$?
-    fi
-
-    # Agregar la salida del DNS al log principal
-    if [[ -f "$temp_log" ]]; then
-        cat "$temp_log" >> "$CRON_LOG"
-    fi
-
-    # Evaluar el resultado
-    if [[ $dns_exit_code -eq 0 ]]; then
-        # Verificar qué tipo de resultado obtuvimos
-        if [[ -f "$temp_log" ]] && grep -q "sin cambios" "$temp_log"; then
-            cron_log "✅ DNS verificado - sin cambios necesarios"
-        elif [[ -f "$temp_log" ]] && grep -q "DNS actualizado correctamente" "$temp_log"; then
-            cron_log "✅ DNS actualizado correctamente"
-        else
-            cron_log "✅ DNS procesado exitosamente"
-        fi
-    else
-        cron_log "❌ Error actualizando DNS"
-        rm -f "$temp_log" 2>/dev/null || true
+        cron_log "❌ Error en actualización DNS"
         return 1
     fi
-
-    rm -f "$temp_log" 2>/dev/null || true
 }
 
 # Verificar que los servicios estén corriendo
@@ -115,7 +90,7 @@ check_services() {
             if [[ -d "$stack_dir" && -f "$stack_dir/docker-compose.yml" ]]; then
                 cd "$stack_dir"
                 local running_containers
-                running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
+                running_containers=$(docker compose ps -q 2>/dev/null | wc -l)
 
                 if [[ $running_containers -eq 0 ]]; then
                     services_down+=("$stack_name")
@@ -139,7 +114,7 @@ check_services() {
 
                 cd "$stack_dir"
                 local running_containers
-                running_containers=$(docker-compose ps -q 2>/dev/null | wc -l)
+                running_containers=$(docker compose ps -q 2>/dev/null | wc -l)
 
                 if [[ $running_containers -eq 0 ]]; then
                     services_down+=("$stack_name")
@@ -158,7 +133,7 @@ check_services() {
         # for service in "${services_down[@]}"; do
         #     cron_log "🔄 Intentando reiniciar $service..."
         #     cd "$PROJECT_ROOT/docker/$service"
-        #     docker-compose up -d >> "$CRON_LOG" 2>&1
+        #     docker compose up -d >> "$CRON_LOG" 2>&1
         # done
 
         return 1
@@ -171,46 +146,13 @@ check_services() {
 run_backup() {
     cron_log "💾 Iniciando backup automático..."
 
-    # Crear archivo temporal para la salida
-    local temp_log="/tmp/backup_$$.log"
-
-    # Ejecutar backup de todos los stacks con limpieza automática
-    if "$SCRIPT_DIR/backup.sh" --all --cleanup --safe 3 >> "$temp_log" 2>&1; then
-        local backup_exit_code=0
-    else
-        local backup_exit_code=$?
-    fi
-
-    # Agregar la salida del backup al log principal
-    if [[ -f "$temp_log" ]]; then
-        cat "$temp_log" >> "$CRON_LOG"
-    fi
-
-    # Evaluar el resultado
-    if [[ $backup_exit_code -eq 0 ]]; then
-        # Verificar cuántos backups se crearon
-        if [[ -f "$temp_log" ]] && grep -q "Backups exitosos:" "$temp_log"; then
-            local successful_backups=$(grep "Backups exitosos:" "$temp_log" | grep -o '[0-9]\+' | head -1)
-            cron_log "✅ Backup completado - $successful_backups stacks respaldados"
-        else
-            cron_log "✅ Backup procesado exitosamente"
-        fi
-
-        # Mostrar información de limpieza si está disponible
-        if [[ -f "$temp_log" ]] && grep -q "Archivos eliminados:" "$temp_log"; then
-            local deleted_files=$(grep "Archivos eliminados:" "$temp_log" | grep -o '[0-9]\+' | head -1)
-            local freed_space=$(grep "Espacio liberado:" "$temp_log" | grep -o '[0-9.]\+[KMGT]*B' | head -1)
-            if [[ -n "$deleted_files" && "$deleted_files" -gt 0 ]]; then
-                cron_log "🧹 Limpieza: $deleted_files archivos antiguos eliminados ($freed_space liberados)"
-            fi
-        fi
+    # Ejecutar backup de todos los stacks con limpieza automática y modo seguro
+    if "$SCRIPT_DIR/backup.sh" --all --cleanup 3 --safe >> "$CRON_LOG" 2>&1; then
+        cron_log "✅ Backup automático completado"
     else
         cron_log "❌ Error durante el backup automático"
-        rm -f "$temp_log" 2>/dev/null || true
         return 1
     fi
-
-    rm -f "$temp_log" 2>/dev/null || true
 }
 
 # Limpiar logs antiguos
@@ -374,6 +316,7 @@ check_missed_tasks() {
 
     local hours_since=$((($now - $last_run) / 3600))
 
+    cron_log "⏰ Tiempo desde última ejecución: ${hours_since} horas"
     cron_log "⏰ Tiempo desde última ejecución: ${hours_since} horas"
 
     # Si han pasado más de 2 horas, ejecutar tareas de recuperación
