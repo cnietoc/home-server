@@ -220,6 +220,7 @@ backup_stack() {
 
     # Mostrar archivos que se van a incluir en el backup y generar resumen
     local file_count=0
+    local temp_file_sizes=$(mktemp)
     log "📄 Archivos incluidos en el backup:"
     while IFS= read -r file; do
         [[ -z "$file" ]] && continue
@@ -230,8 +231,19 @@ backup_stack() {
         local full_path="$DATA_BASE_DIR/$file"
         if [[ -f "$full_path" ]]; then
             local file_size=$(du -h "$full_path" 2>/dev/null | cut -f1 || echo "?")
+            local file_size_bytes=$(du -b "$full_path" 2>/dev/null | cut -f1 || stat -c%s "$full_path" 2>/dev/null || echo "0")
             local file_modified=$(stat -c %Y "$full_path" 2>/dev/null || stat -f %m "$full_path" 2>/dev/null || echo "0")
             local file_date=$(date -d "@$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_modified" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+
+            # Guardar información para análisis posterior: tamaño_bytes|path_relativo|extensión
+            local basename_file=$(basename "$file")
+            local ext=""
+            if [[ "$basename_file" == *.* ]]; then
+                ext="${basename_file##*.}"
+            else
+                ext="SIN_EXTENSION"
+            fi
+            echo "$file_size_bytes|$relative_path|$ext" >> "$temp_file_sizes"
 
             printf "   📄 %-60s %8s %s\n" "$relative_path" "$file_size" "$file_date"
         else
@@ -240,43 +252,52 @@ backup_stack() {
         file_count=$((file_count + 1))
     done < "$files_to_backup"
 
-    # Mostrar resumen por tipo de archivo
+    # Mostrar resumen por tipo de archivo con tamaños
     if [[ $file_count -gt 0 ]]; then
         log "📊 Resumen por tipo de archivo:"
 
-        # Usar un enfoque más simple y directo
-        local temp_ext_list=$(mktemp)
+        # Usar arrays asociativos para contar archivos y sumar tamaños
+        declare -A ext_count ext_size_total
 
-        # Extraer extensiones de todos los archivos
-        while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
-            local basename_file=$(basename "$file")
-            if [[ "$basename_file" == *.* ]]; then
-                echo "${basename_file##*.}"
+        while IFS='|' read -r size_bytes relative_path ext; do
+            [[ -z "$size_bytes" || -z "$ext" ]] && continue
+            ext_count["$ext"]=$((${ext_count["$ext"]:-0} + 1))
+            ext_size_total["$ext"]=$((${ext_size_total["$ext"]:-0} + size_bytes))
+        done < "$temp_file_sizes"
+
+        # Crear archivo temporal para ordenar por cantidad de archivos
+        local temp_ext_summary=$(mktemp)
+        for ext in "${!ext_count[@]}"; do
+            local readable_size=$(numfmt --to=iec-i --suffix=B ${ext_size_total["$ext"]} 2>/dev/null || echo "${ext_size_total["$ext"]}B")
+            echo "${ext_count["$ext"]} $ext $readable_size" >> "$temp_ext_summary"
+        done
+
+        # Mostrar extensiones ordenadas por cantidad de archivos
+        sort -nr "$temp_ext_summary" | while read -r count ext size_readable; do
+            [[ -z "$count" || -z "$ext" ]] && continue
+            if [[ "$ext" == "SIN_EXTENSION" ]]; then
+                printf "   📋 %-15s: %3d archivos (%s)\n" "(sin ext)" "$count" "$size_readable"
             else
-                echo "SIN_EXTENSION"
+                printf "   📋 %-15s: %3d archivos (%s)\n" "$ext" "$count" "$size_readable"
             fi
-        done < "$files_to_backup" > "$temp_ext_list"
+        done
 
-        # Contar y ordenar extensiones
-        if [[ -s "$temp_ext_list" ]]; then
-            sort "$temp_ext_list" | uniq -c | sort -nr | while read -r count ext; do
-                [[ -z "$count" || -z "$ext" ]] && continue
-                if [[ "$ext" == "SIN_EXTENSION" ]]; then
-                    printf "   📋 %-15s: %3d archivos\n" "(sin ext)" "$count"
-                else
-                    printf "   📋 %-15s: %3d archivos\n" "$ext" "$count"
-                fi
-            done
-        else
-            log "   📋 No se detectaron archivos"
-        fi
+        # Mostrar top 5 de archivos más pesados
+        log "🏆 Top 5 archivos más pesados:"
+        sort -nr "$temp_file_sizes" | head -5 | while IFS='|' read -r size_bytes relative_path ext; do
+            [[ -z "$size_bytes" || -z "$relative_path" ]] && continue
+            local readable_size=$(numfmt --to=iec-i --suffix=B "$size_bytes" 2>/dev/null || echo "${size_bytes}B")
+            printf "   🔸 %-8s %s\n" "$readable_size" "$relative_path"
+        done
 
-        # Limpiar archivo temporal
-        rm -f "$temp_ext_list"
+        # Limpiar archivos temporales
+        rm -f "$temp_ext_summary"
     else
         log "   ℹ️ No se encontraron archivos para procesar"
     fi
+
+    # Limpiar archivo temporal principal
+    rm -f "$temp_file_sizes"
 
     # Crear backup usando la lista de archivos filtrada
     if (cd "$DATA_BASE_DIR" && tar -czf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
