@@ -145,16 +145,67 @@ backup_stack() {
 
     # Crear backup temporal primero
     local temp_backup_file="${backup_file}.tmp"
+    local tar_output_file=$(mktemp)
+    local files_to_backup=$(mktemp)
 
-    if tar -czf "$temp_backup_file" \
-        --exclude-from="$tar_exclude_file" \
-        -C "$DATA_BASE_DIR" \
-        "$stack_name" 2>/dev/null; then
+    log "📄 Comprimiendo archivos..."
+
+    # Crear lista de archivos a incluir (solo archivos, no directorios)
+    (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print) | while IFS= read -r file; do
+        local should_exclude=false
+
+        # Verificar contra cada patrón de exclusión
+        while IFS= read -r pattern; do
+            [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
+
+            # Convertir patrón gitignore a bash pattern
+            if [[ "$pattern" =~ \*\* ]]; then
+                # Patrón con ** - verificar si coincide en cualquier parte del path
+                if [[ "$file" == *"${pattern//\*\*/}"* ]]; then
+                    should_exclude=true
+                    break
+                fi
+            else
+                # Patrón normal - verificar si coincide
+                if [[ "$file" == *"$pattern"* ]]; then
+                    should_exclude=true
+                    break
+                fi
+            fi
+        done < "$tar_exclude_file"
+
+        # Solo añadir si no está excluido
+        if [[ "$should_exclude" == "false" ]]; then
+            echo "$file"
+        fi
+    done > "$files_to_backup"
+
+    # Verificar si hay archivos para respaldar
+    if [[ ! -s "$files_to_backup" ]]; then
+        log "ℹ️ No hay archivos para respaldar después de aplicar exclusiones, saltando"
+        rm -f "$temp_backup_file" "$tar_output_file" "$files_to_backup"
+        rm -f "$exclusion_file" "$tar_exclude_file"
+        return 0
+    fi
+
+    # Crear backup usando la lista de archivos filtrada
+    if (cd "$DATA_BASE_DIR" && tar -czvf "$temp_backup_file" -T "$files_to_backup") 2>"$tar_output_file"; then
+
+        # Mostrar archivos que se comprimieron
+        if [[ -s "$tar_output_file" ]]; then
+            while IFS= read -r file; do
+                # Mostrar archivos procesados
+                if [[ "$file" =~ ^a\ (.+)$ ]]; then
+                    local clean_file="${BASH_REMATCH[1]}"
+                    printf "   📄 %s\n" "$clean_file"
+                fi
+            done < "$tar_output_file"
+        fi
 
         # Verificar si el backup contiene archivos
         files_backed_up=$(tar -tzf "$temp_backup_file" 2>/dev/null | wc -l | tr -d ' ')
 
-        if [[ "$files_backed_up" -gt 1 ]]; then  # > 1 porque tar siempre incluye el directorio raíz
+        if [[ "$files_backed_up" -gt 0 ]]; then
             # Mover backup temporal al nombre final
             mv "$temp_backup_file" "$backup_file"
             backup_created=true
@@ -164,19 +215,24 @@ backup_stack() {
 
             log "✅ Backup completado: $(basename "$backup_file")"
             log "📊 Tamaño: $backup_size"
-            log "📄 Archivos incluidos: $((files_backed_up - 1))"  # -1 para no contar el directorio raíz
+            log "📄 Archivos incluidos: $files_backed_up"
         else
             log "ℹ️ No hay archivos para respaldar después de aplicar exclusiones, saltando"
             rm -f "$temp_backup_file"
         fi
     else
         error "Falló la creación del backup para: $stack_name"
+        # Mostrar error de tar si está disponible
+        if [[ -s "$tar_output_file" ]]; then
+            error "Salida de tar:"
+            cat "$tar_output_file" >&2
+        fi
         rm -f "$temp_backup_file"
         result=1
     fi
 
     # Limpiar archivos temporales
-    rm -f "$exclusion_file" "$tar_exclude_file"
+    rm -f "$exclusion_file" "$tar_exclude_file" "$tar_output_file" "$files_to_backup"
 
     return $result
 }

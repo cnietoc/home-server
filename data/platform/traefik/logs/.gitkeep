@@ -1,7 +1,0 @@
-# Esta carpeta contiene logs de Traefik
-# Los archivos de log son generados automáticamente por el contenedor Traefik
-#
-# Estructura esperada:
-# - traefik.log: Log principal de la aplicación
-# - access.log: Log de accesos HTTP/HTTPS
-

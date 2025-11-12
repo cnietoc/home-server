@@ -1,6 +1,0 @@
-# Esta carpeta contiene certificados SSL de Traefik
-# Los archivos .json de certificados son generados automáticamente por Let's Encrypt
-#
-# Estructura esperada:
-# - acme.json: Certificados principales de Let's Encrypt
-
