@@ -150,34 +150,18 @@ backup_stack() {
 
     log "📄 Comprimiendo archivos..."
 
-    # Debug: mostrar contenido del archivo de exclusiones
-    echo "DEBUG: Contenido del archivo de exclusiones:" >&2
-    cat "$exclusion_file" >&2
-    echo "DEBUG: Fin del archivo de exclusiones" >&2
-
     # Crear lista de archivos a incluir (solo archivos, no directorios)
     (cd "$DATA_BASE_DIR" && find "$stack_name" -type f -print) | while IFS= read -r file; do
         local should_exclude=false
-
-        # Debug: mostrar archivo siendo evaluado si es un .zip
-        if [[ "$file" == *.zip ]]; then
-            echo "DEBUG: Evaluando archivo ZIP: $file" >&2
-        fi
 
         # Verificar contra cada patrón de exclusión (usar el archivo original, no el procesado)
         while IFS= read -r pattern; do
             [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
 
-            # Debug para patrones ZIP
-            if [[ "$file" == *.zip && "$pattern" == *zip* ]]; then
-                echo "DEBUG: Comparando '$file' contra patrón '$pattern'" >&2
-            fi
-
             # Convertir patrón gitignore a bash pattern
             if [[ "$pattern" == "**/*.zip" ]]; then
                 # Caso específico para **/*.zip
                 if [[ "$file" == *.zip ]]; then
-                    echo "DEBUG: Archivo $file excluido por patrón **/*.zip" >&2
                     should_exclude=true
                     break
                 fi
@@ -199,7 +183,6 @@ backup_stack() {
                 # Patrones como **/*.zip - coinciden con archivos en cualquier subdirectorio
                 local extension="${pattern##**/}"
                 if [[ "$file" == *"$extension" ]]; then
-                    echo "DEBUG: Archivo $file excluido por patrón $pattern (extensión: $extension)" >&2
                     should_exclude=true
                     break
                 fi
@@ -219,10 +202,6 @@ backup_stack() {
             fi
         done < "$exclusion_file"
 
-        # Debug: mostrar resultado de exclusión para archivos ZIP
-        if [[ "$file" == *.zip ]]; then
-            echo "DEBUG: Archivo $file - should_exclude=$should_exclude" >&2
-        fi
 
         # Solo añadir si no está excluido
         if [[ "$should_exclude" == "false" ]]; then
