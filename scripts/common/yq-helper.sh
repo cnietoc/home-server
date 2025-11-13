@@ -51,22 +51,3 @@ if ! _verify_yq_go; then
     # El script falla si yq no está correctamente instalado
     return 1 2>/dev/null || exit 1
 fi
-
-# Ejecutar yq (solo lectura)
-run_yq() {
-    local query="$1"
-    local file="$2"
-    yq "$query" "$file"
-}
-
-# Ejecutar yq in-place (modifica el archivo)
-run_yq_inplace() {
-    local query="$1"
-    local file="$2"
-    yq -i "$query" "$file"
-}
-
-# Exportar funciones para uso en otros scripts
-export -f run_yq
-export -f run_yq_inplace
-
