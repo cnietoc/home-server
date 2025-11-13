@@ -742,7 +742,7 @@ main() {
 
             if [[ $health_result -eq 0 ]]; then
                 log "✅ Stack $stack desplegado y funcionando correctamente"
-                ((success++))
+                success=$((success + 1))
             else
                 warn "⚠️ Stack $stack desplegado pero con posibles problemas"
                 failed_stacks+=("$stack (problemas de salud)")
