@@ -27,7 +27,7 @@ detect_yq_version() {
         return 0
     fi
 
-    # Si no es yq-go, asumir que es yq-python
+    # Si no es yq-go, es yq-python (versión antigua pero soportada)
     YQ_VERSION="python"
     YQ_SYNTAX=""
     return 0
@@ -66,9 +66,71 @@ run_yq_inplace() {
         # yq-go soporta -i directamente
         yq eval -i "$query" "$file"
     else
-        # yq-python necesita workaround con archivo temporal
-        local temp_file="${file}.tmp"
-        yq "$query" "$file" > "$temp_file" && mv "$temp_file" "$file"
+        # yq-python: convertir a JSON, modificar con jq, convertir de vuelta a YAML
+        local temp_json="${file}.tmp.json"
+        local temp_yaml="${file}.tmp.yaml"
+
+        # Convertir YAML a JSON
+        yq -j . "$file" > "$temp_json" 2>/dev/null || {
+            echo "❌ Error convirtiendo YAML a JSON" >&2
+            rm -f "$temp_json"
+            return 1
+        }
+
+        # Traducir query de yq-go a jq y aplicar modificación
+        local jq_query
+        jq_query=$(translate_yq_to_jq "$query")
+
+        if [[ -n "$jq_query" ]]; then
+            jq "$jq_query" "$temp_json" > "${temp_json}.new" 2>/dev/null || {
+                echo "❌ Error aplicando modificación con jq" >&2
+                rm -f "$temp_json" "${temp_json}.new"
+                return 1
+            }
+            mv "${temp_json}.new" "$temp_json"
+        fi
+
+        # Convertir JSON de vuelta a YAML
+        yq -y . "$temp_json" > "$temp_yaml" 2>/dev/null || {
+            echo "❌ Error convirtiendo JSON a YAML" >&2
+            rm -f "$temp_json" "$temp_yaml"
+            return 1
+        }
+
+        # Reemplazar archivo original
+        mv "$temp_yaml" "$file"
+        rm -f "$temp_json"
+    fi
+}
+
+# Traducir query de yq-go a jq (para yq-python)
+translate_yq_to_jq() {
+    local query="$1"
+
+    # Detectar y traducir operaciones comunes
+    if [[ "$query" =~ ^(.+)\ =\ (.+)$ ]]; then
+        # Operación de asignación: .path = value
+        local path="${BASH_REMATCH[1]}"
+        local value="${BASH_REMATCH[2]}"
+
+        # Convertir path de yq a jq
+        path=$(echo "$path" | sed 's/^\.//')
+
+        # Generar query jq
+        if [[ "$value" =~ ^\".*\"$ ]] || [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" == "true" ]] || [[ "$value" == "false" ]] || [[ "$value" == "null" ]]; then
+            # Valor simple
+            echo ".$path = $value"
+        else
+            echo ".$path = \"$value\""
+        fi
+    elif [[ "$query" =~ ^del\((.+)\)$ ]]; then
+        # Operación de eliminación: del(.path)
+        local path="${BASH_REMATCH[1]}"
+        path=$(echo "$path" | sed 's/^\.//')
+        echo "del(.$path)"
+    else
+        # Query no soportado
+        echo ""
     fi
 }
 
@@ -82,6 +144,17 @@ check_yq() {
         echo "  - Fedora/RHEL: sudo dnf install yq" >&2
         return 1
     fi
+
+    # Si es yq-python, verificar que jq esté instalado (necesario para modificaciones)
+    if [[ "$YQ_VERSION" == "python" ]] && ! command -v jq >/dev/null 2>&1; then
+        echo "❌ yq-python detectado, pero jq no está instalado (necesario para modificaciones)." >&2
+        echo "Instala jq con:" >&2
+        echo "  - Ubuntu/Debian: sudo apt install jq" >&2
+        echo "  - macOS: brew install jq" >&2
+        echo "  - Fedora/RHEL: sudo dnf install jq" >&2
+        return 1
+    fi
+
     return 0
 }
 
@@ -89,5 +162,6 @@ check_yq() {
 export -f detect_yq_version
 export -f run_yq
 export -f run_yq_inplace
+export -f translate_yq_to_jq
 export -f check_yq
 
