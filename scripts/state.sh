@@ -170,29 +170,16 @@ get_enabled_stacks() {
         return 0
     fi
 
-    # Usar sintaxis compatible con ambas versiones de yq
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
-    else
-        # yq-python
-        run_yq '.stacks | to_entries[] | select(.value.enabled == true) | .key' "$STATE_FILE" | sed 's/"//g'
-    fi
+    run_yq '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
 }
 
 # Obtener lista de stacks deshabilitados
 get_disabled_stacks() {
-
     if [[ ! -f "$STATE_FILE" ]]; then
         return 0
     fi
 
-    # Usar sintaxis compatible con ambas versiones de yq
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
-    else
-        # yq-python
-        run_yq '.stacks | to_entries[] | select(.value.enabled == false) | .key' "$STATE_FILE" | sed 's/"//g'
-    fi
+    run_yq '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
 }
 
 # Actualizar hash de deployment de un stack

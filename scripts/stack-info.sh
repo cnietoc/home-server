@@ -37,33 +37,15 @@ init_stack_info() {
 
 # Obtener lista de stacks disponibles
 get_available_stacks() {
-    if ! check_yq; then
-        return 1
-    fi
-
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
-    else
-        # Para yq-python, usar sintaxis diferente y limpiar comillas
-        run_yq '.stacks | keys[]' "$STACK_INFO_CONFIG" | sed 's/"//g'
-    fi
+    run_yq '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
 }
 
 # Obtener archivos de configuración de un stack específico
 get_stack_config_files() {
     local stack_name="$1"
 
-    if ! check_yq; then
-        return 1
-    fi
-
     local config_files
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
-    else
-        # Para yq-python, extraer elementos del array sin comillas
-        config_files=$(run_yq ".stacks.$stack_name.config_files[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
-    fi
+    config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
 
     # Siempre incluir common como base, luego agregar los específicos del stack
     if [[ "$config_files" == "null" || -z "$config_files" || "$config_files" == "" ]]; then
@@ -114,18 +96,12 @@ get_service_subdomain() {
 stack_exists() {
     local stack_name="$1"
 
-    if ! check_yq; then
+    if [[ ! -f "$STACK_INFO_CONFIG" ]]; then
         return 1
     fi
 
     local exists
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
-    else
-        # Para yq-python, verificar si el stack existe de manera diferente
-        exists=$(run_yq ".stacks.$stack_name" "$STACK_INFO_CONFIG" 2>/dev/null)
-        [[ "$exists" != "null" && -n "$exists" ]] && exists="true" || exists="false"
-    fi
+    exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     [[ "$exists" == "true" ]]
 }
@@ -136,12 +112,7 @@ get_stacks_with_shares() {
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
-    else
-        # Para yq-python, usar sintaxis diferente
-        run_yq '.stacks | to_entries[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
-    fi
+            run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener lista de shares de un stack
@@ -152,12 +123,7 @@ get_stack_shares() {
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
-    else
-        # Para yq-python, usar sintaxis diferente y limpiar comillas
-        run_yq ".stacks.$stack_name.shares | keys[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
-    fi
+            run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener información específica de un share
@@ -252,12 +218,7 @@ get_stacks_with_backup_config() {
         return 1
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
-    else
-        # Para yq-python, usar sintaxis diferente
-        run_yq '.stacks | to_entries[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
-    fi
+            run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Verificar si un stack tiene configuración de backup
@@ -286,12 +247,7 @@ get_backup_exclusions() {
         return 0  # Sin exclusiones si no hay config
     fi
 
-    if [[ "$YQ_VERSION" == "go" ]]; then
-        run_yq ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
-    else
-        # Para yq-python, usar sintaxis diferente y limpiar comillas
-        run_yq ".stacks.$stack_name.backups.exclude[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g' || true
-    fi
+            run_yq ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener configuración completa de backup de un stack
@@ -342,12 +298,7 @@ load_stack_info() {
 
         # Servicios - obtener nombres de servicios usando run_yq
         local service_names
-        if [[ "$YQ_VERSION" == "go" ]]; then
-            service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
-        else
-            # Para yq-python, usar sintaxis diferente y limpiar comillas
-            service_names=$(run_yq ".stacks.$stack.services | keys[]" "$STACK_INFO_CONFIG" 2>/dev/null | sed 's/"//g')
-        fi
+        service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
 
         local service_entries=""
         while IFS= read -r service; do
