@@ -255,7 +255,10 @@ show_status() {
     log "📦 Stacks:"
     # Listar stacks habilitados
     local enabled_stacks=$(get_enabled_stacks)
-    local enabled_count=$(echo "$enabled_stacks" | grep -c . || echo "0")
+    local enabled_count=0
+    if [[ -n "$enabled_stacks" ]]; then
+        enabled_count=$(echo "$enabled_stacks" | wc -l | tr -d ' ')
+    fi
     log "   ✅ Habilitados: $enabled_count"
     if [[ "$enabled_count" -gt 0 ]]; then
         while IFS= read -r stack; do
@@ -265,7 +268,10 @@ show_status() {
     fi
     # Listar stacks deshabilitados
     local disabled_stacks=$(get_disabled_stacks)
-    local disabled_count=$(echo "$disabled_stacks" | grep -c . || echo 0)
+    local disabled_count=0
+    if [[ -n "$disabled_stacks" ]]; then
+        disabled_count=$(echo "$disabled_stacks" | wc -l | tr -d ' ')
+    fi
     if [[ "$disabled_count" -gt 0 ]]; then
         echo ""
         log "   ❌ Deshabilitados: $disabled_count"
