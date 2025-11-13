@@ -48,11 +48,11 @@ run_yq() {
         # Sintaxis: yq eval 'query' archivo
         yq eval "$query" "$file"
     else
-        # yq-python usa directamente el query
-        # Sintaxis: yq 'query' archivo
-        # IMPORTANTE: yq-python espera: yq [opciones] jq_filter [files]
-        # Por lo tanto: primero el filtro (query), luego el archivo
-        yq "$query" "$file"
+        # yq-python es un wrapper de jq que espera sintaxis de jq
+        # Sintaxis: yq 'jq_filter' archivo
+        # Nota: yq-python usa sintaxis de jq, no de yq-go
+        # Ejemplo: '.stacks | keys | .[]' funciona igual que en jq
+        yq -r "$query" "$file"
     fi
 }
 
