@@ -57,13 +57,8 @@ stack_config_has_changed() {
     local current_hash=$(get_stack_config_hash "$stack_name")
     local stored_hash
 
-    # Intentar usar el nuevo sistema de estado primero
     stored_hash=$(get_stack_deployment_hash "$stack_name" 2>/dev/null || echo "")
 
-    # Fallback al sistema antiguo si el nuevo no está disponible
-    if [[ -z "$stored_hash" && -f "$DEPLOYMENT_STATE" ]]; then
-        stored_hash=$(grep "^${stack_name}_hash=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "")
-    fi
 
     # Debug información (temporal)
     if [[ "${DEPLOY_DEBUG:-}" == "true" ]]; then
@@ -110,26 +105,7 @@ get_changed_stacks() {
 save_stack_deployment_state() {
     local stack_name="$1"
     local config_hash=$(get_stack_config_hash "$stack_name")
-
-    # Usar el nuevo sistema de estado
-    update_stack_deployment "$stack_name" "$config_hash" 2>/dev/null || {
-        # Fallback al sistema antiguo si el nuevo no está disponible
-        local timestamp=$(date +%s)
-        touch "$DEPLOYMENT_STATE"
-
-        grep -v "^${stack_name}_hash=" "$DEPLOYMENT_STATE" | \
-        grep -v "^${stack_name}_last_deployment=" | \
-        grep -v "^${stack_name}_last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-
-        {
-            cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-            echo "${stack_name}_hash=$config_hash"
-            echo "${stack_name}_last_deployment=$timestamp"
-            echo "${stack_name}_last_deployment_date=$(date)"
-        } > "$DEPLOYMENT_STATE"
-
-        rm -f "${DEPLOYMENT_STATE}.tmp"
-    }
+    update_stack_deployment "$stack_name" "$config_hash"
 }
 
 # Guardar estado de múltiples stacks
@@ -140,19 +116,8 @@ save_deployment_state() {
         save_stack_deployment_state "$stack"
     done
 
-    # Actualizar timestamp global en el nuevo sistema
-    update_global_deployment 2>/dev/null || {
-        # Fallback al sistema antiguo
-        local timestamp=$(date +%s)
-        grep -v "^last_deployment=" "$DEPLOYMENT_STATE" | \
-        grep -v "^last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-        {
-            cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-            echo "last_deployment=$timestamp"
-            echo "last_deployment_date=$(date)"
-        } > "$DEPLOYMENT_STATE"
-        rm -f "${DEPLOYMENT_STATE}.tmp"
-    }
+    # Actualizar timestamp global
+    update_global_deployment
 }
 
 # Regenerar .env files para stacks específicos
@@ -205,10 +170,9 @@ config_sources_have_changed() {
 
     current_hash=$(echo "$temp_content" | shasum -a 256 | cut -d' ' -f1)
 
-    local stored_hash=""
-    if [[ -f "$DEPLOYMENT_STATE" ]]; then
-        stored_hash=$(grep "^config_sources_hash=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "")
-    fi
+    # Usar el sistema de estado
+    local stored_hash
+    stored_hash=$(get_config_hash 2>/dev/null || echo "")
 
     # Debug información (temporal)
     if [[ "${DEPLOY_DEBUG:-}" == "true" ]]; then
@@ -247,16 +211,8 @@ save_config_sources_hash() {
 
     current_hash=$(echo "$temp_content" | shasum -a 256 | cut -d' ' -f1)
 
-    # Crear archivo de estado si no existe
-    touch "$DEPLOYMENT_STATE"
-
-    # Actualizar hash de fuentes de configuración
-    grep -v "^config_sources_hash=" "$DEPLOYMENT_STATE" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-    {
-        cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-        echo "config_sources_hash=$current_hash"
-    } > "$DEPLOYMENT_STATE"
-    rm -f "${DEPLOYMENT_STATE}.tmp"
+    # Actualizar hash en el sistema de estado
+    update_config_hash "$current_hash"
 }
 
 # Regenerar archivos .env basándose en cambios en archivos fuente
@@ -402,17 +358,26 @@ verify_stack_health() {
 
 # Obtener información del último despliegue
 get_deployment_info() {
-    if [[ ! -f "$DEPLOYMENT_STATE" ]]; then
+    if ! check_yq 2>/dev/null; then
+        echo "❓ Sistema de estado no disponible"
+        return
+    fi
+
+    local state_file="$PROJECT_ROOT/data/state.yml"
+
+    if [[ ! -f "$state_file" ]]; then
         echo "❓ Nunca se ha desplegado"
         return
     fi
 
-    local last_deployment=$(grep "^last_deployment=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "0")
-    local last_date=$(grep "^last_deployment_date=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2- || echo "Desconocido")
+    local last_timestamp=$(yq '.server.last_deployment.timestamp' "$state_file" 2>/dev/null || echo "0")
+    local last_date=$(yq '.server.last_deployment.date' "$state_file" 2>/dev/null || echo "never")
 
-    if [[ $last_deployment -gt 0 ]]; then
-        local hours_ago=$(( ($(date +%s) - last_deployment) / 3600 ))
+    if [[ "$last_timestamp" != "0" && "$last_timestamp" != "null" ]]; then
+        local hours_ago=$(( ($(date +%s) - last_timestamp) / 3600 ))
         echo "📅 Último despliegue: hace ${hours_ago}h ($last_date)"
+    else
+        echo "❓ Nunca se ha desplegado"
     fi
 }
 
@@ -589,7 +554,7 @@ main() {
                 ;;
             --reset-state)
                 log "🔄 Reseteando estado de detección de cambios..."
-                rm -f "$DEPLOYMENT_STATE"
+                rm -f "$PROJECT_ROOT/data/state.yml"
                 log "✅ Estado reseteado. Próximo despliegue detectará todos como cambios."
                 exit 0
                 ;;
