@@ -751,6 +751,7 @@ main() {
             error "❌ Error desplegando stack $stack"
             failed_stacks+=("$stack (error de despliegue)")
         fi
+        echo "Acabado el despliegue de stack: $stack"
         echo ""
     done
 
