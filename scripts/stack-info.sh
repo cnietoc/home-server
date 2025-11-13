@@ -10,91 +10,7 @@ STACK_INFO_PROJECT_ROOT="$(dirname "$STACK_INFO_SCRIPT_DIR")"
 STACK_INFO_CONFIG="$STACK_INFO_PROJECT_ROOT/config/stacks.yml"
 
 source "$STACK_INFO_SCRIPT_DIR/common/env-loader.sh"
-
-
-
-# Detectar qué versión de yq está instalada y configurar sintaxis
-STACK_INFO_YQ_VERSION=""
-STACK_INFO_YQ_SYNTAX=""
-
-detect_yq_version() {
-    if ! command -v yq >/dev/null 2>&1; then
-        return 1
-    fi
-
-    # Verificar si el archivo existe
-    if [[ ! -f "$STACK_INFO_CONFIG" ]]; then
-        return 1
-    fi
-
-    # Probar con sintaxis de yq-go primero (más común)
-    if yq eval '.stacks' "$STACK_INFO_CONFIG" >/dev/null 2>&1; then
-        STACK_INFO_YQ_VERSION="go"
-        STACK_INFO_YQ_SYNTAX="eval"
-        return 0
-    # Probar con sintaxis de yq-python
-    elif yq '.stacks' "$STACK_INFO_CONFIG" >/dev/null 2>&1; then
-        STACK_INFO_YQ_VERSION="python"
-        STACK_INFO_YQ_SYNTAX=""
-        return 0
-    # Probar detectar por la ayuda de yq
-    elif yq --help 2>&1 | grep -q "yaml-output"; then
-        # Es la versión Python (tiene --yaml-output)
-        STACK_INFO_YQ_VERSION="python"
-        STACK_INFO_YQ_SYNTAX=""
-        return 0
-    elif yq --help 2>&1 | grep -q "eval"; then
-        # Es la versión Go (tiene eval)
-        STACK_INFO_YQ_VERSION="go"
-        STACK_INFO_YQ_SYNTAX="eval"
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Verificar si yq está disponible y detectar versión
-check_yq() {
-    if detect_yq_version; then
-        # Debug: mostrar versión detectada
-        if [[ "${DEBUG:-}" == "1" ]]; then
-            echo "🔍 yq detectado: versión $STACK_INFO_YQ_VERSION" >&2
-        fi
-        return 0
-    else
-        error "yq no está instalado o no funciona correctamente."
-        error "Archivo de configuración: $STACK_INFO_CONFIG"
-        error "¿Existe el archivo? $(ls -la "$STACK_INFO_CONFIG" 2>/dev/null || echo "NO")"
-        error "Versión de yq instalada: $(yq --version 2>/dev/null || echo "ERROR")"
-        error ""
-        error "Instálalo con:"
-        error "  - Ubuntu/Debian: sudo snap install yq"
-        error "  - macOS: brew install yq"
-        error "  - Python: pip install yq"
-        return 1
-    fi
-}
-
-# Ejecutar comando yq con la sintaxis correcta según la versión
-run_yq() {
-    local query="$1"
-    local file="$2"
-    local result
-
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
-        result=$(yq eval "$query" "$file")
-    elif [[ "$STACK_INFO_YQ_VERSION" == "python" ]]; then
-        # Para yq-python, el archivo va antes de la query
-        result=$(yq "$query" "$file")
-        # Limpiar comillas extras que puede agregar yq-python
-        result=$(echo "$result" | sed 's/^"//; s/"$//')
-    else
-        error "Versión de yq no detectada correctamente. STACK_INFO_YQ_VERSION=$STACK_INFO_YQ_VERSION"
-        return 1
-    fi
-
-    echo "$result"
-}
+source "$STACK_INFO_SCRIPT_DIR/common/yq-helper.sh"
 
 # Función de inicialización para otros scripts
 init_stack_info() {
@@ -104,8 +20,14 @@ init_stack_info() {
     fi
 
     if ! check_yq; then
+        error "yq no está instalado o no funciona correctamente."
+        error "Archivo de configuración: $STACK_INFO_CONFIG"
+        error "Instálalo con:"
+        error "  - Ubuntu/Debian: sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq"
+        error "  - macOS: brew install yq"
         return 1
     fi
+
 
     return 0
 }
@@ -119,7 +41,7 @@ get_available_stacks() {
         return 1
     fi
 
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         run_yq '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
     else
         # Para yq-python, usar sintaxis diferente y limpiar comillas
@@ -136,7 +58,7 @@ get_stack_config_files() {
     fi
 
     local config_files
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         config_files=$(run_yq ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
     else
         # Para yq-python, extraer elementos del array sin comillas
@@ -197,7 +119,7 @@ stack_exists() {
     fi
 
     local exists
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         exists=$(run_yq ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
     else
         # Para yq-python, verificar si el stack existe de manera diferente
@@ -214,7 +136,7 @@ get_stacks_with_shares() {
         return 1
     fi
 
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente
@@ -230,7 +152,7 @@ get_stack_shares() {
         return 1
     fi
 
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente y limpiar comillas
@@ -330,7 +252,7 @@ get_stacks_with_backup_config() {
         return 1
     fi
 
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente
@@ -364,7 +286,7 @@ get_backup_exclusions() {
         return 0  # Sin exclusiones si no hay config
     fi
 
-    if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+    if [[ "$YQ_VERSION" == "go" ]]; then
         run_yq ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
     else
         # Para yq-python, usar sintaxis diferente y limpiar comillas
@@ -420,7 +342,7 @@ load_stack_info() {
 
         # Servicios - obtener nombres de servicios usando run_yq
         local service_names
-        if [[ "$STACK_INFO_YQ_VERSION" == "go" ]]; then
+        if [[ "$YQ_VERSION" == "go" ]]; then
             service_names=$(run_yq ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
         else
             # Para yq-python, usar sintaxis diferente y limpiar comillas

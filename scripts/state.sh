@@ -9,6 +9,18 @@ STATE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_PROJECT_ROOT="$(dirname "$STATE_SCRIPT_DIR")"
 STATE_FILE="$STATE_PROJECT_ROOT/data/state.yml"
 
+# Cargar yq-helper para funciones de yq
+source "$STATE_SCRIPT_DIR/common/yq-helper.sh" || {
+    echo "❌ Error: No se pudo cargar yq-helper.sh" >&2
+    exit 1
+}
+
+# Verificar que yq está disponible (una sola vez al inicio)
+if ! check_yq; then
+    echo "❌ Error: yq no está disponible. El script no puede funcionar sin yq." >&2
+    exit 1
+fi
+
 # Cargar stack-info para obtener lista de stacks
 source "$STATE_SCRIPT_DIR/stack-info.sh" || {
     echo "❌ Error: No se pudo cargar stack-info.sh" >&2
@@ -24,17 +36,6 @@ error() {
     log "❌ $*" >&2
 }
 
-# Verificar que yq está instalado
-check_yq() {
-    if ! command -v yq >/dev/null 2>&1; then
-        error "yq no está instalado. Instálalo con:"
-        error "  - Ubuntu/Debian: sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq"
-        error "  - macOS: brew install yq"
-        error "  - Fedora/RHEL: sudo dnf install yq"
-        return 1
-    fi
-    return 0
-}
 
 # Inicializar archivo de estado si no existe
 init_state_file() {
@@ -53,7 +54,7 @@ init_state_file() {
         return 1
     fi
 
-    # Crear estructura inicial
+    # Crear estructura inicial directamente en bash (sin yq)
     cat > "$STATE_FILE" << 'EOF'
 # data/state.yml - Estado de despliegue del Home Server
 # Este archivo NO se versiona en Git - es estado local del servidor
@@ -77,7 +78,7 @@ server:
       status: "never"
 
 # Estado de cada stack
-stacks: {}
+stacks:
 EOF
 
     # Añadir cada stack conocido con estado inicial
@@ -92,14 +93,17 @@ EOF
     while IFS= read -r stack; do
         [[ -z "$stack" ]] && continue
 
-        yq -i ".stacks.${stack}.enabled = true" "$STATE_FILE"
-        yq -i ".stacks.${stack}.last_deployment.timestamp = 0" "$STATE_FILE"
-        yq -i ".stacks.${stack}.last_deployment.date = \"never\"" "$STATE_FILE"
-        yq -i ".stacks.${stack}.last_deployment.hash = \"\"" "$STATE_FILE"
-        # No añadir disabled_at ni disabled_reason - solo aparecen cuando está deshabilitado
+        cat >> "$STATE_FILE" << EOF
+  ${stack}:
+    enabled: true
+    last_deployment:
+      timestamp: 0
+      date: "never"
+      hash: ""
+EOF
     done <<< "$all_stacks"
 
-    log "✅ Archivo de estado inicializado con $(echo "$all_stacks" | wc -l) stacks"
+    log "✅ Archivo de estado inicializado con $(echo "$all_stacks" | wc -l | tr -d ' ') stacks"
     return 0
 }
 
@@ -107,9 +111,6 @@ EOF
 is_stack_enabled() {
     local stack=$1
 
-    if ! check_yq; then
-        return 1
-    fi
 
     if [[ ! -f "$STATE_FILE" ]]; then
         # Si no existe el archivo, asumir que está habilitado
@@ -117,7 +118,7 @@ is_stack_enabled() {
     fi
 
     local enabled
-    enabled=$(yq ".stacks.${stack}.enabled // true" "$STATE_FILE" 2>/dev/null)
+    enabled=$(run_yq ".stacks.${stack}.enabled // true" "$STATE_FILE" 2>/dev/null)
 
     [[ "$enabled" == "true" ]]
 }
@@ -126,15 +127,12 @@ is_stack_enabled() {
 enable_stack() {
     local stack=$1
 
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
-    yq -i ".stacks.${stack}.enabled = true" "$STATE_FILE"
-    yq -i "del(.stacks.${stack}.disabled_at)" "$STATE_FILE"
-    yq -i "del(.stacks.${stack}.disabled_reason)" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.enabled = true" "$STATE_FILE"
+    run_yq_inplace "del(.stacks.${stack}.disabled_at)" "$STATE_FILE"
+    run_yq_inplace "del(.stacks.${stack}.disabled_reason)" "$STATE_FILE"
 
     log "✅ Stack '$stack' habilitado"
     return 0
@@ -145,17 +143,14 @@ disable_stack() {
     local stack=$1
     local reason=${2:-"No especificado"}
 
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
     local timestamp=$(date -Iseconds)
 
-    yq -i ".stacks.${stack}.enabled = false" "$STATE_FILE"
-    yq -i ".stacks.${stack}.disabled_at = \"$timestamp\"" "$STATE_FILE"
-    yq -i ".stacks.${stack}.disabled_reason = \"$reason\"" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.enabled = false" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.disabled_at = \"$timestamp\"" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.disabled_reason = \"$reason\"" "$STATE_FILE"
 
     log "❌ Stack '$stack' deshabilitado"
     log "   Motivo: $reason"
@@ -164,30 +159,35 @@ disable_stack() {
 
 # Obtener lista de stacks habilitados
 get_enabled_stacks() {
-    if ! check_yq; then
-        return 1
-    fi
-
     if [[ ! -f "$STATE_FILE" ]]; then
         # Si no existe el archivo, devolver todos los stacks
         get_available_stacks
         return 0
     fi
 
-    yq '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
+    # Usar sintaxis compatible con ambas versiones de yq
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
+    else
+        # yq-python
+        run_yq '.stacks | to_entries[] | select(.value.enabled == true) | .key' "$STATE_FILE" | sed 's/"//g'
+    fi
 }
 
 # Obtener lista de stacks deshabilitados
 get_disabled_stacks() {
-    if ! check_yq; then
-        return 1
-    fi
 
     if [[ ! -f "$STATE_FILE" ]]; then
         return 0
     fi
 
-    yq '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
+    # Usar sintaxis compatible con ambas versiones de yq
+    if [[ "$YQ_VERSION" == "go" ]]; then
+        run_yq '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
+    else
+        # yq-python
+        run_yq '.stacks | to_entries[] | select(.value.enabled == false) | .key' "$STATE_FILE" | sed 's/"//g'
+    fi
 }
 
 # Actualizar hash de deployment de un stack
@@ -195,18 +195,15 @@ update_stack_deployment() {
     local stack=$1
     local hash=$2
 
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq -i ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".stacks.${stack}.last_deployment.date = \"$date\"" "$STATE_FILE"
-    yq -i ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.last_deployment.date = \"$date\"" "$STATE_FILE"
+    run_yq_inplace ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$STATE_FILE"
 
     return 0
 }
@@ -215,30 +212,24 @@ update_stack_deployment() {
 update_config_hash() {
     local hash=$1
 
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
-    yq -i ".server.config_hash = \"$hash\"" "$STATE_FILE"
+    run_yq_inplace ".server.config_hash = \"$hash\"" "$STATE_FILE"
 
     return 0
 }
 
 # Actualizar timestamp global de deployment
 update_global_deployment() {
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq -i ".server.last_deployment.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".server.last_deployment.date = \"$date\"" "$STATE_FILE"
+    run_yq_inplace ".server.last_deployment.timestamp = $timestamp" "$STATE_FILE"
+    run_yq_inplace ".server.last_deployment.date = \"$date\"" "$STATE_FILE"
 
     return 0
 }
@@ -248,18 +239,15 @@ update_maintenance_status() {
     local task=$1      # daily, weekly
     local status=$2    # success, failed, running
 
-    if ! check_yq; then
-        return 1
-    fi
 
     init_state_file || return 1
 
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq -i ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".server.maintenance.${task}.last_run.date = \"$date\"" "$STATE_FILE"
-    yq -i ".server.maintenance.${task}.status = \"$status\"" "$STATE_FILE"
+    run_yq_inplace ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$STATE_FILE"
+    run_yq_inplace ".server.maintenance.${task}.last_run.date = \"$date\"" "$STATE_FILE"
+    run_yq_inplace ".server.maintenance.${task}.status = \"$status\"" "$STATE_FILE"
 
     return 0
 }
@@ -268,30 +256,24 @@ update_maintenance_status() {
 get_stack_deployment_hash() {
     local stack=$1
 
-    if ! check_yq; then
-        return 1
-    fi
 
     if [[ ! -f "$STATE_FILE" ]]; then
         echo ""
         return 0
     fi
 
-    yq ".stacks.${stack}.last_deployment.hash // \"\"" "$STATE_FILE"
+    run_yq ".stacks.${stack}.last_deployment.hash // \"\"" "$STATE_FILE"
 }
 
 # Obtener hash global de configuración
 get_config_hash() {
-    if ! check_yq; then
-        return 1
-    fi
 
     if [[ ! -f "$STATE_FILE" ]]; then
         echo ""
         return 0
     fi
 
-    yq ".server.config_hash // \"\"" "$STATE_FILE"
+    run_yq ".server.config_hash // \"\"" "$STATE_FILE"
 }
 
 # Exportar funciones para que puedan ser usadas por otros scripts
