@@ -113,21 +113,29 @@ translate_yq_to_jq() {
         local path="${BASH_REMATCH[1]}"
         local value="${BASH_REMATCH[2]}"
 
-        # Convertir path de yq a jq
-        path=$(echo "$path" | sed 's/^\.//')
+        # Limpiar espacios
+        path=$(echo "$path" | xargs)
+        value=$(echo "$value" | xargs)
+
+        # El path ya viene en formato correcto (.server.config_hash)
+        # Solo necesitamos asegurarnos de que el value esté correctamente formateado
 
         # Generar query jq
-        if [[ "$value" =~ ^\".*\"$ ]] || [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" == "true" ]] || [[ "$value" == "false" ]] || [[ "$value" == "null" ]]; then
-            # Valor simple
-            echo ".$path = $value"
+        if [[ "$value" =~ ^\".*\"$ ]]; then
+            # Ya tiene comillas
+            echo "$path = $value"
+        elif [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" == "true" ]] || [[ "$value" == "false" ]] || [[ "$value" == "null" ]]; then
+            # Valor numérico o booleano o null
+            echo "$path = $value"
         else
-            echo ".$path = \"$value\""
+            # Necesita comillas
+            echo "$path = \"$value\""
         fi
     elif [[ "$query" =~ ^del\((.+)\)$ ]]; then
         # Operación de eliminación: del(.path)
         local path="${BASH_REMATCH[1]}"
-        path=$(echo "$path" | sed 's/^\.//')
-        echo "del(.$path)"
+        # El path ya viene correcto
+        echo "del($path)"
     else
         # Query no soportado
         echo ""
