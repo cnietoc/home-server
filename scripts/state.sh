@@ -108,9 +108,9 @@ EOF
 }
 
 # Verificar si un stack está habilitado
+# Verificar si un stack está habilitado
 is_stack_enabled() {
     local stack=$1
-
 
     if [[ ! -f "$STATE_FILE" ]]; then
         # Si no existe el archivo, asumir que está habilitado
@@ -118,9 +118,14 @@ is_stack_enabled() {
     fi
 
     local enabled
-    enabled=$(run_yq ".stacks.${stack}.enabled // true" "$STATE_FILE" 2>/dev/null)
+    enabled=$(run_yq ".stacks.${stack}.enabled" "$STATE_FILE" 2>/dev/null)
 
-    [[ "$enabled" == "true" ]]
+    # Si es null, vacío o true, está habilitado
+    if [[ -z "$enabled" || "$enabled" == "null" || "$enabled" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Habilitar un stack
@@ -256,16 +261,22 @@ update_maintenance_status() {
 get_stack_deployment_hash() {
     local stack=$1
 
-
     if [[ ! -f "$STATE_FILE" ]]; then
         echo ""
         return 0
     fi
 
-    run_yq ".stacks.${stack}.last_deployment.hash // \"\"" "$STATE_FILE"
+    local hash
+    hash=$(run_yq ".stacks.${stack}.last_deployment.hash" "$STATE_FILE" 2>/dev/null)
+
+    # Si es null o vacío, devolver vacío
+    if [[ -z "$hash" || "$hash" == "null" ]]; then
+        echo ""
+    else
+        echo "$hash"
+    fi
 }
 
-# Obtener hash global de configuración
 # Obtener hash global de configuración
 get_config_hash() {
     if [[ ! -f "$STATE_FILE" ]]; then
@@ -273,7 +284,15 @@ get_config_hash() {
         return 0
     fi
 
-    run_yq ".server.config_hash // \"\"" "$STATE_FILE"
+    local hash
+    hash=$(run_yq ".server.config_hash" "$STATE_FILE" 2>/dev/null)
+
+    # Si es null o vacío, devolver vacío
+    if [[ -z "$hash" || "$hash" == "null" ]]; then
+        echo ""
+    else
+        echo "$hash"
+    fi
 }
 
 # Obtener timestamp del último deployment global
@@ -283,7 +302,15 @@ get_last_deployment_timestamp() {
         return 0
     fi
 
-    run_yq ".server.last_deployment.timestamp // 0" "$STATE_FILE"
+    local timestamp
+    timestamp=$(run_yq ".server.last_deployment.timestamp" "$STATE_FILE" 2>/dev/null)
+
+    # Si es null o vacío, devolver 0
+    if [[ -z "$timestamp" || "$timestamp" == "null" ]]; then
+        echo "0"
+    else
+        echo "$timestamp"
+    fi
 }
 
 # Obtener fecha del último deployment global
@@ -293,7 +320,15 @@ get_last_deployment_date() {
         return 0
     fi
 
-    run_yq ".server.last_deployment.date // \"never\"" "$STATE_FILE"
+    local date
+    date=$(run_yq ".server.last_deployment.date" "$STATE_FILE" 2>/dev/null)
+
+    # Si es null o vacío, devolver "never"
+    if [[ -z "$date" || "$date" == "null" ]]; then
+        echo "never"
+    else
+        echo "$date"
+    fi
 }
 
 # Exportar funciones para que puedan ser usadas por otros scripts
