@@ -10,11 +10,9 @@ source "$STATE_SCRIPT_DIR/common/yq-helper.sh" || {
     echo "❌ Error: No se pudo cargar yq-helper.sh" >&2
     exit 1
 }
-# Cargar stack-info para obtener lista de stacks
-source "$STATE_SCRIPT_DIR/stack-info.sh" || {
-    echo "❌ Error: No se pudo cargar stack-info.sh" >&2
-    exit 1
-}
+
+# NO cargar stack-info.sh aquí - se llamará como comando cuando sea necesario
+
 # Logging
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
