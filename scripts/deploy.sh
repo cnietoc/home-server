@@ -7,7 +7,7 @@ DOCKER_DIR="$PROJECT_ROOT/docker"
 CONFIG_DIR="$PROJECT_ROOT/config"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
-source "$SCRIPT_DIR/state.sh"  # Cargar funciones de gestión de estado
+source "$SCRIPT_DIR/stack-state.sh"  # Cargar funciones de gestión de estado
 
 # Inicializar infraestructura necesaria
 initialize_infrastructure() {
@@ -346,7 +346,7 @@ verify_stack_health() {
 
 # Obtener información del último despliegue
 get_deployment_info() {
-    # Usar funciones de state.sh para obtener la información
+    # Usar funciones de stack-state.sh para obtener la información
     local last_timestamp
     local last_date
 

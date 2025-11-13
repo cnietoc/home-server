@@ -6,8 +6,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CRON_LOG="$PROJECT_ROOT/data/logs/maintenance.log"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
-source "$SCRIPT_DIR/state.sh" 2>/dev/null || true  # Cargar funciones de estado (no fallar si no está disponible)
-source "$SCRIPT_DIR/state.sh" 2>/dev/null || true  # Cargar funciones de estado (no fallar si no está disponible)
+source "$SCRIPT_DIR/stack-state.sh" 2>/dev/null || true  # Cargar funciones de estado (no fallar si no está disponible)
 
 show_help() {
     cat << EOF
