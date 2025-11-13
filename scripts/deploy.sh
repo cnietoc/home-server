@@ -5,9 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$PROJECT_ROOT/docker"
 CONFIG_DIR="$PROJECT_ROOT/config"
-DEPLOYMENT_STATE="$PROJECT_ROOT/.deployment-state"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
+source "$SCRIPT_DIR/state.sh"  # Cargar funciones de gestión de estado
 
 # Inicializar infraestructura necesaria
 initialize_infrastructure() {
@@ -55,9 +55,13 @@ get_stack_config_hash() {
 stack_config_has_changed() {
     local stack_name="$1"
     local current_hash=$(get_stack_config_hash "$stack_name")
-    local stored_hash=""
+    local stored_hash
 
-    if [[ -f "$DEPLOYMENT_STATE" ]]; then
+    # Intentar usar el nuevo sistema de estado primero
+    stored_hash=$(get_stack_deployment_hash "$stack_name" 2>/dev/null || echo "")
+
+    # Fallback al sistema antiguo si el nuevo no está disponible
+    if [[ -z "$stored_hash" && -f "$DEPLOYMENT_STATE" ]]; then
         stored_hash=$(grep "^${stack_name}_hash=" "$DEPLOYMENT_STATE" 2>/dev/null | cut -d'=' -f2 || echo "")
     fi
 
@@ -106,25 +110,26 @@ get_changed_stacks() {
 save_stack_deployment_state() {
     local stack_name="$1"
     local config_hash=$(get_stack_config_hash "$stack_name")
-    local timestamp=$(date +%s)
 
-    # Crear archivo de estado si no existe
-    touch "$DEPLOYMENT_STATE"
+    # Usar el nuevo sistema de estado
+    update_stack_deployment "$stack_name" "$config_hash" 2>/dev/null || {
+        # Fallback al sistema antiguo si el nuevo no está disponible
+        local timestamp=$(date +%s)
+        touch "$DEPLOYMENT_STATE"
 
-    # Eliminar TODAS las entradas anteriores del stack (las 3 líneas)
-    grep -v "^${stack_name}_hash=" "$DEPLOYMENT_STATE" | \
-    grep -v "^${stack_name}_last_deployment=" | \
-    grep -v "^${stack_name}_last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+        grep -v "^${stack_name}_hash=" "$DEPLOYMENT_STATE" | \
+        grep -v "^${stack_name}_last_deployment=" | \
+        grep -v "^${stack_name}_last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
 
-    # Añadir nuevas entradas
-    {
-        cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-        echo "${stack_name}_hash=$config_hash"
-        echo "${stack_name}_last_deployment=$timestamp"
-        echo "${stack_name}_last_deployment_date=$(date)"
-    } > "$DEPLOYMENT_STATE"
+        {
+            cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+            echo "${stack_name}_hash=$config_hash"
+            echo "${stack_name}_last_deployment=$timestamp"
+            echo "${stack_name}_last_deployment_date=$(date)"
+        } > "$DEPLOYMENT_STATE"
 
-    rm -f "${DEPLOYMENT_STATE}.tmp"
+        rm -f "${DEPLOYMENT_STATE}.tmp"
+    }
 }
 
 # Guardar estado de múltiples stacks
@@ -135,17 +140,19 @@ save_deployment_state() {
         save_stack_deployment_state "$stack"
     done
 
-    # Actualizar timestamp global
-    local timestamp=$(date +%s)
-    # Eliminar AMBAS líneas globales anteriores
-    grep -v "^last_deployment=" "$DEPLOYMENT_STATE" | \
-    grep -v "^last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-    {
-        cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
-        echo "last_deployment=$timestamp"
-        echo "last_deployment_date=$(date)"
-    } > "$DEPLOYMENT_STATE"
-    rm -f "${DEPLOYMENT_STATE}.tmp"
+    # Actualizar timestamp global en el nuevo sistema
+    update_global_deployment 2>/dev/null || {
+        # Fallback al sistema antiguo
+        local timestamp=$(date +%s)
+        grep -v "^last_deployment=" "$DEPLOYMENT_STATE" | \
+        grep -v "^last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+        {
+            cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+            echo "last_deployment=$timestamp"
+            echo "last_deployment_date=$(date)"
+        } > "$DEPLOYMENT_STATE"
+        rm -f "${DEPLOYMENT_STATE}.tmp"
+    }
 }
 
 # Regenerar .env files para stacks específicos
@@ -708,6 +715,39 @@ main() {
             exit 1
         fi
     done
+
+    # Filtrar stacks deshabilitados (inicializar archivo de estado si es necesario)
+    init_state_file || true  # No fallar si no se puede inicializar
+
+    local enabled_stacks=()
+    local skipped_stacks=()
+
+    for stack in "${stacks_to_deploy[@]}"; do
+        if is_stack_enabled "$stack" 2>/dev/null; then
+            enabled_stacks+=("$stack")
+        else
+            skipped_stacks+=("$stack")
+            log_info "⏭️  Saltando stack '$stack' (deshabilitado en data/state.yml)"
+        fi
+    done
+
+    # Si todos los stacks están deshabilitados, salir
+    if [[ ${#enabled_stacks[@]} -eq 0 ]]; then
+        if [[ ${#skipped_stacks[@]} -gt 0 ]]; then
+            warn "⚠️  Todos los stacks especificados están deshabilitados"
+            log "💡 Para habilitar un stack: ./scripts/stack-manager.sh enable <stack>"
+        fi
+        exit 0
+    fi
+
+    # Actualizar lista de stacks a desplegar (solo los habilitados)
+    stacks_to_deploy=("${enabled_stacks[@]}")
+
+    if [[ ${#skipped_stacks[@]} -gt 0 ]]; then
+        log_info "📋 Stacks a desplegar: ${stacks_to_deploy[*]}"
+        log_info "⏭️  Stacks omitidos (deshabilitados): ${skipped_stacks[*]}"
+        echo ""
+    fi
 
     # Preguntar confirmación si se va a recrear
     if [[ "$force_recreate" == "true" ]]; then

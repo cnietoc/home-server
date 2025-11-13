@@ -6,6 +6,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CRON_LOG="$PROJECT_ROOT/data/logs/maintenance.log"
 
 source "$SCRIPT_DIR/common/env-loader.sh"
+source "$SCRIPT_DIR/state.sh" 2>/dev/null || true  # Cargar funciones de estado (no fallar si no está disponible)
+source "$SCRIPT_DIR/state.sh" 2>/dev/null || true  # Cargar funciones de estado (no fallar si no está disponible)
 
 show_help() {
     cat << EOF
@@ -403,14 +405,25 @@ run_daily() {
 
     cron_log "📅 Ejecutando mantenimiento diario para $today"
 
+    # Registrar inicio en el estado
+    update_maintenance_status "daily" "running" 2>/dev/null || true
+
     # Solo DNS y verificación de servicios (backup es semanal)
-    run_dns_update
-    check_services
+    local exit_code=0
+    run_dns_update || exit_code=$?
+    check_services || exit_code=$?
 
     # Marcar como completado
     echo "$today" > "$daily_marker"
 
-    cron_log "✅ Mantenimiento diario completado"
+    # Actualizar estado según resultado
+    if [[ $exit_code -eq 0 ]]; then
+        update_maintenance_status "daily" "success" 2>/dev/null || true
+        cron_log "✅ Mantenimiento diario completado"
+    else
+        update_maintenance_status "daily" "failed" 2>/dev/null || true
+        cron_log "⚠️ Mantenimiento diario completado con errores"
+    fi
 }
 
 # Mantenimiento semanal (Domingo 3:00 AM): Backup + Limpieza
@@ -432,18 +445,29 @@ run_weekly() {
 
     cron_log "📅 Ejecutando mantenimiento semanal para semana $this_week"
 
+    # Registrar inicio en el estado
+    update_maintenance_status "weekly" "running" 2>/dev/null || true
+
     # Ejecutar backup y limpieza
-    run_backup
-    cleanup_logs
+    local exit_code=0
+    run_backup || exit_code=$?
+    cleanup_logs || exit_code=$?
 
     # También ejecutar tareas básicas
-    run_dns_update
-    check_services
+    run_dns_update || exit_code=$?
+    check_services || exit_code=$?
 
     # Marcar como completado
     echo "$this_week" > "$weekly_marker"
 
-    cron_log "✅ Mantenimiento semanal completado"
+    # Actualizar estado según resultado
+    if [[ $exit_code -eq 0 ]]; then
+        update_maintenance_status "weekly" "success" 2>/dev/null || true
+        cron_log "✅ Mantenimiento semanal completado"
+    else
+        update_maintenance_status "weekly" "failed" 2>/dev/null || true
+        cron_log "⚠️ Mantenimiento semanal completado con errores"
+    fi
 }
 
 # Ejecutar mantenimiento manual
