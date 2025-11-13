@@ -26,7 +26,7 @@ init_stack_info() {
 
 # Obtener lista de stacks disponibles
 get_available_stacks() {
-    yq eval '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
+    yq_read '.stacks | keys | .[]' "$STACK_INFO_CONFIG"
 }
 
 # Obtener archivos de configuración de un stack específico
