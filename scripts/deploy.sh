@@ -754,6 +754,7 @@ main() {
         echo ""
     done
 
+    echo "Acabado el despliegue de todos los stacks."
     # Guardar estado del despliegue si fue exitoso
     if [[ $success -eq $total ]]; then
         save_deployment_state "${stacks_to_deploy[@]}"
