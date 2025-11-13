@@ -108,18 +108,6 @@ save_stack_deployment_state() {
     update_stack_deployment "$stack_name" "$config_hash"
 }
 
-# Guardar estado de múltiples stacks
-save_deployment_state() {
-    local stacks=("$@")
-
-    for stack in "${stacks[@]}"; do
-        save_stack_deployment_state "$stack"
-    done
-
-    # Actualizar timestamp global
-    update_global_deployment
-}
-
 # Regenerar .env files para stacks específicos
 regenerate_stack_env_files() {
     local stacks=("$@")
@@ -742,6 +730,7 @@ main() {
 
             if [[ $health_result -eq 0 ]]; then
                 log "✅ Stack $stack desplegado y funcionando correctamente"
+                save_stack_deployment_state "$stack"
                 success=$((success + 1))
             else
                 warn "⚠️ Stack $stack desplegado pero con posibles problemas"
@@ -751,15 +740,10 @@ main() {
             error "❌ Error desplegando stack $stack"
             failed_stacks+=("$stack (error de despliegue)")
         fi
-        echo "Acabado el despliegue de stack: $stack"
         echo ""
     done
 
-    echo "Acabado el despliegue de todos los stacks."
-    # Guardar estado del despliegue si fue exitoso
-    if [[ $success -eq $total ]]; then
-        save_deployment_state "${stacks_to_deploy[@]}"
-    fi
+    update_global_deployment
 
     # Resumen final
     echo "📊 RESUMEN DEL DESPLIEGUE"
