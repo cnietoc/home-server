@@ -7,9 +7,10 @@ set -uo pipefail  # Removido -e para manejar errores manualmente
 
 BACKUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_PROJECT_ROOT="$(dirname "$BACKUP_SCRIPT_DIR")"
+STACK_INFO_SCRIPT="$BACKUP_SCRIPT_DIR/stack-info.sh"
 
 # Cargar funciones de stack-info
-source "$BACKUP_PROJECT_ROOT/scripts/stack-info.sh" || {
+source "$STACK_INFO_SCRIPT" || {
     echo "❌ Error: No se pudo cargar stack-info.sh" >&2
     exit 1
 }
@@ -894,6 +895,12 @@ main() {
     local stacks_to_backup=()
     local backup_all=false
 
+    # Inicializar stack-info PRIMERO (necesario para todas las operaciones)
+    if ! init_stack_info; then
+        error "No se pudo inicializar stack-info"
+        exit 1
+    fi
+
     # Parsear argumentos
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -977,12 +984,6 @@ main() {
             error "❌ El proceso de restore falló"
             exit 1
         fi
-    fi
-
-    # Inicializar stack-info
-    if ! init_stack_info; then
-        error "No se pudo inicializar stack-info"
-        exit 1
     fi
 
     # Verificar directorio de backups
