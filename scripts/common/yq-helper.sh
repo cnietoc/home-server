@@ -45,9 +45,13 @@ run_yq() {
 
     if [[ "$YQ_VERSION" == "go" ]]; then
         # yq-go usa 'eval' como subcomando
+        # Sintaxis: yq eval 'query' archivo
         yq eval "$query" "$file"
     else
         # yq-python usa directamente el query
+        # Sintaxis: yq 'query' archivo
+        # IMPORTANTE: yq-python espera: yq [opciones] jq_filter [files]
+        # Por lo tanto: primero el filtro (query), luego el archivo
         yq "$query" "$file"
     fi
 }
@@ -144,6 +148,7 @@ translate_yq_to_jq() {
 
 # Verificar que yq está instalado y funciona
 check_yq() {
+    # Siempre detectar la versión primero
     if ! detect_yq_version; then
         echo "❌ yq no está instalado o no funciona correctamente." >&2
         echo "Instálalo con:" >&2
