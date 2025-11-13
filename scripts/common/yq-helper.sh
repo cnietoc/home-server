@@ -37,8 +37,7 @@ _verify_yq_go() {
         return 1
     fi
 
-    # Verificar que el comando 'eval' funciona (prueba básica)
-    if ! yq eval --version >/dev/null 2>&1; then
+    if ! yq --version >/dev/null 2>&1; then
         echo "❌ ERROR: yq instalado no funciona correctamente" >&2
         echo "Por favor reinstala yq-go" >&2
         return 1
@@ -57,14 +56,14 @@ fi
 run_yq() {
     local query="$1"
     local file="$2"
-    yq eval "$query" "$file"
+    yq "$query" "$file"
 }
 
 # Ejecutar yq in-place (modifica el archivo)
 run_yq_inplace() {
     local query="$1"
     local file="$2"
-    yq eval -i "$query" "$file"
+    yq -i "$query" "$file"
 }
 
 # Exportar funciones para uso en otros scripts

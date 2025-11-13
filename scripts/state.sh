@@ -15,12 +15,6 @@ source "$STATE_SCRIPT_DIR/common/yq-helper.sh" || {
     exit 1
 }
 
-# Verificar que yq está disponible (una sola vez al inicio)
-if ! check_yq; then
-    echo "❌ Error: yq no está disponible. El script no puede funcionar sin yq." >&2
-    exit 1
-fi
-
 # Cargar stack-info para obtener lista de stacks
 source "$STATE_SCRIPT_DIR/stack-info.sh" || {
     echo "❌ Error: No se pudo cargar stack-info.sh" >&2

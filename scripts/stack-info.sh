@@ -18,17 +18,6 @@ init_stack_info() {
         error "Archivo de configuración no encontrado: $STACK_INFO_CONFIG"
         return 1
     fi
-
-    if ! check_yq; then
-        error "yq no está instalado o no funciona correctamente."
-        error "Archivo de configuración: $STACK_INFO_CONFIG"
-        error "Instálalo con:"
-        error "  - Ubuntu/Debian: sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq"
-        error "  - macOS: brew install yq"
-        return 1
-    fi
-
-
     return 0
 }
 
@@ -58,11 +47,6 @@ get_stack_config_files() {
 # Obtener descripción de un stack específico
 get_stack_description() {
     local stack_name="$1"
-
-    if ! check_yq; then
-        return 1
-    fi
-
     local description
     description=$(run_yq ".stacks.$stack_name.description" "$STACK_INFO_CONFIG" 2>/dev/null)
 
@@ -77,11 +61,6 @@ get_stack_description() {
 get_service_subdomain() {
     local stack_name="$1"
     local service_name="$2"
-
-    if ! check_yq; then
-        return 1
-    fi
-
     local subdomain
     subdomain=$(run_yq ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
 
@@ -108,22 +87,14 @@ stack_exists() {
 
 # Obtener stacks que tienen configuración de shares
 get_stacks_with_shares() {
-    if ! check_yq; then
-        return 1
-    fi
-
-            run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
+    run_yq '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener lista de shares de un stack
 get_stack_shares() {
     local stack_name="$1"
 
-    if ! check_yq; then
-        return 1
-    fi
-
-            run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
+    run_yq ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener información específica de un share
@@ -131,10 +102,6 @@ get_share_info() {
     local stack_name="$1"
     local share_name="$2"
     local field="$3"  # path, exposed_path, description, permissions
-
-    if ! check_yq; then
-        return 1
-    fi
 
     local value
     value=$(run_yq ".stacks.$stack_name.shares.$share_name.$field" "$STACK_INFO_CONFIG" 2>/dev/null)
@@ -214,20 +181,13 @@ get_share_permissions() {
 
 # Obtener stacks que tienen configuración de backup
 get_stacks_with_backup_config() {
-    if ! check_yq; then
-        return 1
-    fi
 
-            run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
+    run_yq '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Verificar si un stack tiene configuración de backup
 stack_has_backup_config() {
     local stack_name="$1"
-
-    if ! check_yq; then
-        return 1
-    fi
 
     local backup_config
     backup_config=$(run_yq ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null)
@@ -239,10 +199,6 @@ stack_has_backup_config() {
 get_backup_exclusions() {
     local stack_name="$1"
 
-    if ! check_yq; then
-        return 1
-    fi
-
     if ! stack_has_backup_config "$stack_name"; then
         return 0  # Sin exclusiones si no hay config
     fi
@@ -253,10 +209,6 @@ get_backup_exclusions() {
 # Obtener configuración completa de backup de un stack
 get_stack_backup_config() {
     local stack_name="$1"
-
-    if ! check_yq; then
-        return 1
-    fi
 
     if ! stack_has_backup_config "$stack_name"; then
         echo "null"
