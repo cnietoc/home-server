@@ -23,10 +23,10 @@ OPCIONES:
   -h, --help          Mostrar esta ayuda
 
 TAREAS QUE SE CONFIGURAN:
-  - Actualización DNS cada 30 minutos
-  - Verificación de servicios cada 5 minutos
-  - Mantenimiento diario a las 2:00 AM (incluye backup automático)
-  - Limpieza de logs semanalmente
+  - DNS + Servicios: cada 30 minutos
+  - Mantenimiento diario: 2:00 AM (sin backup)
+  - Mantenimiento semanal: Domingos 3:00 AM (backup + limpieza)
+  - Recuperación al inicio: Si el PC estuvo apagado
 
 EJEMPLOS:
   $0 --install        # Configurar tareas automáticas
@@ -174,8 +174,6 @@ cleanup_logs() {
 
 # Generar entradas de crontab
 generate_cron_entries() {
-    local current_user="$(whoami)"
-
     cat << EOF
 # Home Server - Automatización DNS, servicios y backups
 # Instalado: $(date)
@@ -183,17 +181,14 @@ generate_cron_entries() {
 # EJECUCIÓN AL INICIO DEL SISTEMA (recupera tareas perdidas)
 @reboot sleep 60 && $SCRIPT_DIR/auto-maintenance.sh --startup >/dev/null 2>&1
 
-# Actualizar DNS cada 30 minutos (solo si está encendido)
-*/30 * * * * $SCRIPT_DIR/auto-maintenance.sh --dns-only >/dev/null 2>&1
+# Actualización DNS + verificación de servicios cada 30 minutos
+*/30 * * * * $SCRIPT_DIR/auto-maintenance.sh --periodic >/dev/null 2>&1
 
-# Verificar servicios cada 5 minutos
-*/5 * * * * $SCRIPT_DIR/auto-maintenance.sh --check-only >/dev/null 2>&1
-
-# Limpieza semanal (domingos a las 3:00 AM)
-0 3 * * 0 $SCRIPT_DIR/auto-maintenance.sh --cleanup-only >/dev/null 2>&1
-
-# Mantenimiento completo diario (2:00 AM)
+# Mantenimiento diario (2:00 AM) - Sin backup
 0 2 * * * $SCRIPT_DIR/auto-maintenance.sh --daily >/dev/null 2>&1
+
+# Mantenimiento semanal (Domingo 3:00 AM) - Backup + limpieza
+0 3 * * 0 $SCRIPT_DIR/auto-maintenance.sh --weekly >/dev/null 2>&1
 
 EOF
 }
@@ -230,10 +225,9 @@ install_cron() {
         rm -f "$temp_cron"
 
         log "📋 Tareas configuradas:"
-        log "   - DNS: cada 30 minutos"
-        log "   - Servicios: cada 5 minutos"
-        log "   - Limpieza: domingos 3:00 AM"
-        log "   - Mantenimiento diario: 2:00 AM (incluye backup)"
+        log "   - DNS + Servicios: cada 30 minutos"
+        log "   - Mantenimiento diario: 2:00 AM (sin backup)"
+        log "   - Mantenimiento semanal: Domingos 3:00 AM (backup + limpieza)"
 
         cron_log "🎉 Sistema de automatización instalado"
     else
@@ -305,41 +299,48 @@ show_logs() {
 
 # Verificar si necesita ejecutar tareas perdidas por apagado
 check_missed_tasks() {
-    local last_run_file="$PROJECT_ROOT/data/logs/last_run"
-    local now=$(date +%s)
-    local last_run=0
+    local daily_marker="$PROJECT_ROOT/data/logs/daily_marker"
+    local weekly_marker="$PROJECT_ROOT/data/logs/weekly_marker"
 
-    # Leer último timestamp de ejecución
-    if [[ -f "$last_run_file" ]]; then
-        last_run=$(cat "$last_run_file" 2>/dev/null || echo 0)
+    local today=$(date +%Y%m%d)
+    local this_week=$(date +%Y-W%U)
+
+    local last_daily=""
+    local last_weekly=""
+
+    # Leer marcas temporales
+    if [[ -f "$daily_marker" ]]; then
+        last_daily=$(cat "$daily_marker" 2>/dev/null || echo "")
     fi
 
-    local hours_since=$((($now - $last_run) / 3600))
+    if [[ -f "$weekly_marker" ]]; then
+        last_weekly=$(cat "$weekly_marker" 2>/dev/null || echo "")
+    fi
 
-    cron_log "⏰ Tiempo desde última ejecución: ${hours_since} horas"
-    cron_log "⏰ Tiempo desde última ejecución: ${hours_since} horas"
+    # SIEMPRE ejecutar tareas periódicas al inicio (DNS + servicios)
+    # No hace falta verificar tiempo, son tareas rápidas y críticas
+    cron_log "🔄 Ejecutando tareas periódicas al arranque"
+    run_dns_update
+    check_services
 
-    # Si han pasado más de 2 horas, ejecutar tareas de recuperación
-    if [[ $hours_since -gt 2 ]]; then
-        cron_log "🔄 Ejecutando tareas de recuperación (PC estuvo apagado ${hours_since}h)"
-
-        # Ejecutar DNS inmediatamente
-        run_dns_update
-
-        # Si han pasado más de 24 horas, ejecutar mantenimiento completo
-        if [[ $hours_since -gt 24 ]]; then
-            cron_log "📅 Ejecutando mantenimiento completo (>24h sin ejecutar)"
-            run_backup
-            cleanup_logs
-        fi
-
-        check_services
+    # Verificar si hay que ejecutar daily (si no se ha hecho hoy)
+    if [[ "$last_daily" != "$today" ]]; then
+        cron_log "📅 Ejecutando mantenimiento diario (no se ejecutó hoy)"
+        # Ya se ejecutaron DNS + servicios arriba, solo actualizamos marca
+        echo "$today" > "$daily_marker"
     else
-        cron_log "✅ Sistema funcionando normalmente (última ejecución: ${hours_since}h)"
+        cron_log "✅ Mantenimiento diario ya ejecutado hoy"
     fi
 
-    # Actualizar timestamp
-    echo "$now" > "$last_run_file"
+    # Verificar si hay que ejecutar weekly (si no se ha hecho esta semana)
+    if [[ "$last_weekly" != "$this_week" ]]; then
+        cron_log "📦 Ejecutando mantenimiento semanal (no se ejecutó esta semana)"
+        run_backup
+        cleanup_logs
+        echo "$this_week" > "$weekly_marker"
+    else
+        cron_log "✅ Mantenimiento semanal ya ejecutado esta semana"
+    fi
 }
 
 # Ejecución al inicio del sistema
@@ -370,51 +371,79 @@ run_startup() {
     cron_log "✅ Recuperación al arranque completada"
 }
 
-# Ejecutar mantenimiento completo (usado por daily y manual full)
-run_full_maintenance() {
-    local skip_if_done_today="${1:-false}"
 
-    # Si es daily, verificar si ya se hizo hoy
-    if [[ "$skip_if_done_today" == "true" ]]; then
-        local daily_marker="$PROJECT_ROOT/data/logs/daily_marker"
-        local today=$(date +%Y%m%d)
-        local last_daily=""
 
-        if [[ -f "$daily_marker" ]]; then
-            last_daily=$(cat "$daily_marker" 2>/dev/null || echo "")
-        fi
+# Ejecución periódica (cada 30 min): DNS + Servicios
+run_periodic() {
+    setup_logs
+    cron_log "🔄 Ejecutando tareas periódicas (DNS + servicios)..."
 
-        if [[ "$last_daily" == "$today" ]]; then
-            cron_log "ℹ️ Mantenimiento diario ya ejecutado hoy"
-            return 0
-        fi
-
-        cron_log "📅 Ejecutando mantenimiento diario para $today"
-    else
-        cron_log "🚀 Iniciando mantenimiento completo..."
-    fi
-
-    # Ejecutar todas las tareas de mantenimiento
     run_dns_update
-    run_backup
     check_services
-    cleanup_logs
 
-    # Marcar como completado y actualizar timestamps
-    if [[ "$skip_if_done_today" == "true" ]]; then
-        echo "$(date +%Y%m%d)" > "$PROJECT_ROOT/data/logs/daily_marker"
-        cron_log "✅ Mantenimiento diario completado"
-    else
-        cron_log "✅ Mantenimiento completo terminado"
-    fi
-
-    echo "$(date +%s)" > "$PROJECT_ROOT/data/logs/last_run"
+    cron_log "✅ Tareas periódicas completadas"
 }
 
-# Mantenimiento diario con anacron-like behavior
+# Mantenimiento diario (2:00 AM): Solo mantenimiento básico, SIN backup
 run_daily() {
     setup_logs
-    run_full_maintenance true  # true = skip_if_done_today
+
+    local daily_marker="$PROJECT_ROOT/data/logs/daily_marker"
+    local today=$(date +%Y%m%d)
+    local last_daily=""
+
+    if [[ -f "$daily_marker" ]]; then
+        last_daily=$(cat "$daily_marker" 2>/dev/null || echo "")
+    fi
+
+    if [[ "$last_daily" == "$today" ]]; then
+        cron_log "ℹ️ Mantenimiento diario ya ejecutado hoy"
+        return 0
+    fi
+
+    cron_log "📅 Ejecutando mantenimiento diario para $today"
+
+    # Solo DNS y verificación de servicios (backup es semanal)
+    run_dns_update
+    check_services
+
+    # Marcar como completado
+    echo "$today" > "$daily_marker"
+
+    cron_log "✅ Mantenimiento diario completado"
+}
+
+# Mantenimiento semanal (Domingo 3:00 AM): Backup + Limpieza
+run_weekly() {
+    setup_logs
+
+    local weekly_marker="$PROJECT_ROOT/data/logs/weekly_marker"
+    local this_week=$(date +%Y-W%U)
+    local last_weekly=""
+
+    if [[ -f "$weekly_marker" ]]; then
+        last_weekly=$(cat "$weekly_marker" 2>/dev/null || echo "")
+    fi
+
+    if [[ "$last_weekly" == "$this_week" ]]; then
+        cron_log "ℹ️ Mantenimiento semanal ya ejecutado esta semana"
+        return 0
+    fi
+
+    cron_log "📅 Ejecutando mantenimiento semanal para semana $this_week"
+
+    # Ejecutar backup y limpieza
+    run_backup
+    cleanup_logs
+
+    # También ejecutar tareas básicas
+    run_dns_update
+    check_services
+
+    # Marcar como completado
+    echo "$this_week" > "$weekly_marker"
+
+    cron_log "✅ Mantenimiento semanal completado"
 }
 
 # Ejecutar mantenimiento manual
@@ -423,9 +452,10 @@ run_maintenance() {
     local check_only=false
     local cleanup_only=false
     local backup_only=false
-    local full=false
     local startup=false
     local daily=false
+    local weekly=false
+    local periodic=false
 
     # Parsear sub-argumentos
     while [[ $# -gt 0 ]]; do
@@ -446,16 +476,20 @@ run_maintenance() {
                 backup_only=true
                 shift
                 ;;
-            --full)
-                full=true
-                shift
-                ;;
             --startup)
                 startup=true
                 shift
                 ;;
             --daily)
                 daily=true
+                shift
+                ;;
+            --weekly)
+                weekly=true
+                shift
+                ;;
+            --periodic)
+                periodic=true
                 shift
                 ;;
             *)
@@ -466,8 +500,12 @@ run_maintenance() {
 
     if [[ "$startup" == "true" ]]; then
         run_startup
+    elif [[ "$periodic" == "true" ]]; then
+        run_periodic
     elif [[ "$daily" == "true" ]]; then
         run_daily
+    elif [[ "$weekly" == "true" ]]; then
+        run_weekly
     elif [[ "$dns_only" == "true" ]]; then
         setup_logs
         run_dns_update
@@ -481,14 +519,14 @@ run_maintenance() {
         setup_logs
         cleanup_logs
     else
-        # Mantenimiento completo manual
+        # Mantenimiento completo manual (ejecuta todo)
         setup_logs
-        run_full_maintenance false  # false = no skip_if_done_today
-
-        if [[ "$full" == "true" ]]; then
-            # Con --full, no hay diferencia adicional, ya incluye limpieza
-            cron_log "🎯 Mantenimiento completo con --full ejecutado"
-        fi
+        cron_log "🚀 Iniciando mantenimiento completo manual..."
+        run_dns_update
+        run_backup
+        check_services
+        cleanup_logs
+        cron_log "✅ Mantenimiento completo terminado"
     fi
 }
 
@@ -511,7 +549,7 @@ main() {
             shift
             run_maintenance "$@"
             ;;
-        --dns-only|--check-only|--cleanup-only|--backup-only|--full|--startup|--daily)
+        --dns-only|--check-only|--cleanup-only|--backup-only|--startup|--daily|--weekly|--periodic)
             run_maintenance "$@"
             ;;
         -h|--help)

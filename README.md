@@ -639,15 +639,21 @@ El sistema incluye un completo sistema de mantenimiento automático que se ejecu
 
 **Tareas que se ejecutan automáticamente:**
 
-- **📡 Actualización DNS** (cada 30 min): Detecta cambios en tu IP pública y actualiza Cloudflare automáticamente
-- **🔍 Monitoreo de servicios** (cada 5 min): Verifica que todos los contenedores estén funcionando
-- **🧹 Limpieza de logs** (semanal): Elimina logs antiguos y rota archivos grandes
-- **🔄 Mantenimiento completo** (diario a las 2:00 AM): Ejecuta todas las tareas de mantenimiento
+- **🔄 DNS + Servicios** (cada 30 min): Actualiza Cloudflare DNS y verifica que todos los contenedores estén funcionando
+- **📅 Mantenimiento diario** (2:00 AM): Tareas básicas de mantenimiento (sin backup)
+- **📦 Mantenimiento semanal** (Domingos 3:00 AM): Backup automático de todos los stacks + limpieza de logs antiguos
+- **🚀 Recuperación al inicio**: Ejecuta tareas perdidas si el PC estuvo apagado
+
+**Ventajas de esta organización:**
+- ⚡ **Backup semanal en vez de diario**: Menos carga, más eficiente
+- 🎯 **Tareas agrupadas lógicamente**: DNS y servicios van juntos (cada 30 min)
+- 🧹 **Limpieza semanal**: Coincide con el backup
+- 📋 **Cron más limpio**: Solo 4 entradas en vez de 5
 
 ### Gestión manual del mantenimiento
 
 ```bash
-# Ejecutar mantenimiento completo ahora
+# Ejecutar mantenimiento completo ahora (DNS + servicios + backup + limpieza)
 ./scripts/auto-maintenance.sh --run-now
 
 # Solo actualizar DNS ahora
@@ -655,6 +661,21 @@ El sistema incluye un completo sistema de mantenimiento automático que se ejecu
 
 # Solo verificar servicios
 ./scripts/auto-maintenance.sh --check-only
+
+# Solo hacer backup
+./scripts/auto-maintenance.sh --backup-only
+
+# Solo limpiar logs
+./scripts/auto-maintenance.sh --cleanup-only
+
+# Ejecutar tarea periódica (DNS + servicios)
+./scripts/auto-maintenance.sh --periodic
+
+# Ejecutar mantenimiento diario
+./scripts/auto-maintenance.sh --daily
+
+# Ejecutar mantenimiento semanal (backup + limpieza)
+./scripts/auto-maintenance.sh --weekly
 
 # Desinstalar automatización
 ./scripts/auto-maintenance.sh --uninstall
