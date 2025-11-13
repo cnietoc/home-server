@@ -265,7 +265,7 @@ show_status() {
     fi
     # Listar stacks deshabilitados
     local disabled_stacks=$(get_disabled_stacks)
-    local disabled_count=$(echo "$disabled_stacks" | grep -c . || echo "0")
+    local disabled_count=$(echo "$disabled_stacks" | grep -c . || echo 0)
     if [[ "$disabled_count" -gt 0 ]]; then
         echo ""
         log "   ❌ Deshabilitados: $disabled_count"
