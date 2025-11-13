@@ -83,7 +83,7 @@ is_stack_enabled() {
         return 0
     fi
     local enabled
-    enabled=$(yq ".stacks.${stack}.enabled" "$STATE_FILE" 2>/dev/null)
+    enabled=$(yq_read ".stacks.${stack}.enabled" "$STATE_FILE" 2>/dev/null)
     # Si es null, vacío o true, está habilitado
     if [[ -z "$enabled" || "$enabled" == "null" || "$enabled" == "true" ]]; then
         return 0
@@ -98,14 +98,14 @@ get_enabled_stacks() {
         "$STATE_SCRIPT_DIR/stack-info.sh" get_available_stacks
         return 0
     fi
-    yq '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
+    yq_read '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$STATE_FILE"
 }
 # Obtener lista de stacks deshabilitados
 get_disabled_stacks() {
     if [[ ! -f "$STATE_FILE" ]]; then
         return 0
     fi
-    yq '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
+    yq_read '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$STATE_FILE"
 }
 # Obtener hash de último deployment de un stack
 get_stack_deployment_hash() {
@@ -115,7 +115,7 @@ get_stack_deployment_hash() {
         return 0
     fi
     local hash
-    hash=$(yq ".stacks.${stack}.last_deployment.hash" "$STATE_FILE" 2>/dev/null)
+    hash=$(yq_read ".stacks.${stack}.last_deployment.hash" "$STATE_FILE" 2>/dev/null)
     # Si es null o vacío, devolver vacío
     if [[ -z "$hash" || "$hash" == "null" ]]; then
         echo ""
@@ -130,7 +130,7 @@ get_config_hash() {
         return 0
     fi
     local hash
-    hash=$(yq ".server.config_hash" "$STATE_FILE" 2>/dev/null)
+    hash=$(yq_read ".server.config_hash" "$STATE_FILE" 2>/dev/null)
     # Si es null o vacío, devolver vacío
     if [[ -z "$hash" || "$hash" == "null" ]]; then
         echo ""
@@ -145,7 +145,7 @@ get_last_deployment_timestamp() {
         return 0
     fi
     local timestamp
-    timestamp=$(yq ".server.last_deployment.timestamp" "$STATE_FILE" 2>/dev/null)
+    timestamp=$(yq_read ".server.last_deployment.timestamp" "$STATE_FILE" 2>/dev/null)
     # Si es null o vacío, devolver 0
     if [[ -z "$timestamp" || "$timestamp" == "null" ]]; then
         echo "0"
@@ -160,7 +160,7 @@ get_last_deployment_date() {
         return 0
     fi
     local date
-    date=$(yq ".server.last_deployment.date" "$STATE_FILE" 2>/dev/null)
+    date=$(yq_read ".server.last_deployment.date" "$STATE_FILE" 2>/dev/null)
     # Si es null o vacío, devolver "never"
     if [[ -z "$date" || "$date" == "null" ]]; then
         echo "never"
@@ -173,9 +173,9 @@ get_last_deployment_date() {
 enable_stack() {
     local stack=$1
     init_state_file || return 1
-    yq -i ".stacks.${stack}.enabled = true" "$STATE_FILE"
-    yq -i "del(.stacks.${stack}.disabled_at)" "$STATE_FILE"
-    yq -i "del(.stacks.${stack}.disabled_reason)" "$STATE_FILE"
+    yq_write ".stacks.${stack}.enabled = true" "$STATE_FILE"
+    yq_write "del(.stacks.${stack}.disabled_at)" "$STATE_FILE"
+    yq_write "del(.stacks.${stack}.disabled_reason)" "$STATE_FILE"
     log "✅ Stack '$stack' habilitado"
     return 0
 }
@@ -185,9 +185,9 @@ disable_stack() {
     local reason=${2:-"No especificado"}
     init_state_file || return 1
     local timestamp=$(date -Iseconds)
-    yq -i ".stacks.${stack}.enabled = false" "$STATE_FILE"
-    yq -i ".stacks.${stack}.disabled_at = \"$timestamp\"" "$STATE_FILE"
-    yq -i ".stacks.${stack}.disabled_reason = \"$reason\"" "$STATE_FILE"
+    yq_write ".stacks.${stack}.enabled = false" "$STATE_FILE"
+    yq_write ".stacks.${stack}.disabled_at = \"$timestamp\"" "$STATE_FILE"
+    yq_write ".stacks.${stack}.disabled_reason = \"$reason\"" "$STATE_FILE"
     log "❌ Stack '$stack' deshabilitado"
     log "   Motivo: $reason"
     return 0
@@ -199,16 +199,16 @@ update_stack_deployment() {
     init_state_file || return 1
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
-    yq -i ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".stacks.${stack}.last_deployment.date = \"$date\"" "$STATE_FILE"
-    yq -i ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$STATE_FILE"
+    yq_write ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$STATE_FILE"
+    yq_write ".stacks.${stack}.last_deployment.date = \"$date\"" "$STATE_FILE"
+    yq_write ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$STATE_FILE"
     return 0
 }
 # Actualizar hash global de configuración
 update_config_hash() {
     local hash=$1
     init_state_file || return 1
-    yq -i ".server.config_hash = \"$hash\"" "$STATE_FILE"
+    yq_write ".server.config_hash = \"$hash\"" "$STATE_FILE"
     return 0
 }
 # Actualizar timestamp global de deployment
@@ -216,8 +216,8 @@ update_global_deployment() {
     init_state_file || return 1
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
-    yq -i ".server.last_deployment.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".server.last_deployment.date = \"$date\"" "$STATE_FILE"
+    yq_write ".server.last_deployment.timestamp = $timestamp" "$STATE_FILE"
+    yq_write ".server.last_deployment.date = \"$date\"" "$STATE_FILE"
     return 0
 }
 # Actualizar estado de mantenimiento
@@ -227,9 +227,9 @@ update_maintenance_status() {
     init_state_file || return 1
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
-    yq -i ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$STATE_FILE"
-    yq -i ".server.maintenance.${task}.last_run.date = \"$date\"" "$STATE_FILE"
-    yq -i ".server.maintenance.${task}.status = \"$status\"" "$STATE_FILE"
+    yq_write ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$STATE_FILE"
+    yq_write ".server.maintenance.${task}.last_run.date = \"$date\"" "$STATE_FILE"
+    yq_write ".server.maintenance.${task}.status = \"$status\"" "$STATE_FILE"
     return 0
 }
 # === Comandos de Visualización ===
@@ -271,7 +271,7 @@ show_status() {
         log "   ❌ Deshabilitados: $disabled_count"
         while IFS= read -r stack; do
             [[ -z "$stack" ]] && continue
-            local reason=$(yq ".stacks.${stack}.disabled_reason" "$STATE_FILE" 2>/dev/null)
+            local reason=$(yq_read ".stacks.${stack}.disabled_reason" "$STATE_FILE" 2>/dev/null)
             log "      - $stack ($reason)"
         done <<< "$disabled_stacks"
     fi

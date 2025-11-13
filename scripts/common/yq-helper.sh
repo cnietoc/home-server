@@ -46,6 +46,33 @@ _verify_yq_go() {
     return 0
 }
 
+# === Funciones Wrapper para Snap ===
+# Cuando yq se instala con Snap, tiene restricciones de acceso a archivos
+# Workaround: usar stdin en lugar de pasar el archivo como argumento
+
+# Leer de un archivo YAML (compatible con Snap)
+yq_read() {
+    local query="$1"
+    local file="$2"
+
+    # Usar stdin para evitar restricciones de Snap
+    yq eval "$query" < "$file"
+}
+
+# Escribir a un archivo YAML in-place (compatible con Snap)
+yq_write() {
+    local query="$1"
+    local file="$2"
+
+    # Usar stdin/stdout para evitar restricciones de Snap
+    local temp_file="${file}.tmp"
+    yq eval "$query" < "$file" > "$temp_file" && mv "$temp_file" "$file"
+}
+
+# Exportar funciones para uso en otros scripts
+export -f yq_read
+export -f yq_write
+
 # Ejecutar verificación al cargar el script
 if ! _verify_yq_go; then
     # El script falla si yq no está correctamente instalado

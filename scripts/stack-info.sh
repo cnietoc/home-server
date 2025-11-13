@@ -34,7 +34,7 @@ get_stack_config_files() {
     local stack_name="$1"
 
     local config_files
-    config_files=$(yq eval ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
+    config_files=$(yq_read ".stacks.$stack_name.config_files | join(\",\")" "$STACK_INFO_CONFIG")
 
     # Siempre incluir common como base, luego agregar los específicos del stack
     if [[ "$config_files" == "null" || -z "$config_files" || "$config_files" == "" ]]; then
@@ -48,7 +48,7 @@ get_stack_config_files() {
 get_stack_description() {
     local stack_name="$1"
     local description
-    description=$(yq eval ".stacks.$stack_name.description" "$STACK_INFO_CONFIG" 2>/dev/null)
+    description=$(yq_read ".stacks.$stack_name.description" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$description" == "null" ]]; then
         echo ""
@@ -62,7 +62,7 @@ get_service_subdomain() {
     local stack_name="$1"
     local service_name="$2"
     local subdomain
-    subdomain=$(yq eval ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
+    subdomain=$(yq_read ".stacks.$stack_name.services.$service_name.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$subdomain" == "null" ]]; then
         echo ""
@@ -80,21 +80,21 @@ stack_exists() {
     fi
 
     local exists
-    exists=$(yq eval ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
+    exists=$(yq_read ".stacks | has(\"$stack_name\")" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     [[ "$exists" == "true" ]]
 }
 
 # Obtener stacks que tienen configuración de shares
 get_stacks_with_shares() {
-    yq eval '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
+    yq_read '.stacks | to_entries | .[] | select(.value.shares) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener lista de shares de un stack
 get_stack_shares() {
     local stack_name="$1"
 
-    yq eval ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
+    yq_read ".stacks.$stack_name.shares | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener información específica de un share
@@ -104,7 +104,7 @@ get_share_info() {
     local field="$3"  # path, exposed_path, description, permissions
 
     local value
-    value=$(yq eval ".stacks.$stack_name.shares.$share_name.$field" "$STACK_INFO_CONFIG" 2>/dev/null)
+    value=$(yq_read ".stacks.$stack_name.shares.$share_name.$field" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     if [[ "$value" == "null" ]]; then
         echo ""
@@ -182,7 +182,7 @@ get_share_permissions() {
 # Obtener stacks que tienen configuración de backup
 get_stacks_with_backup_config() {
 
-    yq eval '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
+    yq_read '.stacks | to_entries | .[] | select(.value.backups) | .key' "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Verificar si un stack tiene configuración de backup
@@ -190,7 +190,7 @@ stack_has_backup_config() {
     local stack_name="$1"
 
     local backup_config
-    backup_config=$(yq eval ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null)
+    backup_config=$(yq_read ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null)
 
     [[ "$backup_config" != "null" && -n "$backup_config" ]]
 }
@@ -203,7 +203,7 @@ get_backup_exclusions() {
         return 0  # Sin exclusiones si no hay config
     fi
 
-            yq eval ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
+            yq_read ".stacks.$stack_name.backups.exclude | .[]" "$STACK_INFO_CONFIG" 2>/dev/null || true
 }
 
 # Obtener configuración completa de backup de un stack
@@ -215,7 +215,7 @@ get_stack_backup_config() {
         return 0
     fi
 
-    yq eval ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null || echo "null"
+    yq_read ".stacks.$stack_name.backups" "$STACK_INFO_CONFIG" 2>/dev/null || echo "null"
 }
 
 # Cargar configuración de stacks usando las funciones wrapper
@@ -250,7 +250,7 @@ load_stack_info() {
 
         # Servicios - obtener nombres de servicios usando yq
         local service_names
-        service_names=$(yq eval ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
+        service_names=$(yq_read ".stacks.$stack.services | keys | .[]" "$STACK_INFO_CONFIG" 2>/dev/null)
 
         local service_entries=""
         while IFS= read -r service; do
@@ -258,8 +258,8 @@ load_stack_info() {
 
             # Obtener subdomain y descripción del servicio usando yq
             local subdomain desc
-            subdomain=$(yq eval ".stacks.$stack.services.$service.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
-            desc=$(yq eval ".stacks.$stack.services.$service.description" "$STACK_INFO_CONFIG" 2>/dev/null)
+            subdomain=$(yq_read ".stacks.$stack.services.$service.subdomain" "$STACK_INFO_CONFIG" 2>/dev/null)
+            desc=$(yq_read ".stacks.$stack.services.$service.description" "$STACK_INFO_CONFIG" 2>/dev/null)
 
             # Limpiar valores null
             [[ "$desc" == "null" ]] && desc=""
