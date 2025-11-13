@@ -111,10 +111,12 @@ save_stack_deployment_state() {
     # Crear archivo de estado si no existe
     touch "$DEPLOYMENT_STATE"
 
-    # Eliminar entrada anterior del stack si existe
-    grep -v "^${stack_name}_hash=" "$DEPLOYMENT_STATE" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+    # Eliminar TODAS las entradas anteriores del stack (las 3 líneas)
+    grep -v "^${stack_name}_hash=" "$DEPLOYMENT_STATE" | \
+    grep -v "^${stack_name}_last_deployment=" | \
+    grep -v "^${stack_name}_last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
 
-    # Añadir nueva entrada
+    # Añadir nuevas entradas
     {
         cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
         echo "${stack_name}_hash=$config_hash"
@@ -135,7 +137,9 @@ save_deployment_state() {
 
     # Actualizar timestamp global
     local timestamp=$(date +%s)
-    grep -v "^last_deployment" "$DEPLOYMENT_STATE" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
+    # Eliminar AMBAS líneas globales anteriores
+    grep -v "^last_deployment=" "$DEPLOYMENT_STATE" | \
+    grep -v "^last_deployment_date=" > "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
     {
         cat "${DEPLOYMENT_STATE}.tmp" 2>/dev/null || true
         echo "last_deployment=$timestamp"
