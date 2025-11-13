@@ -266,14 +266,34 @@ get_stack_deployment_hash() {
 }
 
 # Obtener hash global de configuración
+# Obtener hash global de configuración
 get_config_hash() {
-
     if [[ ! -f "$STATE_FILE" ]]; then
         echo ""
         return 0
     fi
 
     run_yq ".server.config_hash // \"\"" "$STATE_FILE"
+}
+
+# Obtener timestamp del último deployment global
+get_last_deployment_timestamp() {
+    if [[ ! -f "$STATE_FILE" ]]; then
+        echo "0"
+        return 0
+    fi
+
+    run_yq ".server.last_deployment.timestamp // 0" "$STATE_FILE"
+}
+
+# Obtener fecha del último deployment global
+get_last_deployment_date() {
+    if [[ ! -f "$STATE_FILE" ]]; then
+        echo "never"
+        return 0
+    fi
+
+    run_yq ".server.last_deployment.date // \"never\"" "$STATE_FILE"
 }
 
 # Exportar funciones para que puedan ser usadas por otros scripts
@@ -288,5 +308,7 @@ export -f update_global_deployment
 export -f update_maintenance_status
 export -f get_stack_deployment_hash
 export -f get_config_hash
+export -f get_last_deployment_timestamp
+export -f get_last_deployment_date
 export -f init_state_file
 

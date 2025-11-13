@@ -358,28 +358,13 @@ verify_stack_health() {
 
 # Obtener información del último despliegue
 get_deployment_info() {
-    # state.sh ya está cargado y tiene las funciones de yq
-    local state_file="$PROJECT_ROOT/data/state.yml"
-
-    if [[ ! -f "$state_file" ]]; then
-        echo "❓ Nunca se ha desplegado"
-        return
-    fi
-
-    # Usar las funciones de state.sh que ya manejan yq correctamente
+    # Usar funciones de state.sh para obtener la información
     local last_timestamp
     local last_date
 
-    # Cargar funciones de state.sh si no están disponibles
-    if ! command -v run_yq_state >/dev/null 2>&1; then
-        source "$SCRIPT_DIR/state.sh" 2>/dev/null || {
-            echo "❓ Sistema de estado no disponible"
-            return
-        }
-    fi
+    last_timestamp=$(get_last_deployment_timestamp)
+    last_date=$(get_last_deployment_date)
 
-    last_timestamp=$(run_yq_state '.server.last_deployment.timestamp' "$state_file" 2>/dev/null || echo "0")
-    last_date=$(run_yq_state '.server.last_deployment.date' "$state_file" 2>/dev/null || echo "never")
 
     if [[ "$last_timestamp" != "0" && "$last_timestamp" != "null" ]]; then
         local hours_ago=$(( ($(date +%s) - last_timestamp) / 3600 ))
@@ -700,7 +685,7 @@ main() {
             enabled_stacks+=("$stack")
         else
             skipped_stacks+=("$stack")
-            log_info "⏭️  Saltando stack '$stack' (deshabilitado en data/state.yml)"
+            log "⏭️  Saltando stack '$stack' (deshabilitado en data/state.yml)"
         fi
     done
 
@@ -717,8 +702,8 @@ main() {
     stacks_to_deploy=("${enabled_stacks[@]}")
 
     if [[ ${#skipped_stacks[@]} -gt 0 ]]; then
-        log_info "📋 Stacks a desplegar: ${stacks_to_deploy[*]}"
-        log_info "⏭️  Stacks omitidos (deshabilitados): ${skipped_stacks[*]}"
+        log "📋 Stacks a desplegar: ${stacks_to_deploy[*]}"
+        log "⏭️  Stacks omitidos (deshabilitados): ${skipped_stacks[*]}"
         echo ""
     fi
 
