@@ -496,6 +496,16 @@ El sistema incluye un script completamente funcional para crear backups automát
 # Backup de todos los stacks
 ./scripts/backup.sh --all
 
+# Backup seguro (detiene servicios antes del backup)
+./scripts/backup.sh --safe media
+
+# Backup con lista detallada de archivos
+./scripts/backup.sh --verbose media
+
+# Limpiar backups antiguos (mantener solo los 5 más recientes)
+./scripts/backup.sh --cleanup
+./scripts/backup.sh --cleanup 10  # Mantener 10 por stack
+
 # Ver ayuda completa
 ./scripts/backup.sh --help
 ```
@@ -505,10 +515,108 @@ El sistema incluye un script completamente funcional para crear backups automát
 - **📁 Respaldo inteligente**: Solo incluye contenido de `data/{stack}` 
 - **🚫 Exclusiones gitignore**: Patrones como `**/*.zip`, directorios específicos
 - **📅 Timestamps**: Archivos con fecha y hora `stack-YYYYMMDD-HHMMSS.tar.gz`
-- **📊 Estadísticas**: Tamaño y número de archivos incluidos
+- **📊 Estadísticas**: Tamaño y número de archivos incluidos, top 5 archivos más grandes
+- **🔒 Modo seguro**: Detiene servicios antes del backup para garantizar consistencia
 - **⚡ Backup completo**: Opción `--all` para respaldar todos los stacks
+- **🧹 Limpieza automática**: Elimina backups antiguos manteniendo solo los más recientes
 
-> **📋 Próximos desarrollos**: Rotación automática de backups antiguos, verificación de integridad, y notificaciones de estado.
+### 🔄 Restauración de Backups
+
+El script de backup también permite restaurar backups de forma interactiva y segura usando `fzf`:
+
+#### Requisitos
+
+```bash
+# Instalar fzf si no lo tienes
+# Ubuntu/Debian:
+sudo apt install fzf
+
+# macOS:
+brew install fzf
+
+# Fedora/RHEL:
+sudo dnf install fzf
+```
+
+#### Uso
+
+```bash
+# Restaurar: mostrar menú de selección de todos los backups (con fzf)
+./scripts/backup.sh --restore
+
+# Restaurar: mostrar solo backups de un stack específico
+./scripts/backup.sh --restore media
+
+# Restaurar un archivo de backup específico (sin menú)
+./scripts/backup.sh --restore /ruta/completa/a/media-20251112-120000.tar.gz
+```
+
+**Características del restore:**
+- **📋 Menú interactivo con fzf**: Búsqueda incremental, preview de contenido del backup
+- **🔍 Filtro por stack**: Muestra solo backups de un stack específico
+- **⚠️ Confirmación de sobrescritura**: Solicita confirmación antes de restaurar
+- **💾 Backup de seguridad automático**: Crea backup del estado actual antes de restaurar (respetando exclusiones)
+- **🛑 Gestión de servicios**: Detiene servicios automáticamente antes de restaurar
+- **🔒 Respeta exclusiones**: El backup de seguridad y la restauración respetan las exclusiones configuradas
+- **✅ Sobrescritura inteligente**: Solo sobrescribe archivos del backup, mantiene otros archivos (ej: directorios excluidos)
+- **🔄 Reinicio automático**: Reinicia servicios después de restaurar
+
+**Comportamiento importante:**
+- ⚠️ **NO borra todo el contenido** del stack - solo sobrescribe archivos que están en el backup
+- 💡 Archivos en directorios excluidos (ej: `library/`, `downloads/`) se mantienen intactos
+- 📦 El backup de seguridad pre-restore también respeta las exclusiones para ser consistente
+- 🔐 Ideal para restaurar configuraciones sin afectar datos grandes (bibliotecas multimedia, descargas, etc.)
+
+**Ejemplo de uso con fzf:**
+
+```bash
+$ ./scripts/backup.sh --restore media
+
+📦 Buscando backups disponibles...
+
+# Se abre fzf con:
+# - Lista de backups con tamaño y fecha
+# - Preview del contenido (primeros 20 archivos)
+# - Búsqueda incremental
+# - Navegación con flechas o búsqueda por texto
+
+> media-20251112-120000.tar.gz      195M  2025-11-12 12:00:00
+  media-20251111-093000.tar.gz      192M  2025-11-11 09:30:00
+  media-20251110-143000.tar.gz      189M  2025-11-10 14:30:00
+  ...
+
+# Al seleccionar un backup:
+
+🔄 Iniciando restore del backup: media-20251112-120000.tar.gz
+📦 Stack destino: media
+⚠️ ADVERTENCIA: El directorio contiene 1747 archivos
+⚠️ Esta operación SOBRESCRIBIRÁ los datos existentes
+
+¿Estás seguro de continuar? (escribe 'SI' para confirmar): SI
+
+🔍 Servicios detectados para stack 'media'
+🛑 Deteniendo servicios del stack: media
+✅ Servicios detenidos correctamente
+⏳ Esperando 5 segundos para que se liberen los archivos...
+💾 Creando backup del estado actual antes de restaurar...
+✅ Backup de seguridad creado: media-pre-restore-20251113-125530.tar.gz (12M)
+📦 Restaurando backup...
+📁 Destino: /homeserver/data/media
+ℹ️ Los archivos del backup sobrescribirán los existentes
+📄 Archivos a restaurar: 1747
+✅ Backup restaurado exitosamente
+📊 Tamaño total del stack: 195M
+📄 Total de archivos en el stack: 2150
+🔄 Reiniciando servicios del stack: media
+✅ Servicios iniciados correctamente
+🎉 Restore completado exitosamente
+```
+
+**Nota sobre el tamaño:**
+En el ejemplo anterior, el backup tiene 1747 archivos pero el stack final tiene 2150 archivos. Esto es normal porque:
+- El backup excluye directorios como `library/`, `downloads/`, etc.
+- Estos archivos excluidos se mantienen intactos durante la restauración
+- Solo se sobrescriben los archivos de configuración que están en el backup
 
 ## 🤖 Mantenimiento Automático
 

@@ -29,6 +29,9 @@ SAFE_MODE=false
 CLEANUP_MODE=false
 KEEP_BACKUPS=5
 VERBOSE_MODE=false
+RESTORE_MODE=false
+RESTORE_BACKUP=""
+RESTORE_STACK=""
 
 # Función de logging
 log() {
@@ -37,6 +40,294 @@ log() {
 
 error() {
     log "❌ $*" >&2
+}
+
+# Listar backups disponibles para un stack
+list_backups() {
+    local stack_name="$1"
+
+    if [[ ! -d "$BACKUP_BASE_DIR" ]]; then
+        error "Directorio de backups no existe: $BACKUP_BASE_DIR"
+        return 1
+    fi
+
+    local backups
+    if [[ -n "$stack_name" ]]; then
+        backups=$(find "$BACKUP_BASE_DIR" -name "${stack_name}-*.tar.gz" -type f 2>/dev/null | sort -r || true)
+    else
+        backups=$(find "$BACKUP_BASE_DIR" -name "*.tar.gz" -type f 2>/dev/null | sort -r || true)
+    fi
+
+    if [[ -z "$backups" ]]; then
+        if [[ -n "$stack_name" ]]; then
+            log "ℹ️ No se encontraron backups para stack '$stack_name'"
+        else
+            log "ℹ️ No se encontraron backups"
+        fi
+        return 1
+    fi
+
+    echo "$backups"
+}
+
+# Mostrar menú de selección de backup usando fzf
+select_backup() {
+    local stack_name="$1"
+
+    # Verificar que fzf esté instalado
+    if ! command -v fzf >/dev/null 2>&1; then
+        error "fzf no está instalado. Instálalo con:"
+        error "  - Ubuntu/Debian: sudo apt install fzf"
+        error "  - macOS: brew install fzf"
+        error "  - Fedora/RHEL: sudo dnf install fzf"
+        return 1
+    fi
+
+    log "📦 Buscando backups disponibles..."
+
+    local backups
+    backups=$(list_backups "$stack_name")
+
+    if [[ -z "$backups" ]]; then
+        return 1
+    fi
+
+    # Crear lista formateada para fzf con información adicional
+    local formatted_list=""
+    while IFS= read -r backup; do
+        [[ -z "$backup" ]] && continue
+
+        local basename_backup=$(basename "$backup")
+        local backup_size=$(du -h "$backup" 2>/dev/null | cut -f1 || echo "?")
+        local backup_date=$(stat -c %y "$backup" 2>/dev/null | cut -d'.' -f1 || stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$backup" 2>/dev/null || echo "unknown")
+
+        # Formato: ruta_completa|nombre|tamaño|fecha
+        formatted_list+="$(printf "%s|%-60s %10s  %s\n" "$backup" "$basename_backup" "$backup_size" "$backup_date")"$'\n'
+    done <<< "$backups"
+
+    if [[ -z "$formatted_list" ]]; then
+        error "No se encontraron backups"
+        return 1
+    fi
+
+    # Usar fzf para seleccionar
+    local selected
+    selected=$(echo "$formatted_list" | fzf \
+        --height=50% \
+        --reverse \
+        --border \
+        --prompt="Selecciona un backup > " \
+        --header="$(printf '%-60s %10s  %s' 'ARCHIVO' 'TAMAÑO' 'FECHA')" \
+        --delimiter='|' \
+        --with-nth=2 \
+        --preview='echo "📦 Backup: {2}" && echo "" && echo "📊 Información:" && tar -tzf {1} 2>/dev/null | head -20 && echo "..." && echo "" && echo "📄 Total de archivos: $(tar -tzf {1} 2>/dev/null | wc -l)"' \
+        --preview-window=right:50%:wrap \
+    )
+
+    if [[ -z "$selected" ]]; then
+        log "❌ Operación cancelada"
+        return 1
+    fi
+
+    # Extraer la ruta completa del backup seleccionado
+    local selected_backup=$(echo "$selected" | cut -d'|' -f1)
+    echo "$selected_backup"
+    return 0
+}
+
+# Extraer nombre del stack desde el nombre del backup
+extract_stack_from_backup() {
+    local backup_file="$1"
+    local basename_backup=$(basename "$backup_file")
+
+    # Formato: {stack_name}-{YYYYMMDD-HHMMSS}.tar.gz
+    # Extraer todo hasta el primer guion seguido de una fecha
+    local stack_name="${basename_backup%-[0-9]*}"
+
+    echo "$stack_name"
+}
+
+# Restaurar backup
+restore_backup() {
+    local backup_file="$1"
+    local target_stack="$2"
+    local services_were_running=false
+    local services_stopped_successfully=false
+
+    if [[ ! -f "$backup_file" ]]; then
+        error "Archivo de backup no existe: $backup_file"
+        return 1
+    fi
+
+    # Si no se especifica stack destino, extraerlo del nombre del backup
+    if [[ -z "$target_stack" ]]; then
+        target_stack=$(extract_stack_from_backup "$backup_file")
+    fi
+
+    log "🔄 Iniciando restore del backup: $(basename "$backup_file")"
+    log "📦 Stack destino: $target_stack"
+
+    # Verificar que el stack existe
+    if ! stack_exists "$target_stack"; then
+        error "Stack '$target_stack' no existe en la configuración"
+        return 1
+    fi
+
+    local stack_data_dir="$DATA_BASE_DIR/$target_stack"
+
+    # Confirmar sobrescritura si el directorio existe y tiene contenido
+    if [[ -d "$stack_data_dir" ]]; then
+        local file_count=$(find "$stack_data_dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+        if [[ "$file_count" -gt 0 ]]; then
+            log "⚠️ ADVERTENCIA: El directorio '$stack_data_dir' contiene $file_count archivos"
+            log "⚠️ Esta operación SOBRESCRIBIRÁ los datos existentes"
+            echo ""
+            read -p "¿Estás seguro de continuar? (escribe 'SI' para confirmar): " confirmation
+
+            if [[ "$confirmation" != "SI" ]]; then
+                log "❌ Operación cancelada"
+                return 1
+            fi
+        fi
+    fi
+
+    # Detener servicios si están ejecutándose
+    if check_stack_services "$target_stack"; then
+        services_were_running=true
+        log "🔍 Servicios detectados para stack '$target_stack'"
+
+        if stop_stack_services "$target_stack"; then
+            services_stopped_successfully=true
+            log "⏳ Esperando 5 segundos para que se liberen los archivos..."
+            sleep 5
+        else
+            error "⚠️ No se pudieron detener los servicios"
+            read -p "¿Continuar de todos modos? (escribe 'SI' para confirmar): " confirmation
+
+            if [[ "$confirmation" != "SI" ]]; then
+                log "❌ Operación cancelada"
+                return 1
+            fi
+        fi
+    fi
+
+    # Crear backup del estado actual antes de restaurar (respetando exclusiones)
+    if [[ -d "$stack_data_dir" ]] && [[ -n "$(find "$stack_data_dir" -type f 2>/dev/null | head -1)" ]]; then
+        log "💾 Creando backup del estado actual antes de restaurar..."
+        local safety_backup="$BACKUP_BASE_DIR/${target_stack}-pre-restore-${BACKUP_DATE}.tar.gz"
+
+        # Crear backup de seguridad usando la misma lógica que backup_stack
+        # para respetar las exclusiones configuradas
+        local exclusion_file=$(mktemp)
+        local tar_exclude_file=$(mktemp)
+
+        create_exclusion_file "$target_stack" "$exclusion_file"
+
+        # Convertir patrones gitignore a formato tar
+        while IFS= read -r pattern; do
+            [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
+
+            # Eliminar espacios en blanco al inicio/final
+            pattern=$(echo "$pattern" | xargs)
+
+            # Convertir patrón gitignore a patrón tar --exclude
+            if [[ "$pattern" == /* ]]; then
+                # Patrón absoluto desde la raíz del stack
+                echo "${target_stack}${pattern}" >> "$tar_exclude_file"
+            elif [[ "$pattern" == */* ]]; then
+                # Patrón con ruta
+                echo "${target_stack}/${pattern}" >> "$tar_exclude_file"
+            else
+                # Patrón simple (nombre de archivo/directorio)
+                echo "${target_stack}/${pattern}" >> "$tar_exclude_file"
+            fi
+        done < "$exclusion_file"
+
+        # Crear backup de seguridad con exclusiones
+        if (cd "$DATA_BASE_DIR" && tar -czf "$safety_backup" --exclude-from="$tar_exclude_file" "$target_stack" 2>/dev/null); then
+            local safety_size=$(du -h "$safety_backup" 2>/dev/null | cut -f1 || echo "?")
+            log "✅ Backup de seguridad creado: $(basename "$safety_backup") ($safety_size)"
+        else
+            log "⚠️ No se pudo crear backup de seguridad del estado actual"
+            read -p "¿Continuar de todos modos? (escribe 'SI' para confirmar): " confirmation
+
+            if [[ "$confirmation" != "SI" ]]; then
+                log "❌ Operación cancelada"
+                rm -f "$exclusion_file" "$tar_exclude_file"
+                # Reiniciar servicios si los detuvimos
+                if [[ "$services_stopped_successfully" == "true" ]]; then
+                    start_stack_services "$target_stack"
+                fi
+                return 1
+            fi
+        fi
+
+        rm -f "$exclusion_file" "$tar_exclude_file"
+    fi
+
+    # NO eliminamos el contenido actual - solo extraemos el backup
+    # Esto sobrescribirá archivos existentes pero mantendrá archivos que
+    # no están en el backup (ej: archivos en directorios excluidos)
+    if [[ ! -d "$stack_data_dir" ]]; then
+        log "📁 Creando directorio para stack '$target_stack'..."
+        mkdir -p "$stack_data_dir"
+    fi
+
+    # Restaurar backup
+    log "📦 Restaurando backup..."
+    log "📁 Destino: $stack_data_dir"
+    log "ℹ️ Los archivos del backup sobrescribirán los existentes"
+
+    # Extraer y contar archivos
+    local temp_list=$(mktemp)
+    if tar -tzf "$backup_file" > "$temp_list" 2>/dev/null; then
+        local file_count=$(wc -l < "$temp_list" | tr -d ' ')
+        log "📄 Archivos a restaurar: $file_count"
+
+        if [[ "$VERBOSE_MODE" == "true" ]]; then
+            log "📋 Lista de archivos:"
+            while IFS= read -r file; do
+                [[ -z "$file" ]] && continue
+                echo "   📄 $file"
+            done < "$temp_list"
+        fi
+
+        rm -f "$temp_list"
+    fi
+
+    # Extraer backup (sobrescribe pero no elimina otros archivos)
+    if (cd "$DATA_BASE_DIR" && tar -xzf "$backup_file"); then
+        local restored_size=$(du -sh "$stack_data_dir" 2>/dev/null | cut -f1 || echo "?")
+        log "✅ Backup restaurado exitosamente"
+        log "📊 Tamaño total del stack: $restored_size"
+
+        # Verificar archivos restaurados
+        local restored_files=$(find "$stack_data_dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+        log "📄 Total de archivos en el stack: $restored_files"
+    else
+        error "❌ Error al restaurar backup"
+        rm -f "$temp_list"
+        # Reiniciar servicios si los detuvimos
+        if [[ "$services_stopped_successfully" == "true" ]]; then
+            start_stack_services "$target_stack"
+        fi
+        return 1
+    fi
+
+    # Reiniciar servicios si fueron detenidos
+    if [[ "$services_stopped_successfully" == "true" ]]; then
+        log "🔄 Reiniciando servicios del stack: $target_stack"
+        if ! start_stack_services "$target_stack"; then
+            error "❌ Error: No se pudieron reiniciar los servicios del stack '$target_stack'"
+            error "⚠️ Los servicios permanecen detenidos. Reinícialos manualmente con:"
+            error "   cd $DOCKER_DIR/$target_stack && docker compose up -d"
+            return 1
+        fi
+    fi
+
+    log "🎉 Restore completado exitosamente"
+    return 0
 }
 
 # Limpiar backups antiguos manteniendo solo los más recientes
@@ -188,6 +479,15 @@ start_stack_services() {
         log "❌ Error al iniciar servicios del stack '$stack_name'"
         return 1
     fi
+}
+
+# Verificar que un stack existe en la configuración
+stack_exists() {
+    local stack_name="$1"
+
+    # Usar stack-info para verificar si el stack existe
+    "$STACK_INFO_SCRIPT" stack_exists "$stack_name" 2>/dev/null
+    return $?
 }
 
 # Verificar si un stack tiene servicios Docker ejecutándose
@@ -617,6 +917,25 @@ main() {
                 fi
                 log "🧹 Modo limpieza activado: manteniendo $KEEP_BACKUPS backups por stack"
                 ;;
+            --restore|-r)
+                RESTORE_MODE=true
+                # Verificar si el siguiente argumento es un archivo de backup o un stack
+                if [[ $# -gt 1 ]]; then
+                    if [[ -f "$2" ]]; then
+                        # Es un archivo de backup específico
+                        RESTORE_BACKUP="$2"
+                        shift 2
+                    elif [[ "$2" != -* ]]; then
+                        # Es un stack, mostrar menú de selección
+                        RESTORE_STACK="$2"
+                        shift 2
+                    else
+                        shift
+                    fi
+                else
+                    shift
+                fi
+                ;;
             --verbose|-v)
                 VERBOSE_MODE=true
                 log "📝 Modo verbose activado: mostrando lista detallada de archivos"
@@ -632,6 +951,33 @@ main() {
                 ;;
         esac
     done
+
+    # Modo restore
+    if [[ "$RESTORE_MODE" == "true" ]]; then
+        local backup_to_restore=""
+
+        if [[ -n "$RESTORE_BACKUP" ]]; then
+            # Se especificó un archivo de backup
+            backup_to_restore="$RESTORE_BACKUP"
+        else
+            # Mostrar menú de selección
+            backup_to_restore=$(select_backup "$RESTORE_STACK")
+
+            if [[ -z "$backup_to_restore" ]]; then
+                exit 1
+            fi
+        fi
+
+        # Realizar restore
+        if restore_backup "$backup_to_restore" "$RESTORE_STACK"; then
+            log "────────────────────────────────────────"
+            log "✅ Proceso de restore completado exitosamente"
+            exit 0
+        else
+            error "❌ El proceso de restore falló"
+            exit 1
+        fi
+    fi
 
     # Inicializar stack-info
     if ! init_stack_info; then
@@ -744,6 +1090,7 @@ OPCIONES:
   --all, -a               Respaldar todos los stacks disponibles
   --safe, -s              Modo seguro: detener servicios antes del backup y reiniciarlos después
   --cleanup, -c [N]       Limpiar backups antiguos, mantener N más recientes por stack (por defecto: 5)
+  --restore, -r [STACK|FILE] Restaurar un backup (usa fzf para selección interactiva)
   --verbose, -v           Mostrar lista detallada de todos los archivos incluidos en el backup
   --help, -h              Mostrar esta ayuda
 
@@ -760,6 +1107,9 @@ EJEMPLOS:
   $0 --cleanup                # Solo limpiar backups antiguos (mantener 5 por stack)
   $0 --cleanup 10             # Solo limpiar backups antiguos (mantener 10 por stack)
   $0 --all --cleanup 3        # Backup de todos + limpiar manteniendo 3 por stack
+  $0 --restore                # Mostrar todos los backups y elegir cuál restaurar
+  $0 --restore media          # Mostrar backups del stack media y elegir cuál restaurar
+  $0 --restore /path/to/media-20251112-120000.tar.gz  # Restaurar backup específico
 
 CONFIGURACIÓN:
   Los backups se configuran en stacks.yml:
@@ -783,6 +1133,14 @@ NOTAS:
   - Los patrones de exclusión siguen el formato gitignore
   - Se excluyen automáticamente: *.tmp, *.log, .DS_Store, node_modules/, etc.
   - El directorio de backups debe estar configurado previamente con link.sh
+  - La restauración SOBRESCRIBE archivos existentes pero NO elimina otros archivos
+  - Los directorios excluidos se mantienen intactos durante la restauración
+
+DEPENDENCIAS:
+  - fzf (requerido para --restore): Instalación:
+    * Ubuntu/Debian: sudo apt install fzf
+    * macOS: brew install fzf
+    * Fedora/RHEL: sudo dnf install fzf
 EOF
 }
 
