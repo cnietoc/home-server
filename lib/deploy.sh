@@ -146,6 +146,29 @@ deploy::config::regenerate_envs() {
     return 0
 }
 
+deploy::stack::pre_deploy() {
+    local stack="$1"
+    local stack_dir="${_DEPLOY_DOCKER_DIR}/${stack}"
+
+    if [[ ! -f "${stack_dir}/pre-deploy.sh" ]]; then
+        return 0
+    fi
+
+    logs::info "🔧 Ejecutando configuración pre-deploy para stack $stack..."
+
+    cd "$stack_dir" || return 1
+
+    # Ejecutar y mostrar output en tiempo real
+    if bash ./pre-deploy.sh; then
+        logs::info "✅ Pre-deploy completado para stack $stack"
+        return 0
+    else
+        logs::warn "⚠️ Error en script pre-deploy, continuando con configuración por defecto"
+        return 1
+    fi
+}
+
+
 # ============================================
 # FUNCIONES DE DEPLOYMENT
 # ============================================
@@ -168,7 +191,7 @@ deploy::stack::deploy() {
     logs::info "🔄 Desplegando stack: $stack"
 
     # Ejecutar pre-deploy si existe
-    docker::stack::run_predeploy "$stack" || true
+    deploy::stack::pre_deploy "$stack" || true
 
     # Parar contenedores actuales
     logs::info "⏹️ Parando contenedores actuales..."
@@ -234,7 +257,6 @@ deploy::stacks::deploy_multiple() {
     fi
 
     logs::info "🎯 Desplegando stacks: ${stacks[*]}"
-    echo ""
 
     local success=0
     local total=${#stacks[@]}
@@ -247,8 +269,6 @@ deploy::stacks::deploy_multiple() {
         else
             failed_stacks+=("$stack")
         fi
-        echo ""
-        echo ""
     done
 
     # Actualizar deployment global
@@ -355,24 +375,3 @@ deploy::stacks::determine() {
     # Retornar lista de stacks
     printf "%s\n" "${stacks_to_deploy[@]}"
 }
-
-# ============================================
-# FUNCIONES DE INFORMACIÓN
-# ============================================
-
-# Obtener información del último deployment
-deploy::info::get_last_deployment() {
-    local last_timestamp
-    local last_date
-
-    last_timestamp=$(state::server::get_last_deployment_timestamp)
-    last_date=$(state::server::get_last_deployment_date)
-
-    if [[ "$last_timestamp" != "0" && "$last_timestamp" != "null" ]]; then
-        local hours_ago=$(( ($(date +%s) - last_timestamp) / 3600 ))
-        echo "📅 Último despliegue: hace ${hours_ago}h ($last_date)"
-    else
-        echo "❓ Nunca se ha desplegado"
-    fi
-}
-

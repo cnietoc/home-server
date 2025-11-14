@@ -162,28 +162,6 @@ docker::stack::is_running() {
 # FUNCIONES DE COMPOSE - OPERACIONES
 # ============================================
 
-# Ejecutar pre-deploy script si existe
-docker::stack::run_predeploy() {
-    local stack="$1"
-    local stack_dir="${_DOCKER_DIR}/${stack}"
-
-    if [[ ! -f "${stack_dir}/pre-deploy.sh" ]]; then
-        return 0
-    fi
-
-    logs::info "🔧 Ejecutando configuración pre-deploy para stack $stack..."
-
-    cd "$stack_dir" || return 1
-
-    if ./pre-deploy.sh; then
-        logs::info "✅ Pre-deploy completado para stack $stack"
-        return 0
-    else
-        logs::warn "⚠️ Error en script pre-deploy, continuando con configuración por defecto"
-        return 1
-    fi
-}
-
 # Parar un stack
 docker::stack::down() {
     local stack="$1"

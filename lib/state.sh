@@ -79,8 +79,8 @@ EOF
       hash: ""
 EOF
     done <<< "$all_stacks"
-
-    log "✅ Archivo de estado inicializado con $(echo "$all_stacks" | wc -l | tr -d ' ') stacks"
+    
+    logs::info "✅ Archivo de estado inicializado con $(echo "$all_stacks" | wc -l | tr -d ' ') stacks"
     return 0
 }
 
@@ -154,8 +154,8 @@ state::stack::enable() {
     yq::write ".stacks.${stack}.enabled = true" "$_STATE_FILE"
     yq::write "del(.stacks.${stack}.disabled_at)" "$_STATE_FILE"
     yq::write "del(.stacks.${stack}.disabled_reason)" "$_STATE_FILE"
-
-    log "✅ Stack '$stack' habilitado"
+    
+    logs::info "✅ Stack '$stack' habilitado"
     return 0
 }
 
@@ -170,9 +170,9 @@ state::stack::disable() {
     yq::write ".stacks.${stack}.enabled = false" "$_STATE_FILE"
     yq::write ".stacks.${stack}.disabled_at = \"$timestamp\"" "$_STATE_FILE"
     yq::write ".stacks.${stack}.disabled_reason = \"$reason\"" "$_STATE_FILE"
-
-    log "❌ Stack '$stack' deshabilitado"
-    log "   Motivo: $reason"
+    
+    logs::info "❌ Stack '$stack' deshabilitado"
+    logs::info "   Motivo: $reason"
     return 0
 }
 
@@ -329,67 +329,5 @@ state::maintenance::get_last_run() {
         echo "never"
     else
         echo "$date"
-    fi
-}
-
-# ============================================
-# FUNCIONES DE VISUALIZACIÓN
-# ============================================
-
-# Mostrar estado general
-state::show_status() {
-    if [[ ! -f "$_STATE_FILE" ]]; then
-        log "ℹ️  No hay archivo de estado. Ejecuta un deployment primero."
-        return 0
-    fi
-
-    log "📊 Estado del Home Server"
-    echo ""
-
-    # Estado global
-    local last_timestamp=$(state::server::get_last_deployment_timestamp)
-    local last_date=$(state::server::get_last_deployment_date)
-
-    log "🌐 Último deployment:"
-    if [[ "$last_timestamp" != "0" ]]; then
-        local hours_ago=$(( ($(date +%s) - last_timestamp) / 3600 ))
-        log "   Hace ${hours_ago}h - $last_date"
-    else
-        log "   Nunca"
-    fi
-
-    echo ""
-    log "📦 Stacks:"
-
-    # Listar stacks habilitados
-    local enabled_stacks=$(state::stack::list_enabled)
-    local enabled_count=0
-    if [[ -n "$enabled_stacks" ]]; then
-        enabled_count=$(echo "$enabled_stacks" | wc -l | tr -d ' ')
-    fi
-
-    log "   ✅ Habilitados: $enabled_count"
-    if [[ "$enabled_count" -gt 0 ]]; then
-        while IFS= read -r stack; do
-            [[ -z "$stack" ]] && continue
-            log "      - $stack"
-        done <<< "$enabled_stacks"
-    fi
-
-    # Listar stacks deshabilitados
-    local disabled_stacks=$(state::stack::list_disabled)
-    local disabled_count=0
-    if [[ -n "$disabled_stacks" ]]; then
-        disabled_count=$(echo "$disabled_stacks" | wc -l | tr -d ' ')
-    fi
-
-    if [[ "$disabled_count" -gt 0 ]]; then
-        echo ""
-        log "   ❌ Deshabilitados: $disabled_count"
-        while IFS= read -r stack; do
-            [[ -z "$stack" ]] && continue
-            local reason=$(yq::read ".stacks.${stack}.disabled_reason" "$_STATE_FILE" 2>/dev/null)
-            log "      - $stack ($reason)"
-        done <<< "$disabled_stacks"
     fi
 }

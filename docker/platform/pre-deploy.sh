@@ -10,6 +10,9 @@ PLATFORM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_PROJECT_ROOT="$(dirname "$(dirname "$PLATFORM_SCRIPT_DIR")")"
 PLATFORM_STACK_DIR="$PLATFORM_SCRIPT_DIR"
 
+# Cargar librería de logs
+source "$PLATFORM_PROJECT_ROOT/lib/logs.sh"
+
 # Cargar variables de entorno del stack
 if [[ -f "$PLATFORM_STACK_DIR/.env" ]]; then
     set -a  # automatically export all variables
@@ -19,19 +22,19 @@ fi
 
 # Cargar funciones de stack-info directamente
 source "$PLATFORM_PROJECT_ROOT/scripts/stack-info.sh" || {
-    echo "❌ Error: No se pudo cargar stack-info.sh" >&2
+    logs::error "❌ Error: No se pudo cargar stack-info.sh"
     exit 1
 }
 
 # Inicializar stack-info
 if ! init_stack_info; then
-    echo "❌ Error: No se pudo inicializar stack-info" >&2
+    logs::error "❌ Error: No se pudo inicializar stack-info"
     exit 1
 fi
 
 # Función para configurar Samba dinámicamente
 configure_samba() {
-    echo "🔧 Configurando Samba dinámicamente basado en shares..."
+    logs::info "🔧 Configurando Samba dinámicamente basado en shares..."
 
     local override_file="$PLATFORM_SCRIPT_DIR/docker-compose.override.yml"
     local config_dir="$PLATFORM_PROJECT_ROOT/data/platform/samba"
@@ -44,7 +47,7 @@ configure_samba() {
     stacks_with_shares=$(get_stacks_with_shares 2>/dev/null || echo "")
 
     if [[ -z "$stacks_with_shares" ]]; then
-        echo "ℹ️ No se encontraron stacks con shares, Samba no tendrá shares configuradas"
+        logs::info "ℹ️ No se encontraron stacks con shares, Samba no tendrá shares configuradas"
 
         # Crear override básico sin shares
         cat > "$override_file" << 'EOF'
@@ -86,7 +89,7 @@ EOF
         return 0
     fi
 
-    echo "📁 Encontrados stacks con shares: $(echo "$stacks_with_shares" | tr '\n' ' ')"
+    logs::info "📁 Encontrados stacks con shares: $(echo "$stacks_with_shares" | tr '\n' ' ')"
 
     # Generar override con volúmenes dinámicos
     cat > "$override_file" << 'EOF'
@@ -176,7 +179,7 @@ EOF
     while IFS= read -r stack_name; do
         [[ -z "$stack_name" ]] && continue
 
-        echo "  📋 Procesando stack: $stack_name"
+        logs::info "  📋 Procesando stack: $stack_name"
 
         local shares
         shares=$(get_stack_shares "$stack_name" 2>/dev/null || echo "")
@@ -197,8 +200,7 @@ EOF
             # samba_share_name="${samba_share_name//\//_}"  # Reemplazar / por _ para nombres seguros
             local container_path="/data/${exposed_path#/}"
 
-            echo "    📂 Share: $samba_share_name ($path -> $container_path)"
-
+            logs::info "    📂 Share: $samba_share_name ($path -> $container_path)"
 
             # Añadir configuración del share al config.yml
             cat >> "$config_dir/config.yml" << EOF
@@ -217,13 +219,13 @@ EOF
 
     done <<< "$stacks_with_shares"
 
-    echo "✅ Samba configurado con $share_count shares"
-    echo "📝 Archivos generados:"
-    echo "  - $override_file"
-    echo "  - $config_dir/config.yml"
+    logs::info "✅ Samba configurado con $share_count shares"
+    logs::info "📝 Archivos generados:"
+    logs::info "  - $override_file"
+    logs::info "  - $config_dir/config.yml"
 }
 
 # Ejecutar configuración
-echo "🚀 Iniciando pre-deploy del stack platform..."
+logs::info "🚀 Iniciando pre-deploy del stack platform..."
 configure_samba
-echo "✅ Pre-deploy del stack platform completado"
+logs::info "✅ Pre-deploy del stack platform completado"

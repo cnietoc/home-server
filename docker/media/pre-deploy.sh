@@ -10,6 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STACK_DIR="$SCRIPT_DIR"
 STACK_NAME="$(basename "$STACK_DIR")"
 OVERRIDE_FILE="$STACK_DIR/docker-compose.override.yml"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Cargar librería de logs
+source "$PROJECT_ROOT/lib/logs.sh"
 
 # Cargar variables de entorno del stack
 if [[ -f "$STACK_DIR/.env" ]]; then
@@ -18,7 +22,7 @@ if [[ -f "$STACK_DIR/.env" ]]; then
     set +a  # turn off automatic export
 fi
 
-echo "🔧 Generando configuración de hardware para stack: $STACK_NAME"
+logs::info "🔧 Generando configuración de hardware para stack: $STACK_NAME"
 
 # Generar override file
 cat > "$OVERRIDE_FILE" << 'EOF'
@@ -45,21 +49,21 @@ elif [[ "${ENABLE_VAAPI:-false}" == "true" ]]; then
     echo "      - /dev/dri:/dev/dri" >> "$OVERRIDE_FILE"
     echo "    # VAAPI habilitado para Tdarr" >> "$OVERRIDE_FILE"
 else
-    echo "    [] # Sin aceleración por hardware para Tdarr" >> "$OVERRIDE_FILE"
+    echo "    {} # Sin aceleración por hardware para Tdarr" >> "$OVERRIDE_FILE"
 fi
 
-echo "✅ Configuración de hardware generada: $OVERRIDE_FILE"
+logs::info "✅ Configuración de hardware generada: $OVERRIDE_FILE"
 
 # Mostrar resumen
-echo "📋 Configuración aplicada:"
+logs::info "📋 Configuración aplicada:"
 if [[ "${ENABLE_INTEL_QSV:-false}" == "true" ]]; then
-    echo "   🔧 Tdarr: Intel Quick Sync Video habilitado para transcodificación"
+    logs::info "   🔧 Tdarr: Intel Quick Sync Video habilitado para transcodificación"
 elif [[ "${ENABLE_NVIDIA:-false}" == "true" ]]; then
-    echo "   🔧 Tdarr: NVIDIA NVENC habilitado para transcodificación"
+    logs::info "   🔧 Tdarr: NVIDIA NVENC habilitado para transcodificación"
 elif [[ "${ENABLE_VAAPI:-false}" == "true" ]]; then
-    echo "   🔧 Tdarr: VAAPI habilitado para transcodificación"
+    logs::info "   🔧 Tdarr: VAAPI habilitado para transcodificación"
 else
-    echo "   💻 Tdarr: Solo CPU para transcodificación"
+    logs::info "   💻 Tdarr: Solo CPU para transcodificación"
 fi
 
-echo "✅ Pre-deploy completado para $STACK_NAME"
+logs::info "✅ Pre-deploy completado para $STACK_NAME"

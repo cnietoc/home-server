@@ -96,8 +96,19 @@ main() {
     # Banner
     echo "🚀 Home Server - Deployment Automático"
     echo "======================================"
-    deploy::info::get_last_deployment
-    echo ""
+    local last_timestamp
+        local last_date
+
+        last_timestamp=$(state::server::get_last_deployment_timestamp)
+        last_date=$(state::server::get_last_deployment_date)
+
+        if [[ "$last_timestamp" != "0" && "$last_timestamp" != "null" ]]; then
+            local hours_ago=$(( ($(date +%s) - last_timestamp) / 3600 ))
+            echo "📅 Último despliegue: hace ${hours_ago}h ($last_date)" >&2
+        else
+            echo "❓ Nunca se ha desplegado" >&2
+        fi
+    echo "======================================"
 
     # Inicializar estado
     state::init || true
@@ -182,7 +193,6 @@ main() {
 
     # Preguntar confirmación si se va a rebuildar
     if [[ "$rebuild" == "true" ]]; then
-        echo ""
         logs::warn "⚠️ Se van a RECONSTRUIR las imágenes Docker sin caché de: ${enabled_stacks[*]}"
         logs::warn "Esto puede tardar más tiempo."
         read -p "¿Continuar? (y/N): " -n 1 -r
@@ -194,7 +204,6 @@ main() {
     fi
 
     # Desplegar stacks
-    echo ""
     local result
     result=$(deploy::stacks::deploy_multiple "$rebuild" "${enabled_stacks[@]}")
 
@@ -212,26 +221,23 @@ main() {
     logs::info "✅ Exitosos: $success/$total stacks"
 
     if [[ -n "$failed" && "$failed" != "$total" ]]; then
-        logs::info "❌ Con problemas: $failed"
-        echo ""
-        logs::info "💡 Para diagnosticar problemas:"
-        logs::info "   hms show logs <stack>"
+        logs::error "❌ Con problemas: $failed"
+        logs::error "💡 Para diagnosticar problemas:"
+        logs::error "   hms show logs <stack>"
     fi
-
+    echo "=========================="
     echo ""
     if [[ "$success" == "$total" ]]; then
         logs::info "🎉 Despliegue completado exitosamente"
 
         # Mostrar URLs de acceso si todo está bien
-        if command -v "${COMMANDS_ROOT}/show/stacks" >/dev/null 2>&1; then
-            echo ""
-            "${COMMANDS_ROOT}/show/stacks" "${enabled_stacks[@]}" 2>/dev/null || true
+        if [[ -x "${COMMANDS_ROOT}/show/stacks" ]]; then
+            "${COMMANDS_ROOT}/show/stacks" "${enabled_stacks[@]}" || true
         fi
     else
-        logs::info "⚠️ Despliegue completado con errores"
+        logs::error "⚠️ Despliegue completado con errores"
         exit 1
     fi
 }
 
 main "$@"
-

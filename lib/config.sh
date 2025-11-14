@@ -174,8 +174,6 @@ config::generate_all_envs() {
             fail_count=$((fail_count + 1))
         fi
     done <<< "$stacks"
-
-    echo ""
     logs::info "📊 Generados: $success_count stacks"
 
     if [[ $fail_count -gt 0 ]]; then
@@ -229,8 +227,6 @@ config::generate_multiple_envs() {
             fail_count=$((fail_count + 1))
         fi
     done
-
-    echo ""
     logs::info "📊 Generados: $success_count stacks"
 
     if [[ $fail_count -gt 0 ]]; then
@@ -239,33 +235,5 @@ config::generate_multiple_envs() {
     fi
 
     return 0
-}
-
-# ============================================
-# FUNCIONES DE INFORMACIÓN
-# ============================================
-
-# Listar configuración de todos los stacks
-config::list_stack_config() {
-    logs::info "📋 Configuración de variables por stack:"
-    echo ""
-
-    local stacks
-    stacks=$(stack::list)
-
-    while IFS= read -r stack; do
-        [[ -z "$stack" ]] && continue
-
-        local config_files
-        config_files=$(stack::get_config_files "$stack")
-
-        local description
-        description=$(stack::get_description "$stack")
-        [[ -z "$description" ]] && description="Sin descripción"
-
-        echo "📦 $stack: $description"
-        echo "   ⚙️  $config_files"
-        echo ""
-    done <<< "$stacks"
 }
 

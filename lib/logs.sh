@@ -73,7 +73,7 @@ _logs::write() {
     local file_line="${ts} [${level}] ${msg}"
 
     # Línea para consola (con colores sutiles)
-    local console_line="${GRAY}${ts}${RESET} ${symbol} ${color}${msg}${RESET}"
+    local console_line="${color}${msg}${RESET}"
 
     # Escribir
     echo -e "$console_line" >&2
