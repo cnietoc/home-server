@@ -140,8 +140,11 @@ main() {
     local filter_result
     filter_result=$(deploy::stacks::filter_enabled "${stacks_to_deploy[@]}")
 
-    local enabled_stacks_str="${filter_result%%|*}"
-    local skipped_stacks_str="${filter_result#*|}"
+    # Leer línea 1 (habilitados) y línea 2 (deshabilitados)
+    local enabled_stacks_str
+    local skipped_stacks_str
+    enabled_stacks_str=$(echo "$filter_result" | sed -n '1p')
+    skipped_stacks_str=$(echo "$filter_result" | sed -n '2p')
 
     local enabled_stacks=()
     local skipped_stacks=()

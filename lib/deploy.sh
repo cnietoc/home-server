@@ -5,7 +5,7 @@
 # ============================================
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && {
-    echo "❌ Este archivo es una librería y no debe ejecutarse directamente." >&2
+    echo "❌ Este archivo es una librería y no debe ejecutarse directamente."
     exit 1
 }
 
@@ -271,6 +271,7 @@ deploy::stacks::deploy_multiple() {
 # ============================================
 
 # Filtrar stacks habilitados de una lista
+# Retorna dos líneas: primera con habilitados, segunda con deshabilitados
 deploy::stacks::filter_enabled() {
     local stacks=("$@")
     local enabled_stacks=()
@@ -284,8 +285,9 @@ deploy::stacks::filter_enabled() {
         fi
     done
 
-    # Retornar ambas listas separadas por |
-    printf "%s|%s" "$(IFS=' '; echo "${enabled_stacks[*]}")" "$(IFS=' '; echo "${skipped_stacks[*]}")"
+    # Retornar habilitados en primera línea, deshabilitados en segunda
+    printf "%s\n" "${enabled_stacks[*]}"
+    printf "%s\n" "${skipped_stacks[*]}"
 }
 
 # Determinar qué stacks desplegar basándose en opciones
@@ -321,7 +323,6 @@ deploy::stacks::determine() {
                     [[ -z "$stack" ]] && continue
                     stacks_to_deploy+=("$stack")
                 done <<< "$changed_stacks"
-
                 logs::info "📦 Desplegando stacks con cambios detectados: ${stacks_to_deploy[*]}"
             else
                 logs::info "⏭️ No hay cambios detectados en ningún stack."

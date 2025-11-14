@@ -76,7 +76,7 @@ _logs::write() {
     local console_line="${GRAY}${ts}${RESET} ${symbol} ${color}${msg}${RESET}"
 
     # Escribir
-    echo -e "$console_line"
+    echo -e "$console_line" >&2
     echo "$file_line" >> "$LOG_FILE"
 }
 

@@ -97,7 +97,7 @@ state::stack::is_enabled() {
     fi
 
     local enabled
-    enabled=$(yq_read ".stacks.${stack}.enabled" "$_STATE_FILE" 2>/dev/null)
+    enabled=$(yq::read ".stacks.${stack}.enabled" "$_STATE_FILE" 2>/dev/null)
 
     # Si es null, vacío o true, está habilitado
     if [[ -z "$enabled" || "$enabled" == "null" || "$enabled" == "true" ]]; then
@@ -115,7 +115,7 @@ state::stack::list_enabled() {
         return 0
     fi
 
-    yq_read '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$_STATE_FILE"
+    yq::read '.stacks | to_entries | map(select(.value.enabled == true)) | .[].key' "$_STATE_FILE"
 }
 
 # Obtener lista de stacks deshabilitados
@@ -124,7 +124,7 @@ state::stack::list_disabled() {
         return 0
     fi
 
-    yq_read '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$_STATE_FILE"
+    yq::read '.stacks | to_entries | map(select(.value.enabled == false)) | .[].key' "$_STATE_FILE"
 }
 
 # Obtener hash de último deployment de un stack
@@ -136,7 +136,7 @@ state::stack::get_deployment_hash() {
     fi
 
     local hash
-    hash=$(yq_read ".stacks.${stack}.last_deployment.hash" "$_STATE_FILE" 2>/dev/null)
+    hash=$(yq::read ".stacks.${stack}.last_deployment.hash" "$_STATE_FILE" 2>/dev/null)
 
     # Si es null o vacío, devolver vacío
     if [[ -z "$hash" || "$hash" == "null" ]]; then
@@ -151,9 +151,9 @@ state::stack::enable() {
     local stack="$1"
     state::init || return 1
 
-    yq_write ".stacks.${stack}.enabled = true" "$_STATE_FILE"
-    yq_write "del(.stacks.${stack}.disabled_at)" "$_STATE_FILE"
-    yq_write "del(.stacks.${stack}.disabled_reason)" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.enabled = true" "$_STATE_FILE"
+    yq::write "del(.stacks.${stack}.disabled_at)" "$_STATE_FILE"
+    yq::write "del(.stacks.${stack}.disabled_reason)" "$_STATE_FILE"
 
     log "✅ Stack '$stack' habilitado"
     return 0
@@ -167,9 +167,9 @@ state::stack::disable() {
     state::init || return 1
 
     local timestamp=$(date -Iseconds)
-    yq_write ".stacks.${stack}.enabled = false" "$_STATE_FILE"
-    yq_write ".stacks.${stack}.disabled_at = \"$timestamp\"" "$_STATE_FILE"
-    yq_write ".stacks.${stack}.disabled_reason = \"$reason\"" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.enabled = false" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.disabled_at = \"$timestamp\"" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.disabled_reason = \"$reason\"" "$_STATE_FILE"
 
     log "❌ Stack '$stack' deshabilitado"
     log "   Motivo: $reason"
@@ -186,9 +186,9 @@ state::stack::update_deployment() {
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq_write ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$_STATE_FILE"
-    yq_write ".stacks.${stack}.last_deployment.date = \"$date\"" "$_STATE_FILE"
-    yq_write ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.last_deployment.timestamp = $timestamp" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.last_deployment.date = \"$date\"" "$_STATE_FILE"
+    yq::write ".stacks.${stack}.last_deployment.hash = \"$hash\"" "$_STATE_FILE"
 
     return 0
 }
@@ -205,7 +205,7 @@ state::server::get_config_hash() {
     fi
 
     local hash
-    hash=$(yq_read ".server.config_hash" "$_STATE_FILE" 2>/dev/null)
+    hash=$(yq::read ".server.config_hash" "$_STATE_FILE" 2>/dev/null)
 
     # Si es null o vacío, devolver vacío
     if [[ -z "$hash" || "$hash" == "null" ]]; then
@@ -223,7 +223,7 @@ state::server::get_last_deployment_timestamp() {
     fi
 
     local timestamp
-    timestamp=$(yq_read ".server.last_deployment.timestamp" "$_STATE_FILE" 2>/dev/null)
+    timestamp=$(yq::read ".server.last_deployment.timestamp" "$_STATE_FILE" 2>/dev/null)
 
     # Si es null o vacío, devolver 0
     if [[ -z "$timestamp" || "$timestamp" == "null" ]]; then
@@ -241,7 +241,7 @@ state::server::get_last_deployment_date() {
     fi
 
     local date
-    date=$(yq_read ".server.last_deployment.date" "$_STATE_FILE" 2>/dev/null)
+    date=$(yq::read ".server.last_deployment.date" "$_STATE_FILE" 2>/dev/null)
 
     # Si es null o vacío, devolver "never"
     if [[ -z "$date" || "$date" == "null" ]]; then
@@ -256,7 +256,7 @@ state::server::update_config_hash() {
     local hash="$1"
     state::init || return 1
 
-    yq_write ".server.config_hash = \"$hash\"" "$_STATE_FILE"
+    yq::write ".server.config_hash = \"$hash\"" "$_STATE_FILE"
     return 0
 }
 
@@ -267,8 +267,8 @@ state::server::update_deployment() {
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq_write ".server.last_deployment.timestamp = $timestamp" "$_STATE_FILE"
-    yq_write ".server.last_deployment.date = \"$date\"" "$_STATE_FILE"
+    yq::write ".server.last_deployment.timestamp = $timestamp" "$_STATE_FILE"
+    yq::write ".server.last_deployment.date = \"$date\"" "$_STATE_FILE"
 
     return 0
 }
@@ -287,9 +287,9 @@ state::maintenance::update_status() {
     local timestamp=$(date +%s)
     local date=$(date -Iseconds)
 
-    yq_write ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$_STATE_FILE"
-    yq_write ".server.maintenance.${task}.last_run.date = \"$date\"" "$_STATE_FILE"
-    yq_write ".server.maintenance.${task}.status = \"$status\"" "$_STATE_FILE"
+    yq::write ".server.maintenance.${task}.last_run.timestamp = $timestamp" "$_STATE_FILE"
+    yq::write ".server.maintenance.${task}.last_run.date = \"$date\"" "$_STATE_FILE"
+    yq::write ".server.maintenance.${task}.status = \"$status\"" "$_STATE_FILE"
 
     return 0
 }
@@ -304,7 +304,7 @@ state::maintenance::get_status() {
     fi
 
     local status
-    status=$(yq_read ".server.maintenance.${task}.status" "$_STATE_FILE" 2>/dev/null)
+    status=$(yq::read ".server.maintenance.${task}.status" "$_STATE_FILE" 2>/dev/null)
 
     if [[ -z "$status" || "$status" == "null" ]]; then
         echo "never"
@@ -323,7 +323,7 @@ state::maintenance::get_last_run() {
     fi
 
     local date
-    date=$(yq_read ".server.maintenance.${task}.last_run.date" "$_STATE_FILE" 2>/dev/null)
+    date=$(yq::read ".server.maintenance.${task}.last_run.date" "$_STATE_FILE" 2>/dev/null)
 
     if [[ -z "$date" || "$date" == "null" ]]; then
         echo "never"
@@ -388,7 +388,7 @@ state::show_status() {
         log "   ❌ Deshabilitados: $disabled_count"
         while IFS= read -r stack; do
             [[ -z "$stack" ]] && continue
-            local reason=$(yq_read ".stacks.${stack}.disabled_reason" "$_STATE_FILE" 2>/dev/null)
+            local reason=$(yq::read ".stacks.${stack}.disabled_reason" "$_STATE_FILE" 2>/dev/null)
             log "      - $stack ($reason)"
         done <<< "$disabled_stacks"
     fi
