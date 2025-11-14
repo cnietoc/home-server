@@ -172,7 +172,7 @@ docker::stack::down() {
     fi
 
     cd "$stack_dir" || return 1
-    docker compose down --remove-orphans
+    docker compose down --remove-orphans >&2
 }
 
 # Construir imágenes de un stack
@@ -189,10 +189,10 @@ docker::stack::build() {
 
     if [[ "$no_cache" == "true" ]]; then
         logs::info "🔨 Rebuilding imagen(es) desde cero (sin caché)..."
-        docker compose build --no-cache
+        docker compose build --no-cache >&2
     else
         logs::info "🔨 Rebuilding imagen(es) (con caché)..."
-        docker compose build
+        docker compose build >&2
     fi
 }
 
@@ -210,14 +210,14 @@ docker::stack::up() {
 
     if [[ "$force_recreate" == "true" ]]; then
         logs::info "♻️ Recreando contenedores completamente..."
-        docker compose up -d --force-recreate
+        docker compose up -d --force-recreate >&2
     else
         logs::info "🔃 Levantando con nueva configuración..."
-        docker compose up -d
+        docker compose up -d >&2
     fi
 
     sleep 2
-    docker compose start
+    docker compose start >&2
 }
 
 # Obtener logs de un stack

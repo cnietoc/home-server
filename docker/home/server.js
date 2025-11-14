@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // Configuración
 const CONFIG_PATH = '/config/stacks.yml';
-const BASE_DOMAIN = process.env.BASE_DOMAIN || 'apocaly.net';
+const BASE_DOMAIN = process.env.BASE_DOMAIN;
 
 // Middleware para servir archivos estáticos
 app.use(express.static('public'));

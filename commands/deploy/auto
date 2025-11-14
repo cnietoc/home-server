@@ -117,8 +117,6 @@ main() {
     if ! docker::init_infrastructure; then
         exit 1
     fi
-    logs::info "✅ Infraestructura inicializada"
-
     # Regenerar .env files si es necesario
     deploy::config::regenerate_envs "${specified_stacks[@]}" && logs::info "✅ Archivos .env regenerados"
 
