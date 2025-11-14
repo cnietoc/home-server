@@ -344,8 +344,8 @@ deploy::stacks::determine() {
             fi
 
             if [[ ${#specified_unchanged[@]} -gt 0 ]]; then
-                logs::info "⏭️ Sin cambios (se omiten): ${specified_unchanged[*]}"
-                logs::info "💡 Usa --all para desplegar todos los especificados sin importar cambios"
+                logs::info "⏭️ Sin cambios (se omiten): ${specified_unchanged[*]}" >&2
+                logs::info "💡 Usa --force para desplegar todos los especificados sin importar cambios" >&2
             fi
 
             stacks_to_deploy=("${specified_changed[@]}")
