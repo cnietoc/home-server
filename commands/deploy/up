@@ -315,7 +315,6 @@ main() {
         # Mostrar URLs de acceso si todo está bien
         if [[ -x "${COMMANDS_ROOT}/show/stacks" ]]; then
             "${COMMANDS_ROOT}/show/stacks" "${final_stacks_to_deploy[@]}" || true
-            "${COMMANDS_ROOT}/show/stacks" "${final_stacks_to_deploy[@]}" || true
         fi
         exit 0
     else
