@@ -17,6 +17,7 @@ _STATE_FILE="${_STATE_PROJECT_ROOT}/data/state.yml"
 # Cargar dependencias desde lib/
 source "${_STATE_LIB_DIR}/logs.sh"
 source "${_STATE_LIB_DIR}/yq.sh"
+source "${_STATE_LIB_DIR}/stack.sh"
 
 # ============================================
 # FUNCIONES DE INICIALIZACIÓN
@@ -35,9 +36,9 @@ state::init() {
 
     # Obtener lista de stacks
     local all_stacks
-    all_stacks=$("${_STATE_LIB_DIR}/../scripts/stack-info.sh" get_available_stacks)
+    all_stacks=$(stack::list)
     if [[ -z "$all_stacks" ]]; then
-        error "No se pudieron obtener los stacks disponibles"
+        logs::error "No se pudieron obtener los stacks disponibles"
         return 1
     fi
 
@@ -110,7 +111,7 @@ state::stack::is_enabled() {
 state::stack::list_enabled() {
     if [[ ! -f "$_STATE_FILE" ]]; then
         # Si no existe el archivo, devolver todos los stacks
-        "${_STATE_LIB_DIR}/../scripts/stack-info.sh" get_available_stacks
+        stack::list
         return 0
     fi
 

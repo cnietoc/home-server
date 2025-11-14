@@ -20,13 +20,13 @@ source "$PROJECT_ROOT/lib/utils.sh"
 main() {
     local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
 
-    log_warn "🚧 Este comando está en desarrollo (WIP)"
+    logs::warn "🚧 Este comando está en desarrollo (WIP)"
     echo ""
-    log_info "📋 Comando: ${cmd_prefix}"
-    log_info "📝 Descripción: Limpieza de recursos Docker"
+    logs::info "📋 Comando: ${cmd_prefix}"
+    logs::info "📝 Descripción: Limpieza de recursos Docker"
     echo ""
-    log_info "💡 Mientras tanto, puedes usar el script legacy:"
-    log_info "   docker system prune -a"
+    logs::info "💡 Mientras tanto, puedes usar el script legacy:"
+    logs::info "   docker system prune -a"
     echo ""
     log_error "⏳ Implementación pendiente"
     echo ""

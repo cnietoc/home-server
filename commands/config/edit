@@ -20,10 +20,10 @@ source "$PROJECT_ROOT/lib/utils.sh"
 main() {
     local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
 
-    log_warn "🚧 Este comando está en desarrollo (WIP)"
+    logs::warn "🚧 Este comando está en desarrollo (WIP)"
     echo ""
-    log_info "📋 Comando: ${cmd_prefix}"
-    log_info "📝 Descripción: Abrir archivos de configuración para editar"
+    logs::info "📋 Comando: ${cmd_prefix}"
+    logs::info "📝 Descripción: Abrir archivos de configuración para editar"
     echo ""
 
     log_error "⏳ Implementación pendiente"

@@ -20,13 +20,13 @@ source "$PROJECT_ROOT/lib/utils.sh"
 main() {
     local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
 
-    log_warn "🚧 Este comando está en desarrollo (WIP)"
+    logs::warn "🚧 Este comando está en desarrollo (WIP)"
     echo ""
-    log_info "📋 Comando: ${cmd_prefix}"
-    log_info "📝 Descripción: Validar configuraciones"
+    logs::info "📋 Comando: ${cmd_prefix}"
+    logs::info "📝 Descripción: Validar configuraciones"
     echo ""
-    log_info "💡 Mientras tanto, puedes usar el script legacy:"
-    log_info "   ./scripts/generate-docker-envs.sh"
+    logs::info "💡 Mientras tanto, puedes usar el script legacy:"
+    logs::info "   ./scripts/generate-docker-envs.sh"
     echo ""
     log_error "⏳ Implementación pendiente"
     echo ""

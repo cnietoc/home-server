@@ -16,6 +16,7 @@ _DOCKER_DIR="${_DOCKER_PROJECT_ROOT}/docker"
 
 # Cargar dependencias desde lib/
 source "${_DOCKER_LIB_DIR}/logs.sh"
+source "${_DOCKER_LIB_DIR}/env.sh"
 
 # ============================================
 # FUNCIONES DE VERIFICACIÓN
@@ -54,11 +55,17 @@ docker::verify() {
 
 # Inicializar redes Docker
 docker::init_networks() {
-    if ! "${_DOCKER_LIB_DIR}/../commands/setup/networks" >/dev/null 2>&1; then
-        logs::error "Error inicializando redes Docker"
-        return 1
-    fi
+    env::load
+    local proxy_network="${PROXY_NETWORK:-proxy}"
 
+    # Crear red proxy
+    logs::debug "Verificando red proxy: $proxy_network"
+    if docker network ls --format "{{.Name}}" | grep -q "^$proxy_network$"; then
+        logs::debug "⏭️ La red $proxy_network ya existe"
+    else
+        docker network create "$proxy_network"
+        logs::info "✅ Red proxy $proxy_network creada"
+    fi
     return 0
 }
 

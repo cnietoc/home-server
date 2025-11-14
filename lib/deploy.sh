@@ -20,6 +20,7 @@ source "${_DEPLOY_LIB_DIR}/logs.sh"
 source "${_DEPLOY_LIB_DIR}/stack.sh"
 source "${_DEPLOY_LIB_DIR}/state.sh"
 source "${_DEPLOY_LIB_DIR}/docker.sh"
+source "${_DEPLOY_LIB_DIR}/config.sh"
 
 # ============================================
 # FUNCIONES DE HASHING
@@ -119,18 +120,6 @@ deploy::stack::list_changed() {
 # FUNCIONES DE GENERACIÓN DE CONFIGS
 # ============================================
 
-# Regenerar archivos .env para un stack específico
-deploy::config::regenerate_stack_envs() {
-    local stack="$1"
-
-    if ! "${_DEPLOY_LIB_DIR}/../commands/config/generate" "$stack" >/dev/null 2>&1; then
-        logs::error "Error regenerando archivo .env para stack: $stack"
-        return 1
-    fi
-
-    return 0
-}
-
 # Regenerar archivos .env si hay cambios en fuentes de configuración
 deploy::config::regenerate_envs() {
     shift
@@ -143,24 +132,10 @@ deploy::config::regenerate_envs() {
 
     logs::info "🔄 Regenerando archivos .env (detectados cambios en configuración)..."
 
-    # Si no se especificaron stacks, regenerar todos
-    if [[ ${#stacks[@]} -eq 0 ]]; then
-        if ! "${_DEPLOY_LIB_DIR}/../commands/config/generate" >/dev/null 2>&1; then
-            logs::error "Error regenerando archivos .env"
-            return 1
-        fi
-    else
-        # Regenerar solo los stacks especificados
-        local regenerated=()
-        for stack in "${stacks[@]}"; do
-            if deploy::config::regenerate_stack_envs "$stack"; then
-                regenerated+=("$stack")
-            fi
-        done
-
-        if [[ ${#regenerated[@]} -gt 0 ]]; then
-            logs::info "🔄 Archivos .env regenerados para: ${regenerated[*]}"
-        fi
+    # Generar .env usando la librería config
+    if ! config::generate_multiple_envs "${stacks[@]}"; then
+        logs::error "Error regenerando archivos .env"
+        return 1
     fi
 
     # Guardar nuevo hash de fuentes de configuración
