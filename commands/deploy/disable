@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ============================================
+# commands/deploy/disable — Deshabilitar stack
+# ============================================
+# Estado: 🚧 WIP (Work In Progress)
+# ============================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+source "$PROJECT_ROOT/lib/logs.sh"
+source "$PROJECT_ROOT/lib/utils.sh"
+
+# ============================================
+# MAIN
+# ============================================
+
+main() {
+    local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
+
+    log_warn "🚧 Este comando está en desarrollo (WIP)"
+    echo ""
+    log_info "📋 Comando: ${cmd_prefix}"
+    log_info "📝 Descripción: Deshabilitar stack"
+    echo ""
+    log_info "💡 Mientras tanto, puedes usar el script legacy:"
+    log_info "   ./scripts/stack-state.sh disable_stack <stack>"
+    echo ""
+    log_error "⏳ Implementación pendiente"
+    echo ""
+}
+
+main "$@"

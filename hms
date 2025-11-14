@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ruta base del script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMANDS_DIR="$SCRIPT_DIR/commands"
+
+source "$SCRIPT_DIR/lib/logs.sh"
+
+# ============================================
+# HELP
+# ============================================
+
+show_help() {
+    cat << 'EOF'
+🏠 HMS - Home Server Management System
+
+Uso: hms <categoría> <comando> [opciones]
+
+CATEGORÍAS:
+
+📊 show       - Consultar información
+   stacks     - Información de stacks ✅
+   status     - Estado de deployments 🚧
+   logs       - Ver logs 🚧
+   config     - Configuración actual 🚧
+   health     - Health checks 🚧
+
+🚀 deploy     - Deployment y control
+   auto       - Deploy automático (CI/CD) ✅
+   up         - Iniciar/deploy stacks 🚧
+   down       - Parar stacks 🚧
+   restart    - Reiniciar stacks 🚧
+   enable     - Habilitar stack 🚧
+   disable    - Deshabilitar stack 🚧
+   clean      - Deploy limpio 🚧
+
+⚙️  config     - Gestión de configuración
+   generate   - Generar archivos .env 🚧
+   validate   - Validar configuración 🚧
+   link       - Enlaces simbólicos 🚧
+   edit       - Editar configuración 🚧
+
+💾 backup     - Gestión de backups
+   create     - Crear backup 🚧
+   restore    - Restaurar backup 🚧
+   list       - Listar backups 🚧
+   schedule   - Configurar backups automáticos 🚧
+
+🔧 setup      - Configuración inicial y servicios
+   init       - Setup completo inicial 🚧
+   docker     - Instalar/configurar Docker 🚧
+   networks   - Configurar redes 🚧
+   security   - Configurar seguridad 🚧
+   ssh        - Configurar SSH 🚧
+   nfs        - Gestionar NFS 🚧
+   onedrive   - Gestionar OneDrive 🚧
+
+🔨 maintain   - Mantenimiento
+   clean      - Limpieza de recursos 🚧
+   update     - Actualizar componentes 🚧
+   check      - Verificación de salud 🚧
+   auto       - Mantenimiento automático 🚧
+
+🛠️  dev        - Herramientas de desarrollo
+   test       - Ejecutar tests 🚧
+   validate   - Validar todo el sistema 🚧
+
+OPCIONES GLOBALES:
+  --version, -v          Mostrar versión
+  --help, -h             Mostrar esta ayuda
+
+LEYENDA:
+  ✅ Implementado
+  🚧 En desarrollo (WIP)
+
+EJEMPLOS:
+  hms show stacks                  # Ver configuración de stacks
+  hms deploy up platform           # Deploy del stack platform
+  hms deploy enable media          # Habilitar stack media
+  hms show status                  # Ver estado de todos los stacks
+  hms config generate              # Generar archivos .env
+  hms backup create                # Crear backup
+
+Para más información sobre un comando específico:
+  hms <categoría> <comando> --help
+
+EOF
+}
+
+show_version() {
+    echo "HMS v0.1.0-alpha"
+}
+
+# ============================================
+# MAIN
+# ============================================
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+
+    case "$1" in
+        --help|-h|help)
+            show_help
+            exit 0
+            ;;
+        --version|-v|version)
+            show_version
+            exit 0
+            ;;
+        *)
+            local category="$1"
+            shift
+
+            if [[ $# -eq 0 ]]; then
+                logs::error "Debes especificar un comando"
+                echo ""
+                echo "Uso: hms $category <comando> [opciones]"
+                echo ""
+                echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
+                exit 1
+            fi
+
+            local command="$1"
+            shift
+
+            local command_path="$COMMANDS_DIR/$category/$command"
+
+            if [[ ! -f "$command_path" ]]; then
+                logs::error "Comando no encontrado: hms $category $command"
+                echo ""
+                echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
+                exit 1
+            fi
+
+            if [[ ! -x "$command_path" ]]; then
+                logs::error "El comando no tiene permisos de ejecución: $command_path"
+                exit 1
+            fi
+
+            logs::info "Ejecutando comando: $category $command"
+
+            # Exportar variable para que los comandos sepan que fueron invocados desde hms
+            export HMS_INVOKED=true
+
+            exec "$command_path" "$@"
+            ;;
+    esac
+}
+
+main "$@"

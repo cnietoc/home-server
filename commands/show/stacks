@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# ============================================
+# commands/info/stack — Gestión de información de stacks
+# ============================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Cargar librerías
+source "$PROJECT_ROOT/lib/utils.sh"
+source "$PROJECT_ROOT/lib/logs.sh"
+source "$PROJECT_ROOT/lib/env.sh"
+source "$PROJECT_ROOT/lib/stack.sh"
+
+# ============================================
+# FUNCIONES AUXILIARES
+# ============================================
+
+# Construir URL completa desde subdomain
+build_service_url() {
+    local subdomain="$1"
+
+    env::load
+
+    if [[ -z "$subdomain" ]]; then
+        echo "https://${BASE_DOMAIN}"
+    else
+        echo "https://${subdomain}.${BASE_DOMAIN}"
+    fi
+}
+
+# ============================================
+# FUNCIONES DE VISUALIZACIÓN
+# ============================================
+
+# Mostrar un solo stack con formato de árbol
+show_single_stack() {
+    local stack="$1"
+    local stack_prefix="${2:-├── }"
+    local indent="${3:-│   }"
+
+    # Verificar que el stack existe
+    if ! stack::exists "$stack"; then
+        log_error "Stack no encontrado: $stack"
+        return 1
+    fi
+
+    local description=$(stack::get_description "$stack")
+    local config_files=$(stack::get_config_files "$stack")
+
+    # Mostrar información del stack
+    echo "${stack_prefix}📦 ${stack}"
+    echo "${indent}├── 📝 ${description:-Sin descripción}"
+
+    # Mostrar archivos de configuración
+    echo "${indent}├── ⚙️  Configuración:"
+    IFS=',' read -ra config_array <<< "$config_files"
+    local config_count=${#config_array[@]}
+    for j in "${!config_array[@]}"; do
+        local config_file=$(echo "${config_array[$j]}" | xargs)
+        local is_last_config=$((j == config_count - 1))
+        if [[ $is_last_config -eq 1 ]]; then
+            echo "${indent}│   └── ${config_file}.env"
+        else
+            echo "${indent}│   ├── ${config_file}.env"
+        fi
+    done
+
+    # Mostrar servicios
+    local services
+    services=$(stack::service::list "$stack")
+
+    if [[ -n "$services" ]]; then
+        echo "${indent}└── 🌐 Servicios:"
+
+        local service_array=()
+        while IFS= read -r service; do
+            [[ -n "$service" ]] && service_array+=("$service")
+        done <<< "$services"
+
+        local service_count=${#service_array[@]}
+        for k in "${!service_array[@]}"; do
+            local service="${service_array[$k]}"
+            local service_desc=$(stack::service::get_description "$stack" "$service")
+            local service_subdomain=$(stack::service::get_subdomain "$stack" "$service")
+
+            local is_last_service=$((k == service_count - 1))
+            local service_line=""
+
+            # Verificar si el servicio debe tener URL
+            # Si subdomain es null (no existe en el yaml), no mostrar URL
+            local raw_subdomain
+            raw_subdomain=$(yq::read ".stacks.$stack.services.$service.subdomain" "$_STACK_CONFIG_FILE" 2>/dev/null || echo "null")
+
+            if [[ "$raw_subdomain" == "null" ]]; then
+                # Servicio sin URL (solo descripción)
+                service_line="${service_desc:-$service}"
+            else
+                # Servicio con URL (subdomain puede ser vacío para dominio principal)
+                local full_url=$(build_service_url "$service_subdomain")
+                service_line="${service_desc:-$service} → ${full_url}"
+            fi
+
+            if [[ $is_last_service -eq 1 ]]; then
+                echo "${indent}    └── ${service_line}"
+            else
+                echo "${indent}    ├── ${service_line}"
+            fi
+        done
+    else
+        echo "${indent}└── 🌐 Servicios: ninguno"
+    fi
+}
+
+# ============================================
+# COMANDO: LIST (todos los stacks)
+# ============================================
+
+cmd_list() {
+    echo "📋 Configuración de stacks disponibles:"
+
+    local stacks
+    stacks=$(stack::list)
+
+    local stack_array=()
+    while IFS= read -r stack; do
+        [[ -n "$stack" ]] && stack_array+=("$stack")
+    done <<< "$stacks"
+
+    # Ordenar stacks
+    IFS=$'\n' sorted_stacks=($(sort <<<"${stack_array[*]}"))
+    unset IFS
+
+    local total_stacks=${#sorted_stacks[@]}
+
+    for i in "${!sorted_stacks[@]}"; do
+        local stack="${sorted_stacks[$i]}"
+
+        # Determinar si es el último stack
+        local is_last_stack=$((i == total_stacks - 1))
+        local stack_prefix="├── "
+        local indent="│   "
+        if [[ $is_last_stack -eq 1 ]]; then
+            stack_prefix="└── "
+            indent="    "
+        fi
+
+        show_single_stack "$stack" "$stack_prefix" "$indent"
+    done
+}
+
+# ============================================
+# COMANDO: SHOW (stacks específicos)
+# ============================================
+
+cmd_show() {
+    local stack_names=("$@")
+    local total=${#stack_names[@]}
+
+    echo "📋 Configuración de stacks:"
+
+    for i in "${!stack_names[@]}"; do
+        local stack="${stack_names[$i]}"
+
+        # Determinar si es el último stack
+        local is_last=$((i == total - 1))
+        local stack_prefix="├── "
+        local indent="│   "
+        if [[ $is_last -eq 1 ]]; then
+            stack_prefix="└── "
+            indent="    "
+        fi
+
+        show_single_stack "$stack" "$stack_prefix" "$indent"
+    done
+}
+
+# ============================================
+# COMANDO: HELP
+# ============================================
+
+cmd_help() {
+    local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
+
+    cat << EOF
+Uso: ${cmd_prefix} [stack1 stack2 ...] [opciones]
+
+ARGUMENTOS:
+  [stacks]                       - Nombres de stacks específicos a mostrar
+                                   Sin argumentos muestra todos los stacks
+
+OPCIONES:
+  --help, -h                     - Mostrar esta ayuda
+
+EJEMPLOS:
+  ${cmd_prefix}                  # Mostrar todos los stacks
+  ${cmd_prefix} platform         # Mostrar solo el stack platform
+  ${cmd_prefix} media home       # Mostrar los stacks media y home
+
+DESCRIPCIÓN:
+  Gestiona y muestra información sobre los stacks configurados del home server.
+  Lee la configuración desde config/stacks.yml y muestra de forma estructurada
+  la descripción, archivos de configuración y servicios de cada stack.
+
+EOF
+}
+
+# ============================================
+# MAIN
+# ============================================
+
+main() {
+    # Si no hay argumentos o el primer argumento es help, mostrar ayuda o lista completa
+    if [[ $# -eq 0 ]]; then
+        cmd_list
+        return
+    fi
+
+    # Verificar si pide ayuda
+    case "$1" in
+        help|--help|-h)
+            cmd_help
+            return
+            ;;
+    esac
+
+    # Si hay argumentos, mostrar esos stacks específicos
+    cmd_show "$@"
+}
+
+main "$@"
+
