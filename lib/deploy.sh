@@ -282,6 +282,29 @@ deploy::stacks::deploy_multiple() {
 # FUNCIONES DE SELECCIÓN DE STACKS
 # ============================================
 
+# Obtener stacks que están habilitados pero no corriendo
+deploy::stacks::get_stopped() {
+    local force="${1:-false}"
+    local all_stacks
+    all_stacks=$(stack::list)
+
+    local stopped_stacks=()
+    while IFS= read -r stack; do
+        [[ -z "$stack" ]] && continue
+
+        # Verificar si el stack está habilitado (o si se usa --force)
+        if [[ "$force" == "true" ]] || state::stack::is_enabled "$stack"; then
+            # Verificar si el stack está detenido
+            if ! docker::stack::is_running "$stack"; then
+                stopped_stacks+=("$stack")
+            fi
+        fi
+    done <<< "$all_stacks"
+
+    # Retornar lista de stacks detenidos
+    printf "%s\n" "${stopped_stacks[@]}"
+}
+
 # Filtrar stacks habilitados de una lista
 # Retorna dos líneas: primera con habilitados, segunda con deshabilitados
 deploy::stacks::filter_enabled() {

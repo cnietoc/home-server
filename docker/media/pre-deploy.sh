@@ -65,5 +65,3 @@ elif [[ "${ENABLE_VAAPI:-false}" == "true" ]]; then
 else
     logs::info "   💻 Tdarr: Solo CPU para transcodificación"
 fi
-
-logs::info "✅ Pre-deploy completado para $STACK_NAME"

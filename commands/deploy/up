@@ -2,34 +2,328 @@
 # ============================================
 # commands/deploy/up — Iniciar/deploy stacks
 # ============================================
-# Estado: 🚧 WIP (Work In Progress)
-# ============================================
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Obtener rutas del proyecto
+COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMANDS_ROOT="$(dirname "$COMMAND_DIR")"
+PROJECT_ROOT="$(dirname "$COMMANDS_ROOT")"
 
+# Cargar librerías
 source "$PROJECT_ROOT/lib/logs.sh"
-source "$PROJECT_ROOT/lib/utils.sh"
+source "$PROJECT_ROOT/lib/stack.sh"
+source "$PROJECT_ROOT/lib/state.sh"
+source "$PROJECT_ROOT/lib/docker.sh"
+source "$PROJECT_ROOT/lib/deploy.sh"
 
 # ============================================
-# MAIN
+# FUNCIONES DE AYUDA
+# ============================================
+
+show_help() {
+    cat << EOF
+Uso: hms deploy up [opciones] [stack1] [stack2] ...
+
+DESCRIPCIÓN:
+  Despliega stacks detectando cambios automáticamente.
+  Regenera .env y despliega stacks detenidos o con cambios.
+
+OPCIONES:
+  -b, --rebuild             Reconstruir imágenes sin caché
+  -f, --force               Ignorar estado de habilitación
+  -h, --help                Mostrar esta ayuda
+  -r, --restart             Reiniciar aunque no haya cambios
+
+ARGUMENTOS:
+  [stack1] [stack2] ...     Stacks a procesar (opcional)
+                            Sin argumentos: procesa todos los stacks habilitados
+
+EJEMPLOS:
+  hms deploy up                         # Despliega stacks detenidos o con cambios
+  hms deploy up platform                # Despliega platform si está detenido o cambió
+  hms deploy up platform media          # Despliega platform y media si es necesario
+  hms deploy up --restart platform      # Reinicia platform (forzado, sin detectar cambios)
+  hms deploy up --rebuild platform      # Reconstruye y despliega platform
+  hms deploy up --force platform        # Despliega aunque esté deshabilitado
+
+COMPORTAMIENTO:
+  - Regenera archivos .env de stacks especificados (o todos)
+  - Detecta cambios en configuración automáticamente
+  - Despliega stacks que están detenidos O tienen cambios
+  - Respeta stacks deshabilitados (excepto con --force)
+  - Verifica salud después del despliegue
+  - Actualiza estado en data/state.yml
+
+DIFERENCIA CON RESTART:
+  - up: Despliega solo si está detenido O hay cambios (inteligente)
+  - restart: Siempre reinicia (down + up forzado)
+EOF
+}
+
+# ============================================
+# FUNCIÓN PRINCIPAL
 # ============================================
 
 main() {
-    local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
+    local rebuild=false
+    local restart_force=false
+    local force=false
+    local stacks=()
 
-    logs::warn "🚧 Este comando está en desarrollo (WIP)"
+    # Parsear argumentos
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -b|--rebuild)
+                rebuild=true
+                shift
+                ;;
+            -r|--restart)
+                restart_force=true
+                shift
+                ;;
+            -f|--force)
+                force=true
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -*)
+                logs::error "Opción desconocida: $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                stacks+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    # Banner
+    echo "🚀 Home Server - Deploy Up"
+    echo "======================================"
     echo ""
-    logs::info "📋 Comando: ${cmd_prefix}"
-    logs::info "📝 Descripción: Iniciar/deploy stacks"
+
+    # Inicializar estado
+    state::init || true
+
+    # Inicializar infraestructura
+    if ! docker::init_infrastructure; then
+        logs::error "❌ Error al inicializar infraestructura Docker"
+        exit 1
+    fi
+
+    # Determinar stacks a procesar
+    local stacks_to_check=()
+
+    if [[ ${#stacks[@]} -eq 0 ]]; then
+        # Sin argumentos: procesar todos los stacks habilitados
+        logs::info "🔍 Procesando todos los stacks habilitados..."
+
+        local all_stacks
+        all_stacks=$(stack::list)
+
+        while IFS= read -r stack; do
+            [[ -z "$stack" ]] && continue
+            if [[ "$force" == "true" ]] || state::stack::is_enabled "$stack"; then
+                stacks_to_check+=("$stack")
+            fi
+        done <<< "$all_stacks"
+    else
+        # Con argumentos: procesar solo los especificados
+        stacks_to_check=("${stacks[@]}")
+    fi
+
+    # Verificar que todos los stacks existen
+    for stack in "${stacks_to_check[@]}"; do
+        if ! docker::stack::exists "$stack"; then
+            logs::error "Stack no encontrado: $stack"
+            logs::info "💡 Stacks disponibles: $(stack::list | tr '\n' ' ')"
+            exit 1
+        fi
+    done
+
+    # Regenerar envs de los stacks a procesar
+    if ! deploy::config::regenerate_envs "${stacks_to_check[@]}"; then
+        logs::info "   ℹ️  No hay cambios en configuración fuente"
+    else
+        logs::info "✅ Archivos .env regenerados"
+    fi
+
+    # Clasificar stacks según su estado y cambios
+    local stacks_stopped=()           # Detenidos
+    local stacks_changed=()           # Corriendo pero con cambios
+    local stacks_unchanged=()         # Corriendo sin cambios
+    local stacks_to_restart=()        # Necesitan down antes de up
+
+    logs::info "🔍 Analizando estado de stacks..."
+
+    for stack in "${stacks_to_check[@]}"; do
+        local is_running=false
+        local has_changes=false
+
+        # Verificar si está corriendo
+        if docker::stack::is_running "$stack"; then
+            is_running=true
+        fi
+
+        # Verificar si tiene cambios
+        if deploy::stack::has_changed "$stack"; then
+            has_changes=true
+        fi
+
+        # Clasificar
+        if [[ "$is_running" == "false" ]]; then
+            stacks_stopped+=("$stack")
+        elif [[ "$restart_force" == "true" ]]; then
+            # Con --restart, reiniciar aunque no haya cambios
+            stacks_changed+=("$stack")
+            stacks_to_restart+=("$stack")
+        elif [[ "$has_changes" == "true" ]]; then
+            stacks_changed+=("$stack")
+            stacks_to_restart+=("$stack")
+        else
+            stacks_unchanged+=("$stack")
+        fi
+    done
+
+    # Mostrar análisis
+    if [[ ${#stacks_stopped[@]} -gt 0 ]]; then
+        logs::info "   ⏹️  Detenidos: ${stacks_stopped[*]}"
+    fi
+
+    if [[ ${#stacks_changed[@]} -gt 0 ]]; then
+        if [[ "$restart_force" == "true" ]]; then
+            logs::info "   🔄 A reiniciar (--restart): ${stacks_changed[*]}"
+        else
+            logs::info "   🔄 Con cambios: ${stacks_changed[*]}"
+        fi
+    fi
+
+    if [[ ${#stacks_unchanged[@]} -gt 0 ]]; then
+        logs::info "   ✅ Sin cambios: ${stacks_unchanged[*]}"
+    fi
+
+    # Determinar qué stacks desplegar
+    local stacks_to_deploy=()
+    stacks_to_deploy=("${stacks_stopped[@]}" "${stacks_changed[@]}")
+
+    if [[ ${#stacks_to_deploy[@]} -eq 0 ]]; then
+        logs::info "✅ No hay stacks que desplegar"
+        logs::info "💡 Todos los stacks están corriendo sin cambios"
+        exit 0
+    fi
+
+    # Bajar los stacks que tienen cambios (para redesplegarlos)
+    if [[ ${#stacks_to_restart[@]} -gt 0 ]]; then
+        logs::info "⏬ Deteniendo stacks con cambios para redesplegar..."
+
+        # Cargar función command::deploy::down
+        source "$COMMAND_DIR/down"
+
+        for stack in "${stacks_to_restart[@]}"; do
+            command::deploy::down "$stack"
+        done
+        echo ""
+    fi
+
+    # Filtrar stacks deshabilitados (a menos que se use --force)
+    local final_stacks_to_deploy=()
+    local skipped_stacks=()
+
+    if [[ "$force" == "true" ]]; then
+        final_stacks_to_deploy=("${stacks_to_deploy[@]}")
+        logs::info "📋 Desplegando stacks (forzado): ${final_stacks_to_deploy[*]}"
+    else
+        local filter_result
+        filter_result=$(deploy::stacks::filter_enabled "${stacks_to_deploy[@]}")
+
+        local enabled_stacks_str
+        local skipped_stacks_str
+        enabled_stacks_str=$(echo "$filter_result" | sed -n '1p')
+        skipped_stacks_str=$(echo "$filter_result" | sed -n '2p')
+
+        if [[ -n "$enabled_stacks_str" ]]; then
+            read -a final_stacks_to_deploy <<< "$enabled_stacks_str"
+        fi
+
+        if [[ -n "$skipped_stacks_str" ]]; then
+            read -a skipped_stacks <<< "$skipped_stacks_str"
+        fi
+
+        # Si todos los stacks están deshabilitados, salir
+        if [[ ${#final_stacks_to_deploy[@]} -eq 0 ]]; then
+            logs::warn "⚠️ Todos los stacks a desplegar están deshabilitados"
+            logs::info "💡 Para habilitar un stack: hms deploy enable <stack>"
+            logs::info "💡 O usa --force para desplegar de todos modos"
+            exit 1
+        fi
+
+        # Mostrar información
+        logs::info "📋 Stacks a desplegar: ${final_stacks_to_deploy[*]}"
+        if [[ ${#skipped_stacks[@]} -gt 0 ]]; then
+            logs::warn "⏭️ Stacks omitidos (deshabilitados): ${skipped_stacks[*]}"
+        fi
+    fi
+
     echo ""
-    logs::info "💡 Mientras tanto, puedes usar el script legacy:"
-    logs::info "   ./scripts/deploy.sh [stack]"
+
+    # Preguntar confirmación si se va a rebuildar
+    if [[ "$rebuild" == "true" ]]; then
+        logs::warn "⚠️ Se van a RECONSTRUIR las imágenes Docker sin caché de: ${final_stacks_to_deploy[*]}"
+        logs::warn "Esto puede tardar más tiempo."
+        read -p "¿Continuar? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            logs::info "❌ Operación cancelada"
+            exit 0
+        fi
+        echo ""
+    fi
+
+    # Desplegar stacks
+    local result
+    result=$(deploy::stacks::deploy_multiple "$rebuild" "${final_stacks_to_deploy[@]}")
+
+    local success="${result%% *}"
+    local rest="${result#* }"
+    local total="${rest%% *}"
+    local failed="${rest#* }"
+
+    # Remover números del inicio de failed
+    failed="${failed#* }"
+
+    # Resumen final
+    echo "📊 RESUMEN DEL DESPLIEGUE"
+    echo "=========================="
+    logs::info "✅ Exitosos: $success/$total stacks"
+
+    if [[ -n "$failed" && "$failed" != "$total" ]]; then
+        logs::error "❌ Con problemas: $failed"
+        logs::error "💡 Para diagnosticar problemas:"
+        logs::error "   hms show logs <stack>"
+    fi
+    echo "=========================="
     echo ""
-    log_error "⏳ Implementación pendiente"
-    echo ""
+
+    if [[ "$success" == "$total" ]]; then
+        logs::info "🎉 Despliegue completado exitosamente"
+
+        # Mostrar URLs de acceso si todo está bien
+        if [[ -x "${COMMANDS_ROOT}/show/stacks" ]]; then
+            "${COMMANDS_ROOT}/show/stacks" "${final_stacks_to_deploy[@]}" || true
+            "${COMMANDS_ROOT}/show/stacks" "${final_stacks_to_deploy[@]}" || true
+        fi
+        exit 0
+    else
+        logs::error "⚠️ Despliegue completado con errores"
+        exit 1
+    fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
