@@ -156,12 +156,12 @@ deploy::stack::deploy() {
     local force_recreate="${2:-false}"
 
     if ! docker::stack::exists "$stack"; then
-        logs::info "❌ Stack no encontrado: $stack"
+        logs::error "❌ Stack no encontrado: $stack"
         return 1
     fi
 
     if ! docker::stack::has_compose "$stack"; then
-        logs::info "❌ No existe docker-compose.yml en: $stack"
+        logs::error "❌ No existe docker-compose.yml en: $stack"
         return 1
     fi
 
@@ -193,29 +193,36 @@ deploy::stack::deploy() {
     local quick_check
     quick_check=$(docker::stack::get_running_count "$stack")
 
-    if [[ $quick_check -gt 0 ]]; then
-        logs::info "✅ Stack $stack iniciado (contenedores detectados)"
-        logs::info "📋 Estado inicial:"
-        docker::stack::ps "$stack"
-        return 0
-    else
-        logs::info "❌ Ningún contenedor iniciado para stack $stack"
+    if [[ $quick_check -eq 0 ]]; then
+        logs::error "❌ Ningún contenedor iniciado para stack $stack"
         logs::info "🔍 Logs de error:"
         docker::stack::logs "$stack" 20
         return 1
     fi
+
+    logs::info "✅ Stack $stack iniciado (contenedores detectados)"
+
+    # Verificar salud del stack
+    local health_result=0
+    docker::stack::verify_health "$stack" 90 || health_result=$?
+
+    if [[ $health_result -eq 0 ]]; then
+        logs::info "✅ Stack $stack desplegado y funcionando correctamente"
+
+        # Guardar estado del deployment
+        local hash
+        hash=$(deploy::stack::get_hash "$stack")
+        state::stack::update_deployment "$stack" "$hash"
+
+        return 0
+    else
+        logs::warn "⚠️ Stack $stack desplegado pero con posibles problemas de salud"
+        return 1
+    fi
 }
 
-# Guardar estado de deployment de un stack
-deploy::stack::save_state() {
-    local stack="$1"
-    local hash
 
-    hash=$(deploy::stack::get_hash "$stack")
-    state::stack::update_deployment "$stack" "$hash"
-}
-
-# Desplegar múltiples stacks con verificación
+# Desplegar múltiples stacks
 deploy::stacks::deploy_multiple() {
     local force_recreate="${1:-false}"
     shift
@@ -234,28 +241,13 @@ deploy::stacks::deploy_multiple() {
     local failed_stacks=()
 
     for stack in "${stacks[@]}"; do
-        local stack_result=0
-
-        # Intentar desplegar el stack
-        deploy::stack::deploy "$stack" "$force_recreate" || stack_result=$?
-
-        if [[ $stack_result -eq 0 ]]; then
-            # Despliegue exitoso, verificar salud
-            local health_result=0
-            docker::stack::verify_health "$stack" 180 || health_result=$?
-
-            if [[ $health_result -eq 0 ]]; then
-                logs::info "✅ Stack $stack desplegado y funcionando correctamente"
-                deploy::stack::save_state "$stack"
-                success=$((success + 1))
-            else
-                logs::warn "⚠️ Stack $stack desplegado pero con posibles problemas"
-                failed_stacks+=("$stack (problemas de salud)")
-            fi
+        # Desplegar el stack (ahora incluye verificación de salud y guardado de estado)
+        if deploy::stack::deploy "$stack" "$force_recreate"; then
+            success=$((success + 1))
         else
-            logs::error "❌ Error desplegando stack $stack"
-            failed_stacks+=("$stack (error de despliegue)")
+            failed_stacks+=("$stack")
         fi
+        echo ""
         echo ""
     done
 

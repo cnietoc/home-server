@@ -237,6 +237,9 @@ docker::stack::up() {
         logs::info "🔃 Levantando con nueva configuración..."
         docker compose up -d
     fi
+
+    sleep 2
+    docker compose start
 }
 
 # Obtener logs de un stack
@@ -263,7 +266,7 @@ docker::stack::ps() {
     fi
 
     cd "$stack_dir" || return 1
-    docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || docker compose ps
+    docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" || docker compose ps
 }
 
 # ============================================
@@ -273,7 +276,7 @@ docker::stack::ps() {
 # Verificar salud de un stack después del despliegue
 docker::stack::verify_health() {
     local stack="$1"
-    local max_wait="${2:-180}"
+    local max_wait="${2:-90}"
     local stack_dir="${_DOCKER_DIR}/${stack}"
 
     if ! docker::stack::has_compose "$stack"; then
@@ -324,7 +327,8 @@ docker::stack::verify_health() {
 
         # Verificar si hay contenedores con errores críticos
         local failed_count
-        failed_count=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || echo "0")
+        failed_count=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "exited\|dead\|restarting" 2>/dev/null || true)
+        failed_count=${failed_count:-0}
 
         if [[ $failed_count -gt 0 && $elapsed_time -gt 30 ]]; then
             logs::info "⚠️ Detectados contenedores con problemas en stack $stack"
