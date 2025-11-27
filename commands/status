@@ -103,9 +103,6 @@ show_single_stack_status() {
     local ps_table
     ps_table=$(get_compose_ps_table "$stack")
 
-    logs::info "Tabla PS para stack '$stack':"
-    logs::info "\n$ps_table"
-
     # Servicios
     local services
     services=$(stack::service::list "$stack")
