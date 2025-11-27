@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+# ============================================
+# commands/status — Estado de stacks y servicios
+# ============================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Cargar librerías
+source "$PROJECT_ROOT/lib/logs.sh"
+source "$PROJECT_ROOT/lib/utils.sh"
+source "$PROJECT_ROOT/lib/env.sh"
+source "$PROJECT_ROOT/lib/stack.sh"
+source "$PROJECT_ROOT/lib/state.sh"
+source "$PROJECT_ROOT/lib/docker.sh"
+
+# ============================================
+# AUX
+# ============================================
+
+# Obtener tabla de ps del stack
+get_compose_ps_table() {
+    local stack="$1"
+    local stack_dir="$PROJECT_ROOT/docker/$stack"
+    if [[ ! -d "$stack_dir" || ! -f "$stack_dir/docker-compose.yml" ]]; then
+        echo ""
+        return 0
+    fi
+    (cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
+}
+
+# Obtener estado de servicio (best-effort)
+get_service_state() {
+    local stack="$1"
+    local service="$2"
+    local ps_table="$3"
+
+    # Intentar encontrar una fila cuyo nombre contenga "/<service>-" o termine con "_<service>"
+    local row
+    row=$(echo "$ps_table" | grep -E "/${service}-|_${service}$" | head -1 || true)
+    if [[ -z "$row" ]]; then
+        echo "unknown"
+        return 0
+    fi
+    # Columnas: NAME\tSTATE\tSTATUS
+    echo "$row" | awk -F '\t' '{print $2}'
+}
+
+# Emoji para estado
+state_emoji() {
+    local s="$1"
+    case "$s" in
+        running|healthy|up) echo "✅" ;;
+        exited|dead) echo "❌" ;;
+        restarting) echo "♻️" ;;
+        *) echo "❔" ;;
+    esac
+}
+
+# enabled/disabled emoji
+enabled_emoji() {
+    if state::stack::is_enabled "$1"; then echo "✅"; else echo "⛔"; fi
+}
+
+# ============================================
+# VIEW
+# ============================================
+
+show_single_stack_status() {
+    local stack="$1"
+    local stack_prefix="${2:-├── }"
+    local indent="${3:-│   }"
+
+    if ! stack::exists "$stack"; then
+        logs::warn "Stack no encontrado en config: $stack"
+        return 0
+    fi
+
+    local enabled_marker
+    if state::stack::is_enabled "$stack"; then enabled_marker="habilitado"; else enabled_marker="deshabilitado"; fi
+
+    local total_expected
+    total_expected=$(docker::stack::get_service_count "$stack" 2>/dev/null || echo "0")
+    [[ -z "$total_expected" ]] && total_expected="0"
+
+    local running
+    running=$(docker::stack::get_running_count "$stack" 2>/dev/null || echo "0")
+    [[ -z "$running" ]] && running="0"
+
+    echo "${stack_prefix}📦 ${stack} ($(enabled_emoji "$stack") ${enabled_marker})"
+    echo "${indent}├── 📊 Contenedores: ${running}/${total_expected} corriendo"
+
+    # ps table
+    local ps_table
+    ps_table=$(get_compose_ps_table "$stack")
+
+    # Servicios
+    local services
+    services=$(stack::service::list "$stack")
+    if [[ -n "$services" ]]; then
+        echo "${indent}└── 🌐 Servicios:"
+        local service_array=()
+        while IFS= read -r srv; do [[ -n "$srv" ]] && service_array+=("$srv"); done <<< "$services"
+        local service_count=${#service_array[@]}
+        for k in "${!service_array[@]}"; do
+            local service="${service_array[$k]}"
+            local desc
+            desc=$(stack::service::get_description "$stack" "$service")
+            local subdomain
+            subdomain=$(stack::service::get_subdomain "$stack" "$service")
+
+            local raw_sub
+            raw_sub=$(yq::read ".stacks.$stack.services.$service.subdomain" "$PROJECT_ROOT/config/stacks.yml" 2>/dev/null || echo "null")
+
+            local url_part=""
+            if [[ "$raw_sub" != "null" ]]; then
+                env::load
+                local domain="${BASE_DOMAIN:-}"; local full_url
+                if [[ -z "$domain" ]]; then
+                    url_part=""
+                else
+                    if [[ -z "$subdomain" ]]; then full_url="https://${domain}"; else full_url="https://${subdomain}.${domain}"; fi
+                    url_part=" → ${full_url}"
+                fi
+            fi
+
+            local svc_state
+            svc_state=$(get_service_state "$stack" "$service" "$ps_table")
+            local is_last=$((k == service_count - 1))
+            local line="$(state_emoji "$svc_state") ${desc:-$service}${url_part} (${svc_state})"
+            if [[ $is_last -eq 1 ]]; then
+                echo "${indent}    └── ${line}"
+            else
+                echo "${indent}    ├── ${line}"
+            fi
+        done
+    else
+        echo "${indent}└── 🌐 Servicios: ninguno"
+    fi
+}
+
+# ============================================
+# COMMANDS
+# ============================================
+
+cmd_list() {
+    echo "📋 Estado de stacks y servicios:"
+    local stacks; stacks=$(stack::list)
+    local arr=(); while IFS= read -r s; do [[ -n "$s" ]] && arr+=("$s"); done <<< "$stacks"
+    IFS=$'\n' sorted=($(sort <<<"${arr[*]}")); unset IFS
+    local total=${#sorted[@]}
+    for i in "${!sorted[@]}"; do
+        local stack="${sorted[$i]}"; local is_last=$((i == total - 1))
+        local p="├── "; local ind="│   "; if [[ $is_last -eq 1 ]]; then p="└── "; ind="    "; fi
+        show_single_stack_status "$stack" "$p" "$ind"
+    done
+}
+
+cmd_show() {
+    echo "📋 Estado de stacks y servicios:"
+    local stacks=("$@"); local total=${#stacks[@]}
+    for i in "${!stacks[@]}"; do
+        local stack="${stacks[$i]}"; local is_last=$((i == total - 1))
+        local p="├── "; local ind="│   "; if [[ $is_last -eq 1 ]]; then p="└── "; ind="    "; fi
+        show_single_stack_status "$stack" "$p" "$ind"
+    done
+}
+
+cmd_help() {
+    local cmd_prefix=$(utils::get_command_prefix "${BASH_SOURCE[0]}")
+    cat << EOF
+Uso: ${cmd_prefix} [stack1 stack2 ...] [opciones]
+
+OPCIONES:
+  --help, -h    Mostrar ayuda
+
+Descripción:
+  Muestra el estado (habilitado/deshabilitado) de cada stack y el estado
+  de sus contenedores y servicios usando Docker Compose y el archivo de estado.
+EOF
+}
+
+main() {
+    if [[ $# -eq 0 ]]; then cmd_list; return; fi
+    case "${1:-}" in
+        --help|-h|help) cmd_help; return ;;
+    esac
+    cmd_show "$@"
+}
+
+main "$@"
+
