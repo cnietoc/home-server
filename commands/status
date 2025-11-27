@@ -151,11 +151,15 @@ show_single_stack_status() {
 
 cmd_list() {
     echo "📋 Estado de stacks y servicios:"
+    logs::debug "Listando todos los stacks para estado"
     local stacks; stacks=$(stack::list)
     local arr=(); while IFS= read -r s; do [[ -n "$s" ]] && arr+=("$s"); done <<< "$stacks"
+    logs::debug "Stacks encontrados: ${#arr[@]}"
     IFS=$'\n' sorted=($(sort <<<"${arr[*]}")); unset IFS
     local total=${#sorted[@]}
+    logs::debug "Stacks ordenados: ${#sorted[@]}"
     for i in "${!sorted[@]}"; do
+        logs::debug "Mostrando estado para stack: ${sorted[$i]}"
         local stack="${sorted[$i]}"; local is_last=$((i == total - 1))
         local p="├── "; local ind="│   "; if [[ $is_last -eq 1 ]]; then p="└── "; ind="    "; fi
         show_single_stack_status "$stack" "$p" "$ind"
