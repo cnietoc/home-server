@@ -43,7 +43,7 @@ show_single_stack() {
 
     # Verificar que el stack existe
     if ! stack::exists "$stack"; then
-        log_error "Stack no encontrado: $stack"
+        logs::error "Stack no encontrado: $stack"
         return 1
     fi
 
