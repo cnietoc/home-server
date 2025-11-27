@@ -20,25 +20,13 @@ source "$PROJECT_ROOT/lib/docker.sh"
 # AUX
 # ============================================
 
-# Obtener tabla de ps del stack
-get_compose_ps_service() {
-    local stack="$1"
-    local stack_dir="$PROJECT_ROOT/docker/$stack"
-    if [[ ! -d "$stack_dir" || ! -f "$stack_dir/docker-compose.yml" ]]; then
-        echo ""
-        return 0
-    fi
-
-    (cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
-}
-
 # Obtener estado de servicio (best-effort)
 get_service_state() {
     local stack="$1"
     local service="$2"
     local stack_dir="$PROJECT_ROOT/docker/$stack"
     local docker_ps
-    docker_ps=$(cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null)
+    docker_ps=$(cd "$stack_dir" && docker compose ps --format "{{json .State}}" 2>/dev/null)
 
     logs::debug "Obteniendo estado de servicio para $stack/$service"
     logs::debug "Salida de docker compose ps:"
