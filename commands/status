@@ -34,6 +34,10 @@ get_compose_ps_table() {
 
 # Obtener estado de servicio (best-effort)
 get_service_state() {
+
+    logs::debug "Obteniendo estado de servicio"
+    logs::debug "Parámetros recibidos: stack='$1', service='$2'"
+    logs::debug "Tabla PS recibida:\n$3"
     local stack="$1"
     local service="$2"
     local ps_table="$3"
