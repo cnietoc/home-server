@@ -34,7 +34,6 @@ get_compose_ps_table() {
 
 # Obtener estado de servicio (best-effort)
 get_service_state() {
-
     logs::debug "Obteniendo estado de servicio"
     logs::debug "Parámetros recibidos: stack='$1', service='$2'"
     logs::debug "Tabla PS recibida:\n$3"
@@ -50,9 +49,9 @@ get_service_state() {
         logs::debug "Tabla PS vacía para stack '$stack'"
     fi
 
-    # Intentar encontrar una fila cuyo nombre contenga "/<service>-" o termine con "_<service>" o "-<service>"
+    # Intentar encontrar una fila cuyo nombre contenga "<service>"
     local row
-    row=$(echo "$ps_table" | grep -E "/${service}-|_${service}$|-{1}${service}$" | head -n 1 || true)
+    row=$(echo "$ps_table" | grep -E "${service}" | head -n 1 || true)
     logs::debug "Fila PS para servicio '$service' en stack '$stack': '$row'"
     if [[ -z "$row" ]]; then
         echo "unknown"
