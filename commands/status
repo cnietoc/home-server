@@ -28,7 +28,7 @@ get_compose_ps_table() {
         echo ""
         return 0
     fi
-    (cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
+    (cd "$stack_dir" && docker-compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
 }
 
 # Obtener estado de servicio (best-effort)
@@ -158,7 +158,7 @@ cmd_list() {
     done
 }
 
-cmd_show() {
+cmd_status() {
     echo "📋 Estado de stacks y servicios:"
     local stacks=("$@"); local total=${#stacks[@]}
     for i in "${!stacks[@]}"; do
@@ -187,7 +187,7 @@ main() {
     case "${1:-}" in
         --help|-h|help) cmd_help; return ;;
     esac
-    cmd_show "$@"
+    cmd_status "$@"
 }
 
 main "$@"
