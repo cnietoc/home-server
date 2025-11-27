@@ -40,6 +40,9 @@ get_service_state() {
     local docker_ps
     docker_ps=$(cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null)
 
+    logs::debug "Obteniendo estado de servicio para $stack/$service"
+    logs::debug "Salida de docker compose ps:"
+    logs::debug "$docker_ps"
     # Si hay un contenido entre comillas:
     if [[ $docker_ps == "*\"*" ]]; then
         # Reemplazar comillas por comillas simples para evitar problemas con awk
