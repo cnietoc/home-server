@@ -33,7 +33,7 @@ stack::exists() {
     [[ ! -f "$_STACK_CONFIG_FILE" ]] && return 1
 
     local exists
-    exists=$(yq_read ".stacks | has(\"$stack_name\")" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    exists=$(yq::read ".stacks | has(\"$stack_name\")" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$exists" == "true" ]]
 }
 
@@ -41,7 +41,7 @@ stack::exists() {
 stack::get_description() {
     local stack_name="$1"
     local desc
-    desc=$(yq_read ".stacks.$stack_name.description" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    desc=$(yq::read ".stacks.$stack_name.description" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$desc" == "null" ]] && echo "" || echo "$desc"
 }
 
@@ -53,7 +53,7 @@ stack::get_description() {
 stack::get_config_files() {
     local stack_name="$1"
     local config_files
-    config_files=$(yq_read ".stacks.$stack_name.config_files | join(\",\")" "$_STACK_CONFIG_FILE")
+    config_files=$(yq::read ".stacks.$stack_name.config_files | join(\",\")" "$_STACK_CONFIG_FILE")
 
     if [[ "$config_files" == "null" || -z "$config_files" ]]; then
         echo "common"
@@ -78,7 +78,7 @@ stack::service::get_subdomain() {
     local stack_name="$1"
     local service_name="$2"
     local subdomain
-    subdomain=$(yq_read ".stacks.$stack_name.services.$service_name.subdomain" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    subdomain=$(yq::read ".stacks.$stack_name.services.$service_name.subdomain" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$subdomain" == "null" ]] && echo "" || echo "$subdomain"
 }
 
@@ -87,7 +87,7 @@ stack::service::get_description() {
     local stack_name="$1"
     local service_name="$2"
     local desc
-    desc=$(yq_read ".stacks.$stack_name.services.$service_name.description" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    desc=$(yq::read ".stacks.$stack_name.services.$service_name.description" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$desc" == "null" ]] && echo "" || echo "$desc"
 }
 
@@ -114,13 +114,13 @@ stack::service::build_url() {
 
 # Listar stacks que tienen configuración de shares
 stack::shares::list_stacks() {
-    yq_read '.stacks | to_entries | .[] | select(.value.shares) | .key' "$_STACK_CONFIG_FILE" 2>/dev/null || true
+    yq::read '.stacks | to_entries | .[] | select(.value.shares) | .key' "$_STACK_CONFIG_FILE" 2>/dev/null || true
 }
 
 # Listar shares de un stack
 stack::shares::list() {
     local stack_name="$1"
-    yq_read ".stacks.$stack_name.shares | keys | .[]" "$_STACK_CONFIG_FILE" 2>/dev/null || true
+    yq::read ".stacks.$stack_name.shares | keys | .[]" "$_STACK_CONFIG_FILE" 2>/dev/null || true
 }
 
 # Obtener información de un share
@@ -130,7 +130,7 @@ stack::shares::get_field() {
     local field="$3"  # path, exposed_path, description, permissions
 
     local value
-    value=$(yq_read ".stacks.$stack_name.shares.$share_name.$field" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    value=$(yq::read ".stacks.$stack_name.shares.$share_name.$field" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$value" == "null" ]] && echo "" || echo "$value"
 }
 
@@ -193,14 +193,14 @@ stack::shares::get_permissions() {
 
 # Listar stacks que tienen configuración de backup
 stack::backup::list_stacks() {
-    yq_read '.stacks | to_entries | .[] | select(.value.backups) | .key' "$_STACK_CONFIG_FILE" 2>/dev/null || true
+    yq::read '.stacks | to_entries | .[] | select(.value.backups) | .key' "$_STACK_CONFIG_FILE" 2>/dev/null || true
 }
 
 # Verificar si un stack tiene configuración de backup
 stack::backup::has_config() {
     local stack_name="$1"
     local backup_config
-    backup_config=$(yq_read ".stacks.$stack_name.backups" "$_STACK_CONFIG_FILE" 2>/dev/null)
+    backup_config=$(yq::read ".stacks.$stack_name.backups" "$_STACK_CONFIG_FILE" 2>/dev/null)
     [[ "$backup_config" != "null" && -n "$backup_config" ]]
 }
 
@@ -208,12 +208,12 @@ stack::backup::has_config() {
 stack::backup::get_exclusions() {
     local stack_name="$1"
     stack::backup::has_config "$stack_name" || return 0
-    yq_read ".stacks.$stack_name.backups.exclude | .[]" "$_STACK_CONFIG_FILE" 2>/dev/null || true
+    yq::read ".stacks.$stack_name.backups.exclude | .[]" "$_STACK_CONFIG_FILE" 2>/dev/null || true
 }
 
 # Obtener configuración completa de backup
 stack::backup::get_config() {
     local stack_name="$1"
     stack::backup::has_config "$stack_name" || { echo "null"; return 0; }
-    yq_read ".stacks.$stack_name.backups" "$_STACK_CONFIG_FILE" 2>/dev/null || echo "null"
+    yq::read ".stacks.$stack_name.backups" "$_STACK_CONFIG_FILE" 2>/dev/null || echo "null"
 }
