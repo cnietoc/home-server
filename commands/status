@@ -26,7 +26,7 @@ get_service_state() {
     local service="$2"
     local stack_dir="$PROJECT_ROOT/docker/$stack"
     local docker_ps
-    docker_ps=$(cd "$stack_dir" && docker compose ps --format "{{json .State}}" 2>/dev/null)
+    docker_ps=$(cd "$stack_dir" && docker compose ps --format "{{json .State}}" $service 2>/dev/null)
 
     logs::debug "Obteniendo estado de servicio para $stack/$service"
     logs::debug "Salida de docker compose ps:"
