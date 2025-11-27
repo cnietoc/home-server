@@ -21,7 +21,7 @@ source "$PROJECT_ROOT/lib/docker.sh"
 # ============================================
 
 # Obtener tabla de ps del stack
-get_compose_ps_table() {
+get_compose_ps_service() {
     local stack="$1"
     local stack_dir="$PROJECT_ROOT/docker/$stack"
     if [[ ! -d "$stack_dir" || ! -f "$stack_dir/docker-compose.yml" ]]; then
@@ -34,31 +34,19 @@ get_compose_ps_table() {
 
 # Obtener estado de servicio (best-effort)
 get_service_state() {
-    logs::debug "Obteniendo estado de servicio"
-    logs::debug "Parámetros recibidos: stack='$1', service='$2'"
-    logs::debug "Tabla PS recibida:\n$3"
     local stack="$1"
     local service="$2"
-    local ps_table="$3"
+    local stack_dir="$PROJECT_ROOT/docker/$stack"
+    local docker_ps
+    docker_ps=$(cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null)
 
-    logs::debug "- Parámetros recibidos: stack='$stack', service='$service'"
-    logs::debug "- Tabla PS recibida:\n$ps_table"
-
-    logs::debug "Obteniendo estado para servicio '$service' en stack '$stack'"
-    if [[ -z "$ps_table" ]]; then
-        logs::debug "Tabla PS vacía para stack '$stack'"
-    fi
-
-    # Intentar encontrar una fila cuyo nombre contenga "<service>"
-    local row
-    row=$(echo "$ps_table" | grep -E "${service}" | head -n 1 || true)
-    logs::debug "Fila PS para servicio '$service' en stack '$stack': '$row'"
-    if [[ -z "$row" ]]; then
+    # Si hay un contenido entre comillas:
+    if [[ $docker_ps == "*\"*" ]]; then
+        # Reemplazar comillas por comillas simples para evitar problemas con awk
+        echo "$docker_ps" | sed 's/"/'\''/g'
+    else
         echo "unknown"
-        return 0
     fi
-    # Columnas: NAME\tSTATE\tSTATUS
-    echo "$row" | awk -F '\t' '{print $2}'
 }
 
 # Emoji para estado
@@ -104,14 +92,6 @@ show_single_stack_status() {
 
     echo "${stack_prefix}📦 ${stack} ($(enabled_emoji "$stack") ${enabled_marker})"
     echo "${indent}├── 📊 Contenedores: ${running}/${total_expected} corriendo"
-
-    # ps table
-    local ps_table
-    ps_table=$(get_compose_ps_table "$stack")
-
-    logs::debug "Tabla PS para stack '$stack':"
-    logs::debug "\n$ps_table"
-
     # Servicios
     local services
     services=$(stack::service::list "$stack")
@@ -142,7 +122,7 @@ show_single_stack_status() {
             fi
 
             local svc_state
-            svc_state=$(get_service_state "$stack" "$service" "$ps_table")
+            svc_state=$(get_service_state "$stack" "$service")
             local is_last=$((k == service_count - 1))
             local line="$(state_emoji "$svc_state") ${desc:-$service}${url_part} (${svc_state})"
             if [[ $is_last -eq 1 ]]; then
