@@ -31,7 +31,7 @@ get_service_state() {
     if [[ $docker_ps =~ ^\"(.*)\"$ ]]; then
         echo "${BASH_REMATCH[1]}"
     else
-      echo "unknown"
+      echo "off"
     fi
 }
 
@@ -42,6 +42,7 @@ state_emoji() {
         running|healthy|up) echo "✅" ;;
         exited|dead) echo "❌" ;;
         restarting) echo "♻️" ;;
+        off) echo "❌" ;;
         *) echo "❔" ;;
     esac
 }
