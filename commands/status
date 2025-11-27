@@ -41,9 +41,15 @@ get_service_state() {
     local service="$2"
     local ps_table="$3"
 
+    logs::debug "Obteniendo estado para servicio '$service' en stack '$stack'"
+    if [[ -z "$ps_table" ]]; then
+        logs::debug "Tabla PS vacía para stack '$stack'"
+    fi
+
     # Intentar encontrar una fila cuyo nombre contenga "/<service>-" o termine con "_<service>" o "-<service>"
     local row
     row=$(echo "$ps_table" | grep -E "/${service}-|_${service}$|-{1}${service}$" | head -n 1 || true)
+    logs::debug "Fila PS para servicio '$service' en stack '$stack': '$row'"
     if [[ -z "$row" ]]; then
         echo "unknown"
         return 0
