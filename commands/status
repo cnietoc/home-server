@@ -32,11 +32,10 @@ get_service_state() {
     logs::debug "Salida de docker compose ps:"
     logs::debug "$docker_ps"
     # Si hay un contenido entre comillas:
-    if [[ $docker_ps == "*\"*" ]]; then
-        # Reemplazar comillas por comillas simples para evitar problemas con awk
-        echo "$docker_ps" | sed 's/"/'\''/g'
+    if [[ $docker_ps =~ ^\"(.*)\"$ ]]; then
+        echo "${BASH_REMATCH[1]}"
     else
-        echo "unknown"
+      echo "unknown"
     fi
 }
 
