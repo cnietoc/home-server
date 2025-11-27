@@ -93,6 +93,87 @@ show_version() {
 }
 
 # ============================================
+# COMMAND RESOLUTION
+# ============================================
+
+# Resuelve dinámicamente el comando a ejecutar navegando por la estructura
+# de directorios y archivos en commands/
+resolve_command() {
+    local current_path="$COMMANDS_DIR"
+    local remaining_args=("$@")
+    local command_chain=()
+
+    while [[ ${#remaining_args[@]} -gt 0 ]]; do
+        local arg="${remaining_args[0]}"
+
+        # Chequear si existe un index en el nivel actual
+        local index_path="$current_path/index"
+        if [[ -f "$index_path" && -x "$index_path" ]]; then
+            logs::debug "Ejecutando index: ${command_chain[*]:-root}/index"
+            export HMS_INVOKED=true
+            exec "$index_path" "${remaining_args[@]}"
+        fi
+
+        # Chequear si existe un comando (archivo) con ese nombre
+        local cmd_file="$current_path/$arg"
+        if [[ -f "$cmd_file" ]]; then
+            if [[ ! -x "$cmd_file" ]]; then
+                logs::error "El comando no tiene permisos de ejecución: $cmd_file"
+                exit 1
+            fi
+
+            command_chain+=("$arg")
+            logs::debug "Ejecutando comando: ${command_chain[*]}"
+            export HMS_INVOKED=true
+            # Ejecutar con los parámetros restantes (sin el comando actual)
+            exec "$cmd_file" "${remaining_args[@]:1}"
+        fi
+
+        # Chequear si existe un directorio con ese nombre
+        local cmd_dir="$current_path/$arg"
+        if [[ -d "$cmd_dir" ]]; then
+            command_chain+=("$arg")
+            current_path="$cmd_dir"
+            remaining_args=("${remaining_args[@]:1}")
+            continue
+        fi
+
+        # No se encontró nada
+        if [[ ${#command_chain[@]} -eq 0 ]]; then
+            logs::error "Comando no encontrado: $arg"
+        else
+            logs::error "Subcomando no encontrado: ${command_chain[*]} $arg"
+        fi
+        echo ""
+        echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
+        exit 1
+    done
+
+    # Si llegamos aquí, se acabaron los argumentos
+    # Intentar ejecutar index en el nivel actual
+    local index_path="$current_path/index"
+    if [[ -f "$index_path" && -x "$index_path" ]]; then
+        if [[ ${#command_chain[@]} -eq 0 ]]; then
+            logs::debug "Ejecutando index raíz"
+        else
+            logs::debug "Ejecutando index: ${command_chain[*]}/index"
+        fi
+        export HMS_INVOKED=true
+        exec "$index_path"
+    fi
+
+    # No hay más argumentos y no hay index
+    if [[ ${#command_chain[@]} -eq 0 ]]; then
+        logs::error "Debes especificar un comando"
+    else
+        logs::error "Debes especificar un subcomando para: ${command_chain[*]}"
+    fi
+    echo ""
+    echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
+    exit 1
+}
+
+# ============================================
 # MAIN
 # ============================================
 
@@ -112,41 +193,7 @@ main() {
             exit 0
             ;;
         *)
-            local category="$1"
-            shift
-
-            if [[ $# -eq 0 ]]; then
-                logs::error "Debes especificar un comando"
-                echo ""
-                echo "Uso: hms $category <comando> [opciones]"
-                echo ""
-                echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
-                exit 1
-            fi
-
-            local command="$1"
-            shift
-
-            local command_path="$COMMANDS_DIR/$category/$command"
-
-            if [[ ! -f "$command_path" ]]; then
-                logs::error "Comando no encontrado: hms $category $command"
-                echo ""
-                echo "Ejecuta 'hms --help' para ver todos los comandos disponibles"
-                exit 1
-            fi
-
-            if [[ ! -x "$command_path" ]]; then
-                logs::error "El comando no tiene permisos de ejecución: $command_path"
-                exit 1
-            fi
-
-            logs::info "Ejecutando comando: $category $command"
-
-            # Exportar variable para que los comandos sepan que fueron invocados desde hms
-            export HMS_INVOKED=true
-
-            exec "$command_path" "$@"
+            resolve_command "$@"
             ;;
     esac
 }

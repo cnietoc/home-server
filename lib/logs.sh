@@ -83,6 +83,7 @@ _logs::write() {
 # --- Funciones públicas ---
 logs::debug() {
     [[ "$LOG_LEVEL" == "DEBUG" ]] && _logs::write "DEBUG" "${GRAY}🔍${RESET}" "$GRAY" "$*"
+    true
 }
 
 logs::info() {
