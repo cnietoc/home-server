@@ -28,7 +28,7 @@ _env::get_private_dir() {
     fi
 
     if [[ ! -d "$private_dir" ]]; then
-        logs::log_ok "El enlace apunta a una carpeta inexistente: $private_dir" >&2
+        logs::info "El enlace apunta a una carpeta inexistente: $private_dir" >&2
         return 1
     fi
 
@@ -43,7 +43,7 @@ _env::load_env() {
         set +a
         return 0
     else
-        logs::log_error "⚠️ No encontrado: $(basename "$env_file")"
+        logs::error "⚠️ No encontrado: $(basename "$env_file")"
         return 1
     fi
 }

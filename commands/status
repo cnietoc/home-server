@@ -28,11 +28,8 @@ get_compose_ps_table() {
         echo ""
         return 0
     fi
-    (
-      cd "$stack_dir" && \
-      docker-compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null | \
-      grep -E '(^NAME\tSTATE\tSTATUS)|(^[^\t]+\t[^\t]+\t[^\t]+)' || true
-    )
+
+    (cd "$stack_dir" && docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
 }
 
 # Obtener estado de servicio (best-effort)
@@ -106,6 +103,9 @@ show_single_stack_status() {
     local ps_table
     ps_table=$(get_compose_ps_table "$stack")
 
+    logs::info "Tabla PS para stack '$stack':"
+    logs::info "\n$ps_table"
+
     # Servicios
     local services
     services=$(stack::service::list "$stack")
@@ -126,7 +126,6 @@ show_single_stack_status() {
 
             local url_part=""
             if [[ "$raw_sub" != "null" ]]; then
-                env::load
                 local domain="${BASE_DOMAIN:-}"; local full_url
                 if [[ -z "$domain" ]]; then
                     url_part=""
