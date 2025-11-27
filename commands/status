@@ -42,6 +42,9 @@ get_service_state() {
     local service="$2"
     local ps_table="$3"
 
+    logs::debug "- Parámetros recibidos: stack='$stack', service='$service'"
+    logs::debug "- Tabla PS recibida:\n$ps_table"
+
     logs::debug "Obteniendo estado para servicio '$service' en stack '$stack'"
     if [[ -z "$ps_table" ]]; then
         logs::debug "Tabla PS vacía para stack '$stack'"
