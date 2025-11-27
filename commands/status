@@ -42,6 +42,7 @@ state_emoji() {
         running|healthy|up) echo "✅" ;;
         exited|dead) echo "❌" ;;
         restarting) echo "♻️" ;;
+        paused) echo "⏸️" ;;
         off) echo "❌" ;;
         *) echo "❔" ;;
     esac
