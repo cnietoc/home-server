@@ -28,7 +28,11 @@ get_compose_ps_table() {
         echo ""
         return 0
     fi
-    (cd "$stack_dir" && docker-compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null || true)
+    (
+      cd "$stack_dir" && \
+      docker-compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null | \
+      grep -E '(^NAME\tSTATE\tSTATUS)|(^[^\t]+\t[^\t]+\t[^\t]+)' || true
+    )
 }
 
 # Obtener estado de servicio (best-effort)
@@ -191,4 +195,3 @@ main() {
 }
 
 main "$@"
-
