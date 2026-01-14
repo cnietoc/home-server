@@ -25,5 +25,5 @@ services:
       traefik.http.routers.asf.rule: "Host(`asf.${BASE_DOMAIN}`)"
       traefik.http.routers.asf.tls: "true"
       traefik.http.routers.asf.tls.certresolver: "cloudflare"
-      traefik.http.routers.asf.middlewares: "tinyauth@docker"
+      # traefik.http.routers.asf.middlewares: "tinyauth@docker"
       traefik.http.services.asf.loadbalancer.server.port: "1242"
