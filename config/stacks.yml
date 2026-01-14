@@ -111,6 +111,21 @@ stacks:
         - config/jellyfin/log/
         - config/jellyfin/temp/
 
+  # Stack de Steam Cards - Farmeo y venta de cromos
+  steam:
+    description: "ArchiSteamFarm para farmeo y venta automática de cromos"
+    config_files:
+      - steam  # Configuración específica de Steam
+    services:
+      asf:
+        subdomain: "asf"
+        description: "🎮 ArchiSteamFarm - Farmeo de cromos"
+        protected: true
+    backups:
+      exclude:
+        - config/ASF/logs/
+        - config/ASF/cache/
+
   # Hello World - Ejemplo básico
   helloworld:
     description: "Servicio de ejemplo Hello World"

@@ -1,0 +1,20 @@
+{
+  "TradesSteamLimiterDelay": 4001,
+  "InventoryLimiterDelay": 4001,
+  "GiftsLimiterDelay": 1000,
+  "UpdateYourself": true,
+  "SteamProtocols": 7,
+  "SteamOwnerID": 0,
+  "LicenseID": null,
+  "SteamLimitRequestsDelay": 200,
+  "ConfirmationsLimiterDelay": 3,
+  "SteamMessageAwaitTimeout": 10,
+  "WebProxy": null,
+  "ReadTimeout": 30,
+  "ConnectionTimeout": 15,
+  "MaximumApiRedirections": 3,
+  "Statistics": true,
+  "Blacklist": [],
+  "UpdatePeriod": 24,
+  "UpdateChannel": "Stable"
+}
