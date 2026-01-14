@@ -114,8 +114,7 @@ stacks:
   # Stack de Steam Cards - Farmeo y venta de cromos
   steam:
     description: "ArchiSteamFarm para farmeo y venta automática de cromos"
-    config_files:
-      - steam  # Configuración específica de Steam
+    config_files: []
     services:
       asf:
         subdomain: "asf"
