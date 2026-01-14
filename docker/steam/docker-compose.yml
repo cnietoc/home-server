@@ -10,10 +10,8 @@ services:
     networks:
       - proxy
     volumes:
-      # JSONs generados por pre-deploy.sh
-      - ./config/ASF.json:/app/config/ASF.json:ro
-      - ./config/DefaultBot.json:/app/config/DefaultBot.json:ro
       # Almacenamiento en data/steam/
+      - ${STACK_DATA}/config:/app/config
       - ${STACK_DATA}/logs:/app/logs
       - ${STACK_DATA}/cache:/app/cache
     environment:
