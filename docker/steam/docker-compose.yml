@@ -4,14 +4,16 @@ networks:
 
 services:
   asf:
-    build: .
+    image: justarchi/archisteamfarm:latest
     container_name: ${STACK_NAME}-asf
     restart: unless-stopped
     networks:
       - proxy
     volumes:
+      # JSONs generados por pre-deploy.sh
+      - ./config/ASF.json:/app/config/ASF.json:ro
+      - ./config/DefaultBot.json:/app/config/DefaultBot.json:ro
       # Almacenamiento en data/steam/
-      - ${STACK_DATA}/config:/app/config
       - ${STACK_DATA}/logs:/app/logs
       - ${STACK_DATA}/cache:/app/cache
     environment:
@@ -19,13 +21,6 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-
-      # Credenciales Steam
-      - STEAM_USERNAME=${STEAM_USERNAME}
-      - STEAM_PASSWORD=${STEAM_PASSWORD}
-
-      # Configuración de farmeo
-      - ASF_FARM_OFFLINE=${ASF_FARM_OFFLINE_MODE:-false}
     ports:
       - "1242:1242"  # Puerto IPC de ASF (local)
     labels:
