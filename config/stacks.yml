@@ -134,3 +134,16 @@ stacks:
         subdomain: test
         description: "👋 Página de bienvenida Hello World"
         protected: false
+
+  # Stack de juego - Servidor de Necesse
+  necesse:
+    description: "Servidor de juego Necesse"
+    config_files:
+      - necesse  # Configuración específica para el servidor de Necesse
+    services:
+      necesse:
+        description: "🎮 Servidor de juego Necesse"
+        protected: false
+    backups:
+      exclude:
+
