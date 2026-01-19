@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# HMS CLI Wrapper (local development version)
+# Para producción, usa: ./install.sh y luego hms desde cualquier lugar
+# Este script es solo para desarrollo local con mise + uv
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PROJECT_ROOT="$SCRIPT_DIR"
+
+cd "$SCRIPT_DIR"
+
+# Check if mise is available
+if ! command -v mise &> /dev/null; then
+    echo "❌ mise is required but not found"
+    echo "Install with: curl https://mise.run | sh"
+    exit 1
+fi
+
+# Ensure Python is installed via mise
+if ! mise which python &> /dev/null; then
+    echo "📦 Installing Python via mise..."
+    mise install
+fi
+
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    echo "❌ uv is required but not found"
+    echo "Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
+fi
+
+# Install dependencies if needed (only if pyproject.toml changed)
+if [[ ! -d ".venv" ]] || [[ pyproject.toml -nt .venv ]]; then
+    echo "📦 Installing dependencies with uv..."
+    uv venv
+    uv pip install -e .
+fi
+
+# Activate venv and run HMS
+source .venv/bin/activate
+python -m hms "$@"

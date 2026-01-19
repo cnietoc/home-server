@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# HMS CLI wrapper (symlink target). Auto-starts the 'hms' container if not running.
+set -euo pipefail
+
+# Resolve repo root from this script path (works when installed as symlink)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# Emulate readlink -f on macOS
+resolve_realpath() {
+  local target="$1"
+  local dir
+  while [ -L "$target" ]; do
+    target="$(readlink "$target")"
+  done
+  dir="$(cd "$(dirname "$target")" && pwd)"
+  echo "$dir/$(basename "$target")"
+}
+REALPATH="$(resolve_realpath "$SCRIPT_PATH")"
+REPO_ROOT="$(cd "$(dirname "$REALPATH")/.." && pwd)"
+
+CONTAINER_NAME="hms"
+COMPOSE_DIR="$REPO_ROOT/docker/hms"
+
+# Detect TTY for docker exec flags
+DOCKER_EXEC_FLAGS=""
+if [ -t 1 ]; then
+  DOCKER_EXEC_FLAGS="-it"
+fi
+
+# Ensure Docker is available
+if ! command -v docker >/dev/null 2>&1; then
+  echo "❌ Docker no está instalado en el host"
+  exit 1
+fi
+
+# Ensure Docker daemon is reachable (best-effort)
+if ! docker info >/dev/null 2>&1; then
+  echo "⚠️  Docker daemon no disponible. Abre Docker Desktop e inténtalo de nuevo."
+  exit 1
+fi
+
+# Auto-start container if not running
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  if [ -d "$COMPOSE_DIR" ] && [ -f "$COMPOSE_DIR/docker-compose.yml" ]; then
+    (cd "$COMPOSE_DIR" && docker compose up -d)
+    # brief wait
+    sleep 1
+  else
+    echo "❌ No se encontró docker-compose en $COMPOSE_DIR"
+    exit 1
+  fi
+fi
+
+# Exec HMS CLI inside the container
+exec docker exec $DOCKER_EXEC_FLAGS "$CONTAINER_NAME" python -m hms "$@"

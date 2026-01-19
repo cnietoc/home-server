@@ -976,3 +976,54 @@ stacks:
 - 📝 **Comentarios** y documentación integrados
 - 🔧 **Extensible** para futuras funcionalidades
 
+---
+
+## 🔄 Actualizar HMS en el Servidor
+
+Cuando hagas cambios en el repositorio (código Python, Docker, configuración), necesitas actualizar el contenedor HMS en el servidor.
+
+### Opción A: Actualización Manual (Recomendado para cambios pequeños)
+
+Ejecuta el script de actualización en el servidor:
+
+```bash
+cd /ruta/home-server
+./update.sh
+```
+
+**Qué hace:**
+1. Hace `git pull` para traer cambios del repositorio
+2. Detecta cambios en `hms/`, `docker/hms/`, `pyproject.toml`
+3. Si hay cambios relevantes:
+   - Para el contenedor actual
+   - Rebuilda la imagen Docker sin caché
+   - Levanta el contenedor actualizado
+4. Valida que el contenedor está corriendo
+
+**Ejemplo de salida:**
+```
+🔄 HMS Updater
+📊 Comparando cambios...
+⬇️  Haciendo git pull...
+✅ Nuevo commit: abc123def456...
+📝 Cambios detectados en:
+hms/plugins/stacks/up.py
+docker/hms/Dockerfile
+🔨 Reconstruyendo imagen Docker...
+🛑 Parando contenedor hms...
+🗑️  Eliminando contenedor hms...
+📦 Construyendo nueva imagen...
+🚀 Levantando nuevo contenedor...
+✅ Contenedor HMS actualizado y corriendo
+✅ Actualización completada
+```
+
+### Comportamiento especial
+
+- **Sin cambios relevantes:** Sale sin hacer nada
+- **Docker no disponible:** Trae cambios pero no rebuilda
+- **Conflictos en git:** Aborta y pide resolverlos manualmente
+
+### Futuro: Webhook automático
+
+Después, podremos integrar un webhook de GitHub para que se actualice automáticamente al hacer push al repositorio.
