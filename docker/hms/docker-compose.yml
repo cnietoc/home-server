@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   hms:
     build:
@@ -8,17 +6,14 @@ services:
     container_name: hms
     restart: always
     environment:
-      HMS_MODE: daemon
-      HMS_CONFIG_DIR: /app/data/hms-config
-      PROJECT_ROOT: /project
-      PYTHONUNBUFFERED: "1"
+      DOCKER_CLI_HINTS: false
     volumes:
       - ../..:/project:ro
       - ../../data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
     healthcheck:
-      test: ["CMD", "python", "-m", "hms", "show", "status", "--quiet"]
+      test: ["CMD", "python", "-m", "hms", "show", "stacks"]
       interval: 30s
       timeout: 10s
       retries: 3
-
