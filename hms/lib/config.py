@@ -1,0 +1,72 @@
+"""Configuración y generación de .env por stack.
+
+Actualmente lee desde `config/private/*.env` en el host y genera
+`docker/<stack>/.env`. Diseñado para sustituir fácilmente la fuente
+por OneDrive en el futuro.
+"""
+
+from pathlib import Path
+from typing import List
+import os
+
+from hms.lib.stacks import get_stack_manager, resolve_project_root
+
+
+class EnvGenerator:
+    def __init__(self, project_root: Path | None = None) -> None:
+        self.project_root = resolve_project_root(project_root)
+        self.stack_manager = get_stack_manager(str(self.project_root))
+        self.config_dir = self.project_root / "config" / "private"
+
+    def _read_env_file(self, name: str) -> List[str]:
+        """Lee un archivo .env desde config/private/<name>.env.
+        Si no existe, devuelve lista vacía.
+        """
+        path = self.config_dir / f"{name}.env"
+        if not path.exists():
+            return []
+        return path.read_text().splitlines()
+
+    def generate_stack_env(self, stack_name: str) -> Path:
+        """Genera docker/<stack>/.env combinando common.env y los envs declarados en stacks.yml.
+        Retorna la ruta del archivo generado.
+        """
+        info = self.stack_manager.get_stack_info(stack_name)
+        # Si el stack no existe en stacks.yml, fallamos explícitamente
+        if not self.stack_manager.stack_exists(stack_name):
+            raise ValueError(f"Stack '{stack_name}' no definido en stacks.yml")
+
+        stack_dir = self.project_root / "docker" / stack_name
+        target_env = stack_dir / ".env"
+        target_env.parent.mkdir(parents=True, exist_ok=True)
+
+        # common.env siempre primero, luego los específicos del stack
+        env_names = ["common"] + info.get("config_files", [])
+        if not info.get("config_files"):
+            # fallback: si no hay config_files declarados, intenta stack_name
+            env_names.append(stack_name)
+
+        lines: List[str] = []
+
+        # Variables dinámicas del stack
+        data_dir = self.project_root / "data" / stack_name
+        relative_data = os.path.relpath(data_dir, stack_dir)
+        lines.append("# Variables dinámicas del stack")
+        lines.append(f"STACK_NAME={stack_name}")
+        lines.append(f"STACK_PREFIX=hms-{stack_name}")
+        lines.append(f"STACK_DATA={relative_data}")
+        lines.append("")
+
+        for name in env_names:
+            file_lines = self._read_env_file(name)
+            if file_lines:
+                lines.append(f"# Source: {name}.env")
+                lines.extend(file_lines)
+                lines.append("")
+
+        target_env.write_text("\n".join(lines).rstrip() + "\n")
+        return target_env
+
+
+def get_env_generator(project_root: Path | None = None) -> EnvGenerator:
+    return EnvGenerator(project_root)

@@ -29,4 +29,3 @@ RUN mkdir -p /app/data /app/data/logs /app/data/locks /app/data/hms-config
 
 # Default command (we'll override via docker-compose)
 CMD ["python", "-m", "hms"]
-

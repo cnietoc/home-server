@@ -57,27 +57,17 @@ HASH_AFTER=$(git -C "$REPO_ROOT" rev-parse HEAD)
 
 # Si el hash no cambió, nada que hacer
 if [ "$HASH_BEFORE" = "$HASH_AFTER" ]; then
-    echo -e "${GREEN}ℹ️  El repositorio ya estaba actualizado${NC}"
-    exit 0
+    echo -e "${YELLOW}ℹ️  El repositorio ya estaba actualizado; se reconstruirá igualmente${NC}"
 fi
-
-echo -e "${GREEN}✅ Nuevo commit: $HASH_AFTER${NC}"
 
 # Detectar cambios relevantes
 CHANGED_FILES=$(git -C "$REPO_ROOT" diff --name-only $HASH_BEFORE..$HASH_AFTER)
 
-NEEDS_REBUILD=0
 if echo "$CHANGED_FILES" | grep -qE '^hms/|^docker/hms/|^pyproject\.toml|^requirements\.txt'; then
-    NEEDS_REBUILD=1
     echo -e "${YELLOW}📝 Cambios detectados en:${NC}"
     echo "$CHANGED_FILES" | grep -E '^hms/|^docker/hms/|^pyproject\.toml|^requirements\.txt' || true
 else
     echo -e "${GREEN}ℹ️  Sin cambios relevantes en el código HMS${NC}"
-fi
-
-# Si no hay cambios relevantes, salir
-if [ $NEEDS_REBUILD -eq 0 ]; then
-    exit 0
 fi
 
 # Si Docker no está disponible, no rebuildar
@@ -104,7 +94,7 @@ fi
 
 # Rebuildar imagen (sin caché para asegurar que es nueva)
 echo "📦 Construyendo nueva imagen..."
-(cd "$COMPOSE_DIR" && docker compose build --no-cache)
+(cd "$COMPOSE_DIR" && docker compose build)
 
 # Levantar contenedor
 echo "🚀 Levantando nuevo contenedor..."

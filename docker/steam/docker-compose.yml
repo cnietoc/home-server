@@ -5,7 +5,7 @@ networks:
 services:
   asf:
     image: justarchi/archisteamfarm:latest
-    container_name: ${STACK_NAME}-asf
+    container_name: ${STACK_PREFIX}-asf
     restart: unless-stopped
     networks:
       - proxy

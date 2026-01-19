@@ -5,7 +5,7 @@ networks:
 services:
   traefik:
     image: traefik:latest
-    container_name: ${STACK_NAME}-traefik
+    container_name: ${STACK_PREFIX}-traefik
     restart: unless-stopped
     networks:
       - proxy
@@ -65,7 +65,7 @@ services:
 
   tinyauth:
     image: ghcr.io/steveiliop56/tinyauth:latest
-    container_name: ${STACK_NAME}-tinyauth
+    container_name: ${STACK_PREFIX}-tinyauth
     restart: unless-stopped
     networks:
       - proxy
@@ -89,7 +89,7 @@ services:
 
   watchtower:
     image: nickfedor/watchtower:latest
-    container_name: ${STACK_NAME}-watchtower
+    container_name: ${STACK_PREFIX}-watchtower
     restart: unless-stopped
     networks:
       - proxy
@@ -126,9 +126,9 @@ services:
 
   samba:
     image: crazymax/samba:latest
-    container_name: ${STACK_NAME}-samba
+    container_name: ${STACK_PREFIX}-samba
     restart: unless-stopped
-    hostname: ${STACK_NAME}-samba
+    hostname: ${STACK_PREFIX}-samba
     networks:
       - proxy
     ports:

@@ -3,10 +3,11 @@ Stack discovery and metadata management.
 Handles reading config/stacks.yml and discovering stacks from docker/ directory.
 """
 
-import os
 from pathlib import Path
 from typing import List, Dict, Optional
 import yaml
+
+from hms.lib.paths import resolve_project_root
 
 
 class StackManager:
@@ -19,7 +20,7 @@ class StackManager:
         Args:
             project_root: Root directory of the project
         """
-        self.project_root = Path(project_root or os.environ.get('PROJECT_ROOT', '/project'))
+        self.project_root = resolve_project_root(project_root)
         self.docker_dir = self.project_root / "docker"
         self.config_file = self.project_root / "config" / "stacks.yml"
         self._metadata_cache = None
@@ -51,21 +52,21 @@ class StackManager:
 
     def discover_stacks(self) -> List[str]:
         """
-        Discover available stacks by scanning docker/ directory.
+        Discover available stacks based on config/stacks.yml only.
 
         Returns:
-            Sorted list of stack names
+            Sorted list of stack names defined in stacks.yml that also have a docker-compose.yml
         """
-        if not self.docker_dir.exists():
+        metadata = self._load_metadata()
+        if not metadata:
             return []
 
         stacks = []
-        for item in self.docker_dir.iterdir():
-            if item.is_dir():
-                compose_file = item / "docker-compose.yml"
-                if compose_file.exists():
-                    stacks.append(item.name)
-
+        for stack_name in metadata.keys():
+            stack_dir = self.docker_dir / stack_name
+            compose_file = stack_dir / "docker-compose.yml"
+            if compose_file.exists():
+                stacks.append(stack_name)
         return sorted(stacks)
 
     def get_stack_info(self, stack_name: str) -> Dict:
@@ -79,10 +80,27 @@ class StackManager:
             Dict with stack info (description, config_files, services, etc.)
         """
         metadata = self._load_metadata()
-        stack_metadata = metadata.get(stack_name, {})
+        stack_metadata = metadata.get(stack_name)
 
-        # Add discovered info
         stack_dir = self.docker_dir / stack_name
+        compose_exists = (stack_dir / "docker-compose.yml").exists()
+        predeploy_sh_exists = (stack_dir / "pre-deploy.sh").exists()
+        predeploy_py_exists = (stack_dir / "pre-deploy.py").exists()
+        predeploy_exists = predeploy_sh_exists or predeploy_py_exists
+
+        if stack_metadata is None:
+            # Not defined in stacks.yml → treated as non-existent
+            return {
+                'name': stack_name,
+                'description': 'Not defined in stacks.yml',
+                'config_files': [],
+                'services': {},
+                'backups': {},
+                'path': str(stack_dir),
+                'exists': False,
+                'has_compose': compose_exists,
+                'has_predeploy': predeploy_exists,
+            }
 
         info = {
             'name': stack_name,
@@ -90,35 +108,37 @@ class StackManager:
             'config_files': stack_metadata.get('config_files', []),
             'services': stack_metadata.get('services', {}),
             'backups': stack_metadata.get('backups', {}),
+            'shares': stack_metadata.get('shares', {}),
             'path': str(stack_dir),
-            'exists': stack_dir.exists(),
-            'has_compose': (stack_dir / "docker-compose.yml").exists(),
-            'has_predeploy': (stack_dir / "pre-deploy.sh").exists(),
+            'exists': compose_exists,
+            'has_compose': compose_exists,
+            'has_predeploy': predeploy_exists,
         }
 
         return info
 
     def list_all_stacks(self) -> List[Dict]:
         """
-        List all available stacks with their metadata.
+        List all available stacks with their metadata (only those defined in stacks.yml).
 
         Returns:
             List of dicts with stack info
         """
-        stack_names = self.discover_stacks()
-        return [self.get_stack_info(name) for name in stack_names]
+        stack_names = sorted(self._load_metadata().keys())
+        return [self.get_stack_info(name) for name in stack_names if self.get_stack_info(name)['has_compose']]
 
     def stack_exists(self, stack_name: str) -> bool:
         """
-        Check if a stack exists.
+        Check if a stack exists (must be defined in stacks.yml).
 
         Args:
             stack_name: Name of the stack
 
         Returns:
-            True if stack exists, False otherwise
+            True if stack is defined in stacks.yml, False otherwise
         """
-        return stack_name in self.discover_stacks()
+        metadata = self._load_metadata()
+        return stack_name in metadata
 
     def get_stack_dir(self, stack_name: str) -> Path:
         """
@@ -134,15 +154,18 @@ class StackManager:
 
     def has_predeploy(self, stack_name: str) -> bool:
         """
-        Check if stack has a pre-deploy script.
+        Check if stack has a pre-deploy script (.sh or .py).
 
         Args:
             stack_name: Name of the stack
 
         Returns:
-            True if pre-deploy.sh exists
+            True if pre-deploy.sh or pre-deploy.py exists
         """
-        return (self.get_stack_dir(stack_name) / "pre-deploy.sh").exists()
+        if not self.stack_exists(stack_name):
+            return False
+        stack_dir = self.get_stack_dir(stack_name)
+        return (stack_dir / "pre-deploy.sh").exists() or (stack_dir / "pre-deploy.py").exists()
 
     def get_config_files(self, stack_name: str) -> List[str]:
         """
