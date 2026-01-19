@@ -5,12 +5,15 @@ Dynamically discovers and loads plugins based on command-line arguments.
 
 import importlib.util
 import inspect
+import logging
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 from hms.core.plugin import BasePlugin, StackPlugin, GlobalPlugin
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class CLIDispatcher:
@@ -118,7 +121,7 @@ class CLIDispatcher:
 
             return None
         except Exception as e:
-            print(f"❌ Error loading plugin from {plugin_path}: {e}", file=sys.stderr)
+            logger.error(f"Error loading plugin from {plugin_path}: {e}")
             return None
 
     def parse_args(self, args: List[str]) -> Tuple[List[str], dict]:
@@ -210,13 +213,13 @@ class CLIDispatcher:
                 return self._handle_global_command(args, global_plugins)
 
         except KeyboardInterrupt:
-            print("\n⚠️  Interrupted by user")
+            logger.info("⚠️  Interrupted by user")
             return 130
         except Exception as e:
             if self.verbose:
                 import traceback
                 traceback.print_exc()
-            print(f"❌ Error: {e}", file=sys.stderr)
+            logger.error(f"Error: {e}")
             return 1
 
     def _handle_stack_command(self, args: List[str], available_stacks: List[str],
@@ -236,7 +239,7 @@ class CLIDispatcher:
                 action = args[1]
                 plugin_args = args[2:]
             else:
-                print("❌ No action specified", file=sys.stderr)
+                logger.error("No action specified")
                 return 1
         else:
             # First arg is action (apply to all enabled stacks)
@@ -246,31 +249,31 @@ class CLIDispatcher:
 
         # Validate action exists
         if action not in stack_plugins:
-            print(f"❌ Unknown action: {action}", file=sys.stderr)
-            print(f"Available actions: {', '.join(stack_plugins.keys())}")
+            logger.error(f"Unknown action: {action}")
+            logger.info(f"Available actions: {', '.join(stack_plugins.keys())}")
             return 1
 
         # Load plugin
         plugin = self.load_plugin(stack_plugins[action])
         if not plugin:
-            print(f"❌ Failed to load plugin for action: {action}", file=sys.stderr)
+            logger.error(f"Failed to load plugin for action: {action}")
             return 1
 
         # If no stacks specified, use all stacks (TODO: filter by enabled)
         if not stack_names:
             stack_names = available_stacks
-            print(f"ℹ️  No stacks specified, applying to all: {', '.join(stack_names)}")
+            logger.info(f"No stacks specified, applying to all: {', '.join(stack_names)}")
 
         # Execute plugin for each stack
         exit_code = 0
         for stack_name in stack_names:
             if stack_name not in available_stacks:
-                print(f"⚠️  Unknown stack: {stack_name}", file=sys.stderr)
+                logger.warning(f"Unknown stack: {stack_name}")
                 exit_code = 1
                 continue
 
             if self.verbose:
-                print(f"🔧 Executing {action} on {stack_name}...")
+                logger.debug(f"Executing {action} on {stack_name}...")
 
             if isinstance(plugin, StackPlugin):
                 result = plugin.run_for_stack(stack_name, plugin_args)
@@ -289,8 +292,8 @@ class CLIDispatcher:
         command = args[0]
 
         if command not in global_plugins:
-            print(f"❌ Unknown command: {command}", file=sys.stderr)
-            print(f"Available commands: {', '.join(global_plugins.keys())}")
+            logger.error(f"Unknown command: {command}")
+            logger.info(f"Available commands: {', '.join(global_plugins.keys())}")
             return 1
 
         subcommands = global_plugins[command]
@@ -300,22 +303,22 @@ class CLIDispatcher:
             plugin_args = args[2:]
         else:
             # No subcommand = show help for this command
-            print(f"Available subcommands for '{command}': {', '.join(subcommands.keys())}")
+            logger.info(f"Available subcommands for '{command}': {', '.join(subcommands.keys())}")
             return 0
 
         if subcommand not in subcommands:
-            print(f"❌ Unknown subcommand: {command} {subcommand}", file=sys.stderr)
-            print(f"Available subcommands: {', '.join(subcommands.keys())}")
+            logger.error(f"Unknown subcommand: {command} {subcommand}")
+            logger.info(f"Available subcommands: {', '.join(subcommands.keys())}")
             return 1
 
         # Load plugin
         plugin = self.load_plugin(subcommands[subcommand])
         if not plugin:
-            print(f"❌ Failed to load plugin for: {command} {subcommand}", file=sys.stderr)
+            logger.error(f"Failed to load plugin for: {command} {subcommand}")
             return 1
 
         if self.verbose:
-            print(f"🔧 Executing {command} {subcommand}...")
+            logger.debug(f"Executing {command} {subcommand}...")
 
         return plugin.run(plugin_args)
 

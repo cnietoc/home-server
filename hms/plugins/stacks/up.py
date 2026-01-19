@@ -3,11 +3,14 @@ Deploy de un stack: genera .env, ejecuta prep y hace docker compose up -d.
 """
 
 import subprocess
+import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin
 from hms.lib.deploy import prep_stack, PrepError
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class UpPlugin(StackPlugin):
@@ -40,10 +43,10 @@ COMPORTAMIENTO:
         try:
             prep_stack(stack_name)
         except PrepError as e:
-            print(f"❌ {e}")
+            logger.error(f"{e}")
             return 1
         except Exception as e:
-            print(f"❌ Error en prep: {e}")
+            logger.error(f"Error en prep: {e}")
             return 1
 
         stack_dir = stack_manager.get_stack_docker_dir(stack_name)
@@ -54,17 +57,17 @@ COMPORTAMIENTO:
             cmd.insert(3, "--build")
 
         try:
-            print(f"🚀 Levantando stack {stack_name}...")
+            logger.info(f"🚀 Levantando stack {stack_name}...")
             result = subprocess.run(cmd, cwd=str(stack_dir), check=False, text=True)
             if result.returncode != 0:
-                print(f"❌ docker compose up falló con código {result.returncode}")
+                logger.error(f"docker compose up falló con código {result.returncode}")
                 return result.returncode
-            print(f"✅ Stack {stack_name} levantado")
+            logger.info(f"✅ Stack {stack_name} levantado")
             return 0
         except FileNotFoundError:
-            print("❌ docker compose no encontrado")
+            logger.error("docker compose no encontrado")
             return 1
         except Exception as e:
-            print(f"❌ Error ejecutando docker compose: {e}")
+            logger.error(f"Error ejecutando docker compose: {e}")
             return 1
 

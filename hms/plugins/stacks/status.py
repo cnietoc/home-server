@@ -4,10 +4,13 @@ Show status of a stack (running containers, health, etc.)
 """
 
 import subprocess
+import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class StatusPlugin(StackPlugin):
@@ -39,7 +42,7 @@ EXAMPLES:
         stack_manager = get_stack_manager()
 
         if not stack_manager.stack_exists(stack_name):
-            print(f"❌ Stack not found: {stack_name}")
+            logger.error(f"Stack not found: {stack_name}")
             return 1
 
         stack_dir = stack_manager.get_stack_docker_dir(stack_name)
@@ -61,22 +64,22 @@ EXAMPLES:
             )
 
             if result.returncode != 0:
-                print(f"❌ Failed to get status for {stack_name}")
+                logger.error(f"Failed to get status for {stack_name}")
                 if result.stderr:
-                    print(result.stderr)
+                    logger.error(result.stderr)
                 return result.returncode
 
             if not quiet:
-                print(f"\n📊 Stack: {stack_name}\n")
+                logger.info(f"📊 Stack: {stack_name}")
 
-            print(result.stdout)
+            logger.info(result.stdout)
 
             return 0
 
         except FileNotFoundError:
-            print("❌ Docker or docker compose not found. Is Docker installed?")
+            logger.error("Docker or docker compose not found. Is Docker installed?")
             return 1
         except Exception as e:
-            print(f"❌ Error: {e}")
+            logger.error(f"Error: {e}")
             return 1
 

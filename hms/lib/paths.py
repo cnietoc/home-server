@@ -23,6 +23,13 @@ def get_hms_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def get_logs_root() -> Path:
+    root = os.environ.get("LOGS_ROOT")
+    if root:
+        return Path(root)
+    return get_project_root() / "logs"
+
+
 def get_config_root() -> Path:
     root = os.environ.get("CONFIG_ROOT")
     if root:

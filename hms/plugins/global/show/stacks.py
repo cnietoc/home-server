@@ -3,10 +3,13 @@ Plugin: show stacks
 Lists all available stacks with their descriptions.
 """
 
+import logging
 from typing import List
 
 from hms.core.plugin import GlobalPlugin
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class ShowStacksPlugin(GlobalPlugin):
@@ -36,17 +39,20 @@ DESCRIPTION:
         stacks = stack_manager.list_all_stacks()
 
         if not stacks:
-            print("ℹ️  No stacks found in docker/")
+            logger.info("ℹ️  No stacks found in docker/")
             return 0
 
         # Print stacks
-        print(f"\n📦 Available Stacks ({len(stacks)}):\n")
+        logger.info(f"📦 Available Stacks ({len(stacks)}):")
+        logger.info("")
 
         for stack in stacks:
             predeploy_icon = "🔧" if stack['has_predeploy'] else "  "
-            print(f"{predeploy_icon} {stack['name']:<15} {stack['description']}")
+            logger.info(f"{predeploy_icon} {stack['name']:<15} {stack['description']}")
 
-        print(f"\n🔧 = Has pre-deploy script\n")
+        logger.info("")
+        logger.info("🔧 = Has pre-deploy script")
+        logger.info("")
 
         return 0
 

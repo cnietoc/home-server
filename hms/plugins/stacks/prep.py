@@ -2,10 +2,13 @@
 Ejecuta el pre-deploy de un stack (si existe) y genera .env antes.
 """
 
+import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin
 from hms.lib.deploy import prep_stack, PrepError
+
+logger = logging.getLogger(__name__)
 
 
 class PrepPlugin(StackPlugin):
@@ -33,9 +36,13 @@ COMPORTAMIENTO:
             prep_stack(stack_name)
             return 0
         except PrepError as e:
-            print(f"❌ {e}")
+            logger.error(f"{e}")
             return 1
         except Exception as e:
-            print(f"❌ Error: {e}")
+            logger.error(f"Error: {e}")
             return 1
+
+
+
+
 

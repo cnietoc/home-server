@@ -5,6 +5,7 @@ Centraliza lógica compartida: validación de stack, generación de .env
 intercambiar la fuente de .env a OneDrive en el futuro.
 """
 
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import Tuple
 
 from hms.lib.config import get_env_generator
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class PrepError(Exception):
@@ -47,7 +50,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
 
     # Generar .env
     env_path = env_gen.generate_stack_env(stack_name)
-    print(f"✅ .env generado: {env_path}")
+    logger.info(f"✅ .env generado: {env_path}")
 
     # Buscar pre-deploy scripts
     predeploy_py = stack_dir / "pre-deploy.py"
@@ -57,7 +60,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
 
     # Ejecutar pre-deploy.py si existe
     if predeploy_py.exists():
-        print(f"🐍 Ejecutando pre-deploy.py: {predeploy_py}")
+        logger.info(f"🐍 Ejecutando pre-deploy.py: {predeploy_py}")
         result = subprocess.run(
             [sys.executable, str(predeploy_py), stack_name],
             cwd=str(stack_dir),
@@ -70,12 +73,12 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
         )
         if result.returncode != 0:
             raise PrepError(f"pre-deploy.py falló con código {result.returncode}")
-        print("✅ pre-deploy.py completado")
+        logger.info("✅ pre-deploy.py completado")
         ran_any = True
 
     # Ejecutar pre-deploy.sh si existe
     if predeploy_sh.exists():
-        print(f"🔧 Ejecutando pre-deploy.sh: {predeploy_sh}")
+        logger.info(f"🔧 Ejecutando pre-deploy.sh: {predeploy_sh}")
         result = subprocess.run(
             ["bash", str(predeploy_sh)],
             cwd=str(predeploy_sh.parent),
@@ -84,11 +87,10 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
         )
         if result.returncode != 0:
             raise PrepError(f"pre-deploy.sh falló con código {result.returncode}")
-        print("✅ pre-deploy.sh completado")
+        logger.info("✅ pre-deploy.sh completado")
         ran_any = True
 
     if not ran_any:
-        print("ℹ️  No hay pre-deploy scripts, nada que ejecutar")
+        logger.info("ℹ️  No hay pre-deploy scripts, nada que ejecutar")
 
     return env_path, ran_any
-

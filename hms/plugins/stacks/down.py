@@ -3,10 +3,13 @@ Detiene un stack usando docker compose down.
 """
 
 import subprocess
+import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin
 from hms.lib.stacks import get_stack_manager
+
+logger = logging.getLogger(__name__)
 
 
 class DownPlugin(StackPlugin):
@@ -32,12 +35,12 @@ COMPORTAMIENTO:
         stack_manager = get_stack_manager()
 
         if not stack_manager.stack_exists(stack_name):
-            print(f"❌ Stack '{stack_name}' no definido en stacks.yml")
+            logger.error(f"Stack '{stack_name}' no definido en stacks.yml")
             return 1
 
         info = stack_manager.get_stack_info(stack_name)
         if not info.get("has_compose"):
-            print(f"❌ Stack '{stack_name}' no tiene docker-compose.yml")
+            logger.error(f"Stack '{stack_name}' no tiene docker-compose.yml")
             return 1
 
         stack_dir = stack_manager.get_stack_docker_dir(stack_name)
@@ -57,17 +60,17 @@ COMPORTAMIENTO:
             cmd.append("--remove-orphans")
 
         try:
-            print(f"🛑 Parando stack {stack_name}...")
+            logger.info(f"🛑 Parando stack {stack_name}...")
             result = subprocess.run(cmd, cwd=str(stack_dir), check=False, text=True)
             if result.returncode != 0:
-                print(f"❌ docker compose down falló con código {result.returncode}")
+                logger.error(f"docker compose down falló con código {result.returncode}")
                 return result.returncode
-            print(f"✅ Stack {stack_name} detenido")
+            logger.info(f"✅ Stack {stack_name} detenido")
             return 0
         except FileNotFoundError:
-            print("❌ docker compose no encontrado")
+            logger.error("docker compose no encontrado")
             return 1
         except Exception as e:
-            print(f"❌ Error ejecutando docker compose: {e}")
+            logger.error(f"Error ejecutando docker compose: {e}")
             return 1
 
