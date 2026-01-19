@@ -15,7 +15,7 @@ resolve_realpath() {
   echo "$dir/$(basename "$target")"
 }
 REALPATH="$(resolve_realpath "$SCRIPT_PATH")"
-REPO_ROOT="$(cd "$(dirname "$REALPATH")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$REALPATH")/../.." && pwd)"
 
 CONTAINER_NAME="hms"
 COMPOSE_DIR="$REPO_ROOT/docker/hms"
