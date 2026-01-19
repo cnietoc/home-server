@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """Pre-deploy para stack platform: configura Samba dinámicamente."""
-import sys
 import os
+import sys
 from pathlib import Path
 
-# Agregar hms al path para imports
-project_root = Path(os.environ.get('PROJECT_ROOT', Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(project_root))
 from hms.lib.stacks import get_stack_manager
-from hms.lib.paths import resolve_project_root
 
 
-def configure_samba(stack_name: str) -> int:
+def configure_samba() -> int:
     """Genera configuración de Samba basada en shares de stacks.yml."""
     print("🔧 Configurando Samba dinámicamente...")
-    project_root = resolve_project_root()
-    stack_manager = get_stack_manager(str(project_root))
-    stack_dir = stack_manager.get_stack_dir(stack_name)
+    stack_name = "platform"
+    stack_manager = get_stack_manager()
+    stack_dir = stack_manager.get_stack_docker_dir(stack_name)
     override_file = stack_dir / "docker-compose.override.yml"
-    config_dir = project_root / "data" / stack_name / "samba"
+    config_dir = stack_manager.get_stack_data_dir(stack_name) / "samba"
     config_dir.mkdir(parents=True, exist_ok=True)
     # Obtener shares de todos los stacks
     all_stacks = stack_manager.list_all_stacks()
@@ -34,14 +30,14 @@ def configure_samba(stack_name: str) -> int:
         return 0
     print(f"📁 Shares encontrados en: {', '.join(shares_by_stack.keys())}")
     # Generar docker-compose.override.yml
-    _generate_override(override_file, shares_by_stack, project_root, stack_dir)
+    _generate_override(override_file, shares_by_stack, stack_dir)
     # Generar config.yml para crazymax/samba
-    _generate_samba_config(config_dir / "config.yml", shares_by_stack, project_root)
+    _generate_samba_config(config_dir / "config.yml", shares_by_stack)
     print("✅ Samba configurado correctamente")
     return 0
 
 
-def _generate_override(path: Path, shares: dict, project_root: Path, stack_dir: Path):
+def _generate_override(path: Path, shares: dict, stack_dir: Path):
     """Genera docker-compose.override.yml con volúmenes dinámicos."""
     lines = [
         "# Auto-generado por pre-deploy.py",
@@ -54,7 +50,7 @@ def _generate_override(path: Path, shares: dict, project_root: Path, stack_dir: 
         for share_name, share_config in stack_shares.items():
             # Resolver ruta real del share
             relative_path = share_config.get('path', '').lstrip('/')
-            src_path = project_root / "data" / stack_name / relative_path
+            src_path = get_stack_manager().get_stack_data_dir(stack_name) / relative_path
             exposed = share_config.get('exposed_path', f'/{stack_name}/{share_name}')
             container_path = f"/data{exposed}"
             perms = share_config.get('permissions', 'ro')
@@ -74,7 +70,7 @@ def _generate_override(path: Path, shares: dict, project_root: Path, stack_dir: 
     print(f"  ✅ Generado: {path}")
 
 
-def _generate_samba_config(path: Path, shares: dict, project_root: Path):
+def _generate_samba_config(path: Path, shares: dict):
     """Genera config.yml para crazymax/samba."""
     lines = [
         "# Auto-generado por pre-deploy.py",
@@ -152,5 +148,4 @@ def _generate_empty_config(override_file: Path, config_dir: Path):
 
 
 if __name__ == "__main__":
-    stack_name = sys.argv[1] if len(sys.argv) > 1 else "platform"
-    sys.exit(configure_samba(stack_name))
+    sys.exit(configure_samba())

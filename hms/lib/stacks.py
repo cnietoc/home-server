@@ -4,25 +4,23 @@ Handles reading config/stacks.yml and discovering stacks from docker/ directory.
 """
 
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
+
 import yaml
 
-from hms.lib.paths import resolve_project_root
+from hms.lib.paths import get_config_root, get_docker_root, get_data_root
 
 
 class StackManager:
     """Manages stack discovery and metadata."""
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(self):
         """
         Initialize stack manager.
-
-        Args:
-            project_root: Root directory of the project
         """
-        self.project_root = resolve_project_root(project_root)
-        self.docker_dir = self.project_root / "docker"
-        self.config_file = self.project_root / "config" / "stacks.yml"
+        self._docker_dir = get_docker_root()
+        self._data_dir = get_data_root()
+        self._config_file = get_config_root() / "stacks.yml"
         self._metadata_cache = None
 
     def _load_metadata(self) -> Dict:
@@ -37,9 +35,9 @@ class StackManager:
 
         metadata = {}
 
-        if self.config_file.exists():
+        if self._config_file.exists():
             try:
-                with open(self.config_file) as f:
+                with open(self._config_file) as f:
                     config = yaml.safe_load(f)
                     if config and 'stacks' in config:
                         metadata = config['stacks']
@@ -63,7 +61,7 @@ class StackManager:
 
         stacks = []
         for stack_name in metadata.keys():
-            stack_dir = self.docker_dir / stack_name
+            stack_dir = self._docker_dir / stack_name
             compose_file = stack_dir / "docker-compose.yml"
             if compose_file.exists():
                 stacks.append(stack_name)
@@ -82,7 +80,7 @@ class StackManager:
         metadata = self._load_metadata()
         stack_metadata = metadata.get(stack_name)
 
-        stack_dir = self.docker_dir / stack_name
+        stack_dir = self._docker_dir / stack_name
         compose_exists = (stack_dir / "docker-compose.yml").exists()
         predeploy_sh_exists = (stack_dir / "pre-deploy.sh").exists()
         predeploy_py_exists = (stack_dir / "pre-deploy.py").exists()
@@ -140,7 +138,7 @@ class StackManager:
         metadata = self._load_metadata()
         return stack_name in metadata
 
-    def get_stack_dir(self, stack_name: str) -> Path:
+    def get_stack_docker_dir(self, stack_name: str) -> Path:
         """
         Get directory path for a stack.
 
@@ -150,7 +148,18 @@ class StackManager:
         Returns:
             Path to stack directory
         """
-        return self.docker_dir / stack_name
+        return self._docker_dir / stack_name
+
+    def get_stack_data_dir(self, stack_name: str) -> Path:
+        """
+        Get data directory path for a stack.
+
+        Args:
+            stack_name: Name of the stack
+        Returns:
+            Path to stack data directory
+        """
+        return self._data_dir / stack_name
 
     def has_predeploy(self, stack_name: str) -> bool:
         """
@@ -164,7 +173,7 @@ class StackManager:
         """
         if not self.stack_exists(stack_name):
             return False
-        stack_dir = self.get_stack_dir(stack_name)
+        stack_dir = self.get_stack_docker_dir(stack_name)
         return (stack_dir / "pre-deploy.sh").exists() or (stack_dir / "pre-deploy.py").exists()
 
     def get_config_files(self, stack_name: str) -> List[str]:
@@ -198,7 +207,7 @@ class StackManager:
 _stack_manager = None
 
 
-def get_stack_manager(project_root: Optional[str] = None) -> StackManager:
+def get_stack_manager() -> StackManager:
     """
     Get singleton instance of StackManager.
 
@@ -210,6 +219,5 @@ def get_stack_manager(project_root: Optional[str] = None) -> StackManager:
     """
     global _stack_manager
     if _stack_manager is None:
-        _stack_manager = StackManager(project_root)
+        _stack_manager = StackManager()
     return _stack_manager
-

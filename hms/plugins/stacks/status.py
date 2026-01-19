@@ -42,7 +42,7 @@ EXAMPLES:
             print(f"❌ Stack not found: {stack_name}")
             return 1
 
-        stack_dir = stack_manager.get_stack_dir(stack_name)
+        stack_dir = stack_manager.get_stack_docker_dir(stack_name)
 
         # Parse options
         quiet = '--quiet' in args or '-q' in args

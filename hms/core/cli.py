@@ -3,12 +3,11 @@ HMS CLI Dispatcher
 Dynamically discovers and loads plugins based on command-line arguments.
 """
 
-import sys
-import os
-from pathlib import Path
-from typing import List, Optional, Tuple
 import importlib.util
 import inspect
+import sys
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 from hms.core.plugin import BasePlugin, StackPlugin, GlobalPlugin
 from hms.lib.stacks import get_stack_manager
@@ -23,19 +22,15 @@ class CLIDispatcher:
     4. Handles both stack and global commands
     """
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(self):
         """
         Initialize dispatcher.
-
-        Args:
-            project_root: Root directory of the project (for discovering stacks)
         """
-        self.project_root = Path(project_root or os.environ.get('PROJECT_ROOT', '/project'))
         self.hms_root = Path(__file__).parent.parent
         self.plugins_cache = {}  # Cache discovered plugins
         self.verbose = False
         self.dry_run = False
-        self.stack_manager = get_stack_manager(str(self.project_root))
+        self.stack_manager = get_stack_manager()
 
     def discover_stacks(self) -> List[str]:
         """

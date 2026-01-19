@@ -9,20 +9,20 @@ from pathlib import Path
 from typing import List
 import os
 
-from hms.lib.stacks import get_stack_manager, resolve_project_root
+from hms.lib.paths import get_config_root, get_docker_root
+from hms.lib.stacks import get_stack_manager
 
 
 class EnvGenerator:
     def __init__(self, project_root: Path | None = None) -> None:
-        self.project_root = resolve_project_root(project_root)
-        self.stack_manager = get_stack_manager(str(self.project_root))
-        self.config_dir = self.project_root / "config" / "private"
+        self._stack_manager = get_stack_manager()
+        self._config_dir = get_config_root() / "private"
 
     def _read_env_file(self, name: str) -> List[str]:
         """Lee un archivo .env desde config/private/<name>.env.
         Si no existe, devuelve lista vacía.
         """
-        path = self.config_dir / f"{name}.env"
+        path = self._config_dir / f"{name}.env"
         if not path.exists():
             return []
         return path.read_text().splitlines()
@@ -31,12 +31,12 @@ class EnvGenerator:
         """Genera docker/<stack>/.env combinando common.env y los envs declarados en stacks.yml.
         Retorna la ruta del archivo generado.
         """
-        info = self.stack_manager.get_stack_info(stack_name)
+        info = self._stack_manager.get_stack_info(stack_name)
         # Si el stack no existe en stacks.yml, fallamos explícitamente
-        if not self.stack_manager.stack_exists(stack_name):
+        if not self._stack_manager.stack_exists(stack_name):
             raise ValueError(f"Stack '{stack_name}' no definido en stacks.yml")
 
-        stack_dir = self.project_root / "docker" / stack_name
+        stack_dir = get_docker_root() / stack_name
         target_env = stack_dir / ".env"
         target_env.parent.mkdir(parents=True, exist_ok=True)
 
@@ -49,7 +49,7 @@ class EnvGenerator:
         lines: List[str] = []
 
         # Variables dinámicas del stack
-        data_dir = self.project_root / "data" / stack_name
+        data_dir = get_stack_manager().get_stack_data_dir(stack_name)
         relative_data = os.path.relpath(data_dir, stack_dir)
         lines.append("# Variables dinámicas del stack")
         lines.append(f"STACK_NAME={stack_name}")

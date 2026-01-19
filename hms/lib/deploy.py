@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
-from hms.lib.stacks import get_stack_manager
 from hms.lib.config import get_env_generator
+from hms.lib.stacks import get_stack_manager
 
 
 class PrepError(Exception):
@@ -43,7 +43,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
     if not info.get("has_compose"):
         raise PrepError(f"Stack '{stack_name}' no tiene docker-compose.yml")
 
-    stack_dir = stack_manager.get_stack_dir(stack_name)
+    stack_dir = stack_manager.get_stack_docker_dir(stack_name)
 
     # Generar .env
     env_path = env_gen.generate_stack_env(stack_name)
@@ -65,8 +65,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
             text=True,
             env={
                 **subprocess.os.environ,
-                'STACK_NAME': stack_name,
-                'PROJECT_ROOT': str(stack_manager.project_root)
+                'STACK_NAME': stack_name
             }
         )
         if result.returncode != 0:

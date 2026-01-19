@@ -46,7 +46,7 @@ COMPORTAMIENTO:
             print(f"❌ Error en prep: {e}")
             return 1
 
-        stack_dir = stack_manager.get_stack_dir(stack_name)
+        stack_dir = stack_manager.get_stack_docker_dir(stack_name)
 
         # docker compose up -d
         cmd = ["docker", "compose", "up", "-d"]

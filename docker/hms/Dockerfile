@@ -1,31 +1,34 @@
 # HMS Container - Python 3.12 slim
 FROM python:3.12-slim
 
-# System deps (optional: yq for YAML ops, curl for health)
+# System deps (curl/git opcional)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl bash git \
     && rm -rf /var/lib/apt/lists/*
 
-# Workdir
+# Workdir y PYTHONPATH
 WORKDIR /app
+ENV PYTHONPATH=/app
 
-# Copy project
-# We mount the repo at runtime, but keep a copy for image-based execution if needed
+# Copiar proyecto
 COPY pyproject.toml /app/
 COPY hms /app/hms
 
-# Create minimal runtime venv (optional) - we'll use pip directly
+# Instalación de deps y del paquete HMS
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir pyyaml python-dotenv
+    && pip install --no-cache-dir .
 
-# Env vars
-ENV PROJECT_ROOT=/project \
-    HMS_MODE=daemon \
-    HMS_CONFIG_DIR=/app/data/hms-config \
+# Variables de entorno
+ENV PROJECT_ROOT=/app \
+    HMS_PATH=/app/hms \
+    LOGS_PATH=/app/logs \
+    DOCKER_PATH=/app/docker \
+    DATA_PATH=/app/data \
     PYTHONUNBUFFERED=1
 
-# Create data directories
-RUN mkdir -p /app/data /app/data/logs /app/data/locks /app/data/hms-config
+# Preparar directorios que se montarán como volúmenes
+RUN mkdir -p /app/data /app/config /app/docker /app/logs
+VOLUME ["/app/config", "/app/docker", "/app/data", "/app/logs"]
 
-# Default command (we'll override via docker-compose)
+# Comando por defecto
 CMD ["python", "-m", "hms"]

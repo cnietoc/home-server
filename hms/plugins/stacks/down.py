@@ -40,7 +40,7 @@ COMPORTAMIENTO:
             print(f"❌ Stack '{stack_name}' no tiene docker-compose.yml")
             return 1
 
-        stack_dir = stack_manager.get_stack_dir(stack_name)
+        stack_dir = stack_manager.get_stack_docker_dir(stack_name)
 
         # Flags
         volumes = "--volumes" in args
