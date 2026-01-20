@@ -6,7 +6,7 @@ Run as: python -m hms [args]
 import logging
 import sys
 
-from hms.core.cli import CLIDispatcher
+from hms.cli.cli import CLIDispatcher
 from hms.lib.logging_config import setup_logging
 from hms.lib.paths import get_logs_root
 
@@ -16,7 +16,7 @@ def main():
     # Configurar logging global (una sola vez)
     log_dir = get_logs_root()
     setup_logging(
-        log_file=log_dir / "hms.log",
+        log_file=log_dir / "hms-cli.log",
         level=logging.INFO,
     )
 

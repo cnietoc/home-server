@@ -77,17 +77,92 @@ if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
 fi
 echo -e "${GREEN}✅ ~/.local/bin está en PATH${NC}"
 
-# Levantar contenedor
+# Validar permisos de Docker
+HOST_OS=$(uname -s)
+if [ "$HOST_OS" = "Darwin" ]; then
+    echo "ℹ️ macOS detectado: Docker Desktop no usa el grupo 'docker' del host"
+    echo "   Se omitirá la verificación de grupo"
+else
+    echo ""
+    echo "🔐 Validando permisos de Docker..."
+    if ! groups | grep -q docker; then
+        echo -e "${YELLOW}⚠️  Tu usuario no está en el grupo 'docker'${NC}"
+        echo ""
+        echo "Para agregar tu usuario al grupo docker ejecuta:"
+        echo "    sudo usermod -aG docker $USER"
+        echo ""
+        echo "Luego cierra sesión y vuelve a iniciar sesión para aplicar los cambios."
+        echo ""
+        read -p "¿Continuar de todas formas? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✅ Usuario en grupo docker${NC}"
+    fi
+fi
+
+# Generar .env con PUID/PGID dinámicos
+echo ""
+echo "📝 Generando archivo .env para HMS..."
+ENV_FILE="$COMPOSE_DIR/.env"
+CURRENT_UID=$(id -u)
+CURRENT_GID=$(id -g)
+
+# Detectar timezone del sistema
+if [ -f /etc/timezone ]; then
+    SYSTEM_TZ=$(cat /etc/timezone)
+elif [ -L /etc/localtime ]; then
+    SYSTEM_TZ=$(readlink /etc/localtime | sed 's#.*/zoneinfo/##')
+else
+    SYSTEM_TZ="UTC"
+fi
+
+cat > "$ENV_FILE" << EOF
+# Archivo generado automáticamente por install.sh
+# Variables del sistema
+PUID=$CURRENT_UID
+PGID=$CURRENT_GID
+TZ=$SYSTEM_TZ
+EOF
+
+echo -e "${GREEN}✅ .env generado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, TZ=$SYSTEM_TZ${NC}"
+
+# Ajustar permisos de directorios de datos si existen
+for dir in "$REPO_ROOT/data" "$REPO_ROOT/logs"; do
+    if [ -d "$dir" ]; then
+        echo "🔧 Ajustando permisos de $dir..."
+        if [ -w "$dir" ]; then
+            chown -R "$CURRENT_UID:$CURRENT_GID" "$dir" 2>/dev/null || {
+                echo -e "${YELLOW}⚠️  No se pudieron cambiar todos los permisos en $dir (algunos archivos pueden ser de root)${NC}"
+            }
+        fi
+    fi
+done
+
+# Levantar contenedor HMS
 echo ""
 echo "📦 Levantando contenedor HMS..."
-(cd "$COMPOSE_DIR" && docker compose up -d)
+(cd "$COMPOSE_DIR" && docker compose up -d --build)
 sleep 2
 
 # Verificar contenedor corriendo
 if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo -e "${GREEN}✅ Contenedor HMS corriendo${NC}"
 else
-    echo -e "${RED}❌ El contenedor HMS no parece estar corriendo${NC}"
+    echo -e "${RED}❌ El contenedor HMS no está corriendo${NC}"
+    docker logs "$CONTAINER_NAME" 2>&1 | tail -20
+    exit 1
+fi
+
+# Probar CLI dentro del contenedor
+echo ""
+echo "🔍 Probando CLI HMS..."
+if docker exec "$CONTAINER_NAME" python -m hms --help >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ CLI HMS OK${NC}"
+else
+    echo -e "${RED}❌ Error al ejecutar CLI HMS${NC}"
     exit 1
 fi
 

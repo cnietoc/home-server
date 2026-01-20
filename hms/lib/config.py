@@ -8,6 +8,7 @@ por OneDrive en el futuro.
 from pathlib import Path
 from typing import List
 import os
+import subprocess
 
 from hms.lib.paths import get_config_root, get_docker_root
 from hms.lib.stacks import get_stack_manager
@@ -17,6 +18,47 @@ class EnvGenerator:
     def __init__(self, project_root: Path | None = None) -> None:
         self._stack_manager = get_stack_manager()
         self._config_dir = get_config_root() / "private"
+
+    def _get_system_timezone(self) -> str:
+        """Detecta el timezone del sistema actual.
+        Intenta múltiples métodos para máxima compatibilidad.
+        """
+        # Método 1: Variable de entorno TZ
+        tz = os.environ.get('TZ')
+        if tz:
+            return tz
+
+        # Método 2: /etc/timezone (Linux)
+        tz_file = Path('/etc/timezone')
+        if tz_file.exists():
+            return tz_file.read_text().strip()
+
+        # Método 3: /etc/localtime symlink (Linux/macOS)
+        localtime = Path('/etc/localtime')
+        if localtime.is_symlink():
+            target = os.readlink(str(localtime))
+            # Extraer timezone de rutas como /usr/share/zoneinfo/Europe/Madrid
+            for prefix in ['/var/db/timezone/zoneinfo/', '/usr/share/zoneinfo/']:
+                if prefix in target:
+                    return target.split(prefix)[1]
+
+        # Método 4: systemd (Linux)
+        try:
+            result = subprocess.run(
+                ['timedatectl', 'show', '-p', 'Timezone', '--value'],
+                capture_output=True,
+                text=True,
+                timeout=1
+            )
+            if result.returncode == 0:
+                tz = result.stdout.strip()
+                if tz:
+                    return tz
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+        # Fallback: UTC
+        return 'UTC'
 
     def _read_env_file(self, name: str) -> List[str]:
         """Lee un archivo .env desde config/private/<name>.env.
@@ -55,6 +97,13 @@ class EnvGenerator:
         lines.append(f"STACK_NAME={stack_name}")
         lines.append(f"STACK_PREFIX=hms-{stack_name}")
         lines.append(f"STACK_DATA={relative_data}")
+        lines.append("")
+
+        # Variables del sistema dinámicas
+        lines.append("# Variables del sistema (dinámicas)")
+        lines.append(f"PUID={os.getuid()}")
+        lines.append(f"PGID={os.getgid()}")
+        lines.append(f"TZ={self._get_system_timezone()}")
         lines.append("")
 
         for name in env_names:

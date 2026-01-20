@@ -1,9 +1,14 @@
 # HMS Container - Python 3.12 slim
 FROM python:3.12-slim
 
-# System deps (curl/git opcional)
+# System deps + Docker CLI
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl bash git \
+    ca-certificates curl bash git gnupg lsb-release \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
 # Workdir y PYTHONPATH
@@ -28,7 +33,10 @@ ENV PROJECT_ROOT=/app \
 
 # Preparar directorios que se montarán como volúmenes
 RUN mkdir -p /app/data /app/config /app/docker /app/logs
-VOLUME ["/app/config", "/app/docker", "/app/data", "/app/logs"]
 
-# Comando por defecto
-CMD ["python", "-m", "hms"]
+# Healthcheck para verificar que el scheduler esté funcionando
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c 'from hms.daemon.scheduler import get_scheduler; s=get_scheduler(); exit(0 if s else 1)' || exit 1
+
+# Comando por defecto: Scheduler (daemon)
+CMD ["python", "-m", "hms.daemon"]

@@ -6,7 +6,6 @@ Dynamically discovers and loads plugins based on command-line arguments.
 import importlib.util
 import inspect
 import logging
-import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -58,18 +57,28 @@ class CLIDispatcher:
         Discover global command plugins.
 
         Returns:
-            Dict of {command_name: {subcommand: plugin_path}}
+            Dict of {command_name: {subcommand: plugin_path}} or
+            {command_name: plugin_path} for single-file commands.
         """
         global_dir = self.hms_root / "plugins" / "global"
         commands = {}
 
-        if global_dir.exists():
-            for category_dir in global_dir.iterdir():
-                if category_dir.is_dir() and not category_dir.name.startswith("_"):
-                    category_name = category_dir.name
-                    subcommands = self._discover_plugins_in_dir(category_dir)
-                    if subcommands:
-                        commands[category_name] = subcommands
+        if not global_dir.exists():
+            return commands
+
+        # Single-file commands directly under plugins/global
+        for py_file in global_dir.glob("*.py"):
+            if py_file.name.startswith("_") or py_file.name == "__init__.py":
+                continue
+            commands[py_file.stem] = str(py_file)
+
+        # Command categories as subdirectories
+        for category_dir in global_dir.iterdir():
+            if category_dir.is_dir() and not category_dir.name.startswith("_"):
+                category_name = category_dir.name
+                subcommands = self._discover_plugins_in_dir(category_dir)
+                if subcommands:
+                    commands[category_name] = subcommands
 
         return commands
 
@@ -175,6 +184,28 @@ class CLIDispatcher:
 
         return False
 
+    def _sort_with_order(self, names: List[str], order: Optional[List[str]]) -> List[str]:
+        """Sort names respecting an optional explicit order."""
+        if not order:
+            return sorted(names)
+        return sorted(names, key=lambda x: (0, order.index(x)) if x in order else (1, x))
+
+    def _load_order(self, module_path: Path, module_name: str) -> Optional[List[str]]:
+        """Load COMMAND_ORDER from a module if present."""
+        try:
+            if not module_path.exists():
+                return None
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            if spec is None or spec.loader is None:
+                return None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return getattr(module, 'COMMAND_ORDER', None)
+        except Exception as e:
+            if self.verbose:
+                logger.debug(f"Could not load order from {module_path}: {e}")
+            return None
+
     def dispatch(self, args: List[str]) -> int:
         """
         Main dispatch logic.
@@ -196,6 +227,7 @@ class CLIDispatcher:
             available_stacks = self.discover_stacks()
             stack_plugins = self.discover_stack_plugins()
             global_plugins = self.discover_global_plugins()
+            global_order = self._get_global_command_order()
 
             # Determine if it's a stack command or global command
             first_arg = args[0]
@@ -210,7 +242,7 @@ class CLIDispatcher:
 
             # Otherwise, treat as global command
             else:
-                return self._handle_global_command(args, global_plugins)
+                return self._handle_global_command(args, global_plugins, global_order)
 
         except KeyboardInterrupt:
             logger.info("⚠️  Interrupted by user")
@@ -249,8 +281,9 @@ class CLIDispatcher:
 
         # Validate action exists
         if action not in stack_plugins:
+            ordered_actions = self._sort_with_order(list(stack_plugins.keys()), self._get_stack_action_order())
             logger.error(f"Unknown action: {action}")
-            logger.info(f"Available actions: {', '.join(stack_plugins.keys())}")
+            logger.info(f"Available actions: {', '.join(ordered_actions)}")
             return 1
 
         # Load plugin
@@ -286,29 +319,43 @@ class CLIDispatcher:
 
         return exit_code
 
-    def _handle_global_command(self, args: List[str], global_plugins: dict) -> int:
+    def _handle_global_command(self, args: List[str], global_plugins: dict, global_order: Optional[List[str]]) -> int:
         """Handle global command."""
         # Parse: <command> [subcommand] [args]
         command = args[0]
 
         if command not in global_plugins:
+            ordered_commands = self._sort_with_order(list(global_plugins.keys()), global_order)
             logger.error(f"Unknown command: {command}")
-            logger.info(f"Available commands: {', '.join(global_plugins.keys())}")
+            logger.info(f"Available commands: {', '.join(ordered_commands)}")
             return 1
 
-        subcommands = global_plugins[command]
+        plugin_entry = global_plugins[command]
+
+        # Commands implemented as a single file (no subcommands)
+        if isinstance(plugin_entry, str):
+            plugin = self.load_plugin(plugin_entry)
+            if not plugin:
+                logger.error(f"Failed to load plugin for command: {command}")
+                return 1
+            plugin_args = args[1:]
+            if self.verbose:
+                logger.debug(f"Executing {command}...")
+            return plugin.run(plugin_args)
+
+        subcommands = plugin_entry
 
         if len(args) > 1:
             subcommand = args[1]
             plugin_args = args[2:]
         else:
-            # No subcommand = show help for this command
-            logger.info(f"Available subcommands for '{command}': {', '.join(subcommands.keys())}")
+            # No subcommand = show detailed help for this command
+            self._print_command_help(command, subcommands)
             return 0
 
         if subcommand not in subcommands:
             logger.error(f"Unknown subcommand: {command} {subcommand}")
-            logger.info(f"Available subcommands: {', '.join(subcommands.keys())}")
+            self._print_command_help(command, subcommands)
             return 1
 
         # Load plugin
@@ -322,11 +369,82 @@ class CLIDispatcher:
 
         return plugin.run(plugin_args)
 
+    def _print_command_help(self, command: str, subcommands: dict) -> None:
+        """Print detailed help for a specific command with its subcommands."""
+        # Single-file command without subcommands
+        if isinstance(subcommands, str):
+            plugin = self.load_plugin(subcommands)
+            description = plugin.get_description() if plugin else "(no description available)"
+            print(f"""
+{'=' * 60}
+HMS Command: {command}
+{'=' * 60}
+
+Description:
+  {description}
+
+USAGE:
+  hms {command} [args]
+
+EXAMPLES:
+  hms {command}
+  hms {command} --help
+""")
+            return
+
+        subcommand_order = self._get_subcommand_order(command)
+
+        plugin_info = {}
+        for subcommand_name, plugin_path in subcommands.items():
+            plugin = self.load_plugin(plugin_path)
+            if plugin:
+                plugin_info[subcommand_name] = plugin.get_description()
+            else:
+                plugin_info[subcommand_name] = "(no description available)"
+
+        ordered_names = self._sort_with_order(list(plugin_info.keys()), subcommand_order)
+
+        print(f"""
+{'=' * 60}
+HMS Command: {command}
+{'=' * 60}
+
+Available subcommands:
+""")
+
+        for subcommand_name in ordered_names:
+            description = plugin_info[subcommand_name]
+            print(f"  {subcommand_name:<15} {description}")
+
+        print(f"""
+USAGE:
+  hms {command} <subcommand> [args]
+
+EXAMPLES:
+  hms {command} {ordered_names[0] if ordered_names else 'subcommand'}
+  hms {command} {ordered_names[0] if ordered_names else 'subcommand'} --help
+""")
+
+    def _get_subcommand_order(self, command: str) -> Optional[List[str]]:
+        """Load the COMMAND_ORDER from a command category's __init__.py."""
+        category_dir = self.hms_root / "plugins" / "global" / command
+        return self._load_order(category_dir / "__init__.py", f"hms.plugins.global.{command}")
+
+    def _get_stack_action_order(self) -> Optional[List[str]]:
+        """Load COMMAND_ORDER from plugins/stacks/__init__.py for stack actions."""
+        return self._load_order(self.hms_root / "plugins" / "stacks" / "__init__.py", "hms.plugins.stacks")
+
+    def _get_global_command_order(self) -> Optional[List[str]]:
+        """Load COMMAND_ORDER from plugins/global/__init__.py for global commands."""
+        return self._load_order(self.hms_root / "plugins" / "global" / "__init__.py", "hms.plugins.global")
+
     def print_help(self) -> None:
         """Print general help text."""
         available_stacks = self.discover_stacks()
         stack_plugins = self.discover_stack_plugins()
         global_plugins = self.discover_global_plugins()
+        stack_order = self._get_stack_action_order()
+        global_order = self._get_global_command_order()
 
         print("""
 HMS (Home Server Management System)
@@ -336,22 +454,36 @@ USAGE:
   hms [OPTIONS] [STACKS] <ACTION> [ARGS]
   hms [OPTIONS] <COMMAND> [SUBCOMMAND] [ARGS]
 
-STACK ACTIONS:""")
+STACK ACTIONS:
+""")
 
-        for action in sorted(stack_plugins.keys()):
-            print(f"  {action:<12}    (applies to any stack)")
+        for action in self._sort_with_order(list(stack_plugins.keys()), stack_order):
+            description = "(no description available)"
+            plugin = self.load_plugin(stack_plugins[action])
+            if plugin:
+                description = plugin.get_description()
+            print(f"  {action:<12}    {description}")
 
         print("""
-GLOBAL COMMANDS:""")
+GLOBAL COMMANDS:
+""")
 
-        for command in sorted(global_plugins.keys()):
+        for command in self._sort_with_order(list(global_plugins.keys()), global_order):
             subcommands = global_plugins[command]
-            subcommand_list = ', '.join(sorted(subcommands.keys()))
-            print(f"  {command:<12}    [{subcommand_list}]")
+            if isinstance(subcommands, str):
+                plugin = self.load_plugin(subcommands)
+                description = plugin.get_description() if plugin else "(no description available)"
+                print(f"  {command:<12}    {description}")
+                continue
+
+            print(f"  {command}:")
+            subcommand_order = self._get_subcommand_order(command)
+            for subcommand_name in self._sort_with_order(list(subcommands.keys()), subcommand_order):
+                plugin = self.load_plugin(subcommands[subcommand_name])
+                description = plugin.get_description() if plugin else "(no description available)"
+                print(f"    {subcommand_name:<12}  {description}")
 
         print(f"""
-AVAILABLE STACKS:
-  {', '.join(available_stacks) if available_stacks else 'None found'}
 
 OPTIONS:
   --verbose, -v   Verbose output
@@ -359,12 +491,37 @@ OPTIONS:
   -h, --help      Show this help
 
 EXAMPLES:
-  hms platform up                     # Deploy platform
-  hms platform,media up               # Deploy multiple stacks
-  hms up                              # Deploy all stacks
-  hms down --force                    # Stop all stacks
-  hms platform prep                   # Run pre-deploy manually
-  hms backup create                   # Create backup
-  hms show stacks                     # List available stacks
 """)
 
+        # Generar ejemplos dinámicamente
+        first_stack = available_stacks[0] if available_stacks else 'STACK'
+        ordered_actions = self._sort_with_order(list(stack_plugins.keys()), stack_order)
+        first_action = ordered_actions[0] if ordered_actions else 'ACTION'
+
+        sample_global = "hms COMMAND subcommand"
+        if global_plugins:
+            ordered_commands = self._sort_with_order(list(global_plugins.keys()), global_order)
+            first_command = ordered_commands[0] if ordered_commands else 'COMMAND'
+            first_entry = global_plugins[first_command]
+            if isinstance(first_entry, str):
+                sample_global = f"hms {first_command}"
+            else:
+                subcommand_order = self._get_subcommand_order(first_command)
+                ordered_subs = self._sort_with_order(list(first_entry.keys()), subcommand_order)
+                sample_subcommand = ordered_subs[0] if ordered_subs else 'subcommand'
+                sample_global = f"hms {first_command} {sample_subcommand}"
+
+        if available_stacks:
+            print(f"  hms {first_stack} {first_action}                     # {first_action.capitalize()} {first_stack}")
+            if len(available_stacks) > 1:
+                second_stack = available_stacks[1]
+                print(f"  hms {first_stack},{second_stack} {first_action}               # {first_action.capitalize()} multiple stacks")
+            print(f"  hms {first_action}                              # {first_action.capitalize()} all stacks")
+        else:
+            print("  (no stacks available)")
+
+        print(f"""
+  {sample_global}                   # Run a global command
+  hms --help                          # Show this help
+  hms {first_stack} {first_action} --verbose          # Verbose output
+""")

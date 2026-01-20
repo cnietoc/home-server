@@ -12,11 +12,11 @@ from hms.lib.stacks import get_stack_manager
 logger = logging.getLogger(__name__)
 
 
-class ShowStacksPlugin(GlobalPlugin):
+class ListPlugin(GlobalPlugin):
     """Show all available stacks."""
 
     def get_name(self) -> str:
-        return "stacks"
+        return "list"
 
     def get_description(self) -> str:
         return "List all available stacks"
@@ -26,7 +26,7 @@ class ShowStacksPlugin(GlobalPlugin):
 Show Stacks - List all available stacks
 
 USAGE:
-  hms show stacks
+  hms list
 
 DESCRIPTION:
   Displays all available stacks found in docker/ directory

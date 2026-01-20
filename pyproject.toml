@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
+    "requests>=2.31",
+    "apscheduler>=3.10",
 ]
 
 [project.optional-dependencies]
