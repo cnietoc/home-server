@@ -14,7 +14,7 @@ from hms.lib.paths import get_config_root, get_docker_root
 from hms.lib.stacks import get_stack_manager
 
 
-class EnvGenerator:
+class EnvManager:
     def __init__(self, project_root: Path | None = None) -> None:
         self._stack_manager = get_stack_manager()
         self._config_dir = get_config_root() / "private"
@@ -69,6 +69,21 @@ class EnvGenerator:
             return []
         return path.read_text().splitlines()
 
+    def get_env_value(self, config_name: str, key: str) -> str | None:
+        """Devuelve el valor de `key` desde las configs privadas.
+        Ignora comentarios y líneas vacías; devuelve None si no se encuentra.
+        """
+        for raw_line in self._read_env_file(config_name):
+            line = raw_line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                continue
+            current_key, value = line.split('=', 1)
+            if current_key.strip() == key:
+                return value
+        return None
+
     def generate_stack_env(self, stack_name: str) -> Path:
         """Genera docker/<stack>/.env combinando common.env y los envs declarados en stacks.yml.
         Retorna la ruta del archivo generado.
@@ -117,5 +132,6 @@ class EnvGenerator:
         return target_env
 
 
-def get_env_generator(project_root: Path | None = None) -> EnvGenerator:
-    return EnvGenerator(project_root)
+def get_env_manager(project_root: Path | None = None) -> EnvManager:
+    return EnvManager(project_root)
+

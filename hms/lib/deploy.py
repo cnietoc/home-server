@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
-from hms.lib.config import get_env_generator
+from hms.lib.config import get_env_manager
 from hms.lib.stacks import get_stack_manager
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
         PrepError: si el stack no está definido o falta docker-compose.yml
     """
     stack_manager = get_stack_manager()
-    env_gen = get_env_generator()
+    env_manager = get_env_manager()
 
     if not stack_manager.stack_exists(stack_name):
         raise PrepError(f"Stack '{stack_name}' no definido en stacks.yml")
@@ -49,7 +49,7 @@ def prep_stack(stack_name: str) -> Tuple[Path, bool]:
     stack_dir = stack_manager.get_stack_docker_dir(stack_name)
 
     # Generar .env
-    env_path = env_gen.generate_stack_env(stack_name)
+    env_path = env_manager.generate_stack_env(stack_name)
     logger.info(f"✅ .env generado: {env_path}")
 
     # Buscar pre-deploy scripts

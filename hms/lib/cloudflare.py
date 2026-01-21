@@ -4,8 +4,9 @@ Maneja detección de IP pública, gestión de registros DNS y caché de estado.
 """
 
 import logging
-import os
 from typing import Dict, List, Optional, Any
+
+from hms.lib.config import get_env_manager
 
 try:
     import requests
@@ -189,13 +190,13 @@ class CloudflareClient:
             raise CloudflareError(f"Error obteniendo registros: {e}")
 
     def update_record(
-        self,
-        record_name: str,
-        ip: str,
-        ttl: int = 300,
-        proxied: bool = False,
-        dry_run: bool = False,
-        force: bool = False,
+            self,
+            record_name: str,
+            ip: str,
+            ttl: int = 300,
+            proxied: bool = False,
+            dry_run: bool = False,
+            force: bool = False,
     ) -> Dict[str, Any]:
         """
         Crear o actualizar registro DNS.
@@ -289,13 +290,13 @@ class CloudflareClient:
             )
 
     def _update_dns_record(
-        self,
-        zone_id: str,
-        record_id: str,
-        full_name: str,
-        ip: str,
-        ttl: int,
-        proxied: bool,
+            self,
+            zone_id: str,
+            record_id: str,
+            full_name: str,
+            ip: str,
+            ttl: int,
+            proxied: bool,
     ) -> Dict[str, Any]:
         """Actualizar registro DNS existente."""
         try:
@@ -330,12 +331,12 @@ class CloudflareClient:
             raise CloudflareError(f"Error actualizando registro: {e}")
 
     def _create_dns_record(
-        self,
-        zone_id: str,
-        full_name: str,
-        ip: str,
-        ttl: int,
-        proxied: bool,
+            self,
+            zone_id: str,
+            full_name: str,
+            ip: str,
+            ttl: int,
+            proxied: bool,
     ) -> Dict[str, Any]:
         """Crear nuevo registro DNS."""
         try:
@@ -399,7 +400,7 @@ class CloudflareClient:
         self.close()
 
 
-def get_cloudflare_client(api_token: Optional[str] = None, base_domain: Optional[str] = None) -> CloudflareClient:
+def get_cloudflare_client() -> CloudflareClient:
     """
     Factory function para crear cliente de Cloudflare.
 
@@ -413,21 +414,19 @@ def get_cloudflare_client(api_token: Optional[str] = None, base_domain: Optional
     Raises:
         CloudflareError: Si faltan variables de entorno o configuración
     """
+    env_manager = get_env_manager()
+    api_token = env_manager.get_env_value("cloudflare", "CLOUDFLARE_DNS_API_TOKEN")
     if not api_token:
-        api_token = os.environ.get("CLOUDFLARE_DNS_API_TOKEN", "")
-        if not api_token:
-            raise CloudflareError(
-                "CLOUDFLARE_DNS_API_TOKEN no configurado. "
-                "Configúralo en config/private/cloudflare.env"
-            )
+        raise CloudflareError(
+            "CLOUDFLARE_DNS_API_TOKEN no configurado. "
+            "Configúralo en config/private/cloudflare.env"
+        )
 
+    base_domain = env_manager.get_env_value("common", "BASE_DOMAIN")
     if not base_domain:
-        base_domain = os.environ.get("BASE_DOMAIN", "")
-        if not base_domain:
-            raise CloudflareError(
-                "BASE_DOMAIN no configurado. "
-                "Configúralo en config/private/common.env"
-            )
+        raise CloudflareError(
+            "BASE_DOMAIN no configurado. "
+            "Configúralo en config/private/common.env"
+        )
 
     return CloudflareClient(api_token, base_domain)
-
