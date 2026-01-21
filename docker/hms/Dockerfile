@@ -34,9 +34,10 @@ ENV PROJECT_ROOT=/app \
 # Preparar directorios que se montarán como volúmenes
 RUN mkdir -p /app/data /app/config /app/docker /app/logs
 
-# Healthcheck para verificar que el scheduler esté funcionando
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c 'from hms.daemon.scheduler import get_scheduler; s=get_scheduler(); exit(0 if s else 1)' || exit 1
+# Healthcheck: simple llamada HTTP al endpoint /health
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Comando por defecto: Scheduler (daemon)
+# Usa exec form para que Python sea PID 1 y reciba signals correctamente
 CMD ["python", "-m", "hms.daemon"]

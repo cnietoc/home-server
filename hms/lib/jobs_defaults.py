@@ -1,6 +1,6 @@
 """
 Definición de jobs por defecto para el scheduler HMS.
-Cada job incluye comando HMS a ejecutar, trigger y estado inicial.
+Cada job incluye especificación del plugin, trigger y estado inicial.
 """
 
 from copy import deepcopy
@@ -10,11 +10,15 @@ from typing import Dict, Any
 DEFAULT_JOBS: Dict[str, Dict[str, Any]] = {
     "update-dns": {
         "enabled": True,
-        "command": ["hms", "system", "update-dns"],
+        "plugin": "system:update-dns",
+        "startup_trigger": {
+            "delay_seconds": 30,
+        },
         "trigger": {
             "type": "interval",
-            "minutes": 30,
+            "interval": "30m",
         },
+        "args": [],
         "meta": {
             "description": "Actualizar DNS en Cloudflare",
         },

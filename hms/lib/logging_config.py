@@ -102,5 +102,6 @@ def setup_logging(
         file_handler.setFormatter(file_formatter)
         root_logger.addHandler(file_handler)
 
+
     return root_logger
 

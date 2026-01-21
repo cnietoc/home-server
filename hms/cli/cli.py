@@ -4,12 +4,12 @@ Dynamically discovers and loads plugins based on command-line arguments.
 """
 
 import importlib.util
-import inspect
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from hms.core.plugin import BasePlugin, StackPlugin, GlobalPlugin
+from hms.core.plugin import BasePlugin, StackPlugin
+from hms.lib.plugin_loader import get_plugin_loader
 from hms.lib.stacks import get_stack_manager
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,10 @@ class CLIDispatcher:
         Initialize dispatcher.
         """
         self.hms_root = Path(__file__).parent.parent
-        self.plugins_cache = {}  # Cache discovered plugins
         self.verbose = False
         self.dry_run = False
         self.stack_manager = get_stack_manager()
+        self.plugin_loader = get_plugin_loader()
 
     def discover_stacks(self) -> List[str]:
         """
@@ -44,94 +44,16 @@ class CLIDispatcher:
         return self.stack_manager.discover_stacks()
 
     def discover_stack_plugins(self) -> dict:
-        """
-        Discover stack action plugins.
-
-        Returns:
-            Dict of {action_name: plugin_path}
-        """
-        return self._discover_plugins_in_dir(self.hms_root / "plugins" / "stacks")
+        """Discover stack action plugins."""
+        return self.plugin_loader.discover_stacks()
 
     def discover_global_plugins(self) -> dict:
-        """
-        Discover global command plugins.
-
-        Returns:
-            Dict of {command_name: {subcommand: plugin_path}} or
-            {command_name: plugin_path} for single-file commands.
-        """
-        global_dir = self.hms_root / "plugins" / "global"
-        commands = {}
-
-        if not global_dir.exists():
-            return commands
-
-        # Single-file commands directly under plugins/global
-        for py_file in global_dir.glob("*.py"):
-            if py_file.name.startswith("_") or py_file.name == "__init__.py":
-                continue
-            commands[py_file.stem] = str(py_file)
-
-        # Command categories as subdirectories
-        for category_dir in global_dir.iterdir():
-            if category_dir.is_dir() and not category_dir.name.startswith("_"):
-                category_name = category_dir.name
-                subcommands = self._discover_plugins_in_dir(category_dir)
-                if subcommands:
-                    commands[category_name] = subcommands
-
-        return commands
-
-    def _discover_plugins_in_dir(self, directory: Path) -> dict:
-        """
-        Discover plugins in a specific directory.
-
-        Args:
-            directory: Directory to scan
-
-        Returns:
-            Dict of {plugin_name: plugin_path}
-        """
-        plugins = {}
-
-        if directory.exists():
-            for py_file in directory.glob("*.py"):
-                if py_file.name.startswith("_"):
-                    continue
-                plugin_name = py_file.stem
-                plugins[plugin_name] = str(py_file)
-
-        return plugins
+        """Discover global command plugins."""
+        return self.plugin_loader.discover_globals()
 
     def load_plugin(self, plugin_path: str) -> Optional[BasePlugin]:
-        """
-        Dynamically load a plugin from a Python file.
-
-        Args:
-            plugin_path: Path to plugin Python file
-
-        Returns:
-            Plugin instance or None if load fails
-        """
-        try:
-            spec = importlib.util.spec_from_file_location("plugin_module", plugin_path)
-            if spec is None or spec.loader is None:
-                return None
-
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # Find first class that inherits from BasePlugin
-            for name, obj in inspect.getmembers(module):
-                if (inspect.isclass(obj) and
-                    issubclass(obj, BasePlugin) and
-                    obj not in [BasePlugin, StackPlugin, GlobalPlugin]):
-                    return obj()
-
-            return None
-        except Exception as e:
-            logger.error(f"Error loading plugin from {plugin_path}: {e}")
-            return None
+        """Load a plugin from path."""
+        return self.plugin_loader.load(plugin_path)
 
     def parse_args(self, args: List[str]) -> Tuple[List[str], dict]:
         """

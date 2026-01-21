@@ -9,6 +9,8 @@ services:
     user: "${PUID}:${PGID}"
     group_add:
       - "0"  # Agregar al grupo root para acceso al docker.sock
+    environment:
+      TZ: "${TZ}"
     volumes:
       - ../../config:/app/config:ro
       - ../../docker:/app/docker
