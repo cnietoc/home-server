@@ -1,0 +1,23 @@
+name: home-server
+services:
+  cli:
+    user: ${PUID}:${PGID}
+    build:
+      context: ../..
+      dockerfile: core/hms/Dockerfile
+      args:
+        - PUID=${PUID}
+        - PGID=${PGID}
+    container_name: hms
+    restart: unless-stopped
+    group_add:
+      - "0"  # Agregar al grupo root para acceso al docker.sock
+    volumes:
+      - ../../config.toml:/app/config.toml
+      - ../../data:/app/data
+      - ../../logs:/app/logs
+      - ../../core:/app/core
+      - ../../stacks:/app/stacks
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"

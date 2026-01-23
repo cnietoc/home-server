@@ -7,6 +7,7 @@ import logging
 
 import uvicorn
 
+from hms.lib.config import config_manager
 from hms.lib.logging_config import setup_logging
 from hms.lib.paths import get_logs_root
 
@@ -15,13 +16,17 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Punto de entrada del daemon."""
+    # Cargar configuración y establecer variables de entorno
+    log_level = config_manager.get_config_value("global.log_level")
+
     # Configurar logging centralizado
     log_dir = get_logs_root()
     setup_logging(
         log_file=log_dir / "hms-daemon.log",
-        level=logging.INFO,
+        level=logging.getLevelName(log_level.upper()),
         console=True,
     )
+    config_manager.load_env_config()
 
     # Hacer que los loggers de uvicorn usen los handlers/formatos globales
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):

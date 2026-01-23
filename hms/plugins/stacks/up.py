@@ -1,73 +1,74 @@
-"""Plugin: up
-Deploy de un stack: genera .env, ejecuta prep y hace docker compose up -d.
+"""
+Plugin: show stacks
+Lists all available stacks with their descriptions.
 """
 
-import subprocess
 import logging
 from typing import List
 
-from hms.core.plugin import StackPlugin
-from hms.lib.deploy import prep_stack, PrepError
-from hms.lib.stacks import get_stack_manager
+from hms.core.plugin import StackPlugin, EmptyStackBehavior
+from hms.lib.config import config_manager
+from hms.lib.docker import docker_manager
 
 logger = logging.getLogger(__name__)
 
 
 class UpPlugin(StackPlugin):
+    """Up a stack."""
+
     def get_name(self) -> str:
         return "up"
 
     def get_description(self) -> str:
-        return "Deploy: genera .env, ejecuta prep y levanta docker compose"
+        return "Up a stack"
 
     def get_help(self) -> str:
         return """
-up - Deploy de un stack
+up - Up a stack
 
-USO:
-  hms [STACK] up [--rebuild]
-
-COMPORTAMIENTO:
-  - Verifica que el stack exista en stacks.yml y tenga docker-compose.yml
-  - Genera docker/<stack>/.env
-  - Ejecuta prep (pre-deploy.sh) si existe
-  - docker compose up -d (opcionalmente --build con --rebuild)
+USAGE:
+  hms [STACK] up
+  
+DESCRIPTION:
+  Ups the specified stack.
 """
 
+    def get_empty_stack_behavior(self) -> EmptyStackBehavior:
+        return EmptyStackBehavior.ENABLED
+
     def run_for_stack(self, stack_name: str, args: List[str]) -> int:
-        stack_manager = get_stack_manager()
+        """Execute plugin."""
 
-        # Opciones
-        rebuild = "--rebuild" in args
-
-        try:
-            prep_stack(stack_name)
-        except PrepError as e:
-            logger.error(f"{e}")
-            return 1
-        except Exception as e:
-            logger.error(f"Error en prep: {e}")
+        missing_config = config_manager.check_missing_stack_config(stack_name)
+        if missing_config:
+            logger.error(f"❌ Cannot up stack '{stack_name}'. Missing required configuration:")
+            for item in missing_config:
+                logger.error(f" - {item}")
             return 1
 
-        stack_dir = stack_manager.get_stack_docker_dir(stack_name)
+        enabled = config_manager.is_stack_enabled(stack_name)
 
-        # docker compose up -d
-        cmd = ["docker", "compose", "up", "-d"]
-        if rebuild:
-            cmd.insert(3, "--build")
+        if not enabled:
+            config_manager.enable_stack(stack_name)
 
-        try:
-            logger.info(f"🚀 Levantando stack {stack_name}...")
-            result = subprocess.run(cmd, cwd=str(stack_dir), check=False, text=True)
-            if result.returncode != 0:
-                logger.error(f"docker compose up falló con código {result.returncode}")
-                return result.returncode
-            logger.info(f"✅ Stack {stack_name} levantado")
-            return 0
-        except FileNotFoundError:
-            logger.error("docker compose no encontrado")
-            return 1
-        except Exception as e:
-            logger.error(f"Error ejecutando docker compose: {e}")
-            return 1
+        current_status = docker_manager.get_stack_status(stack_name)
 
+        if current_status in ['stopped', 'not-found']:
+            logger.info(f"🟢 Starting stack '{stack_name}'...")
+            result = docker_manager.stack_up(stack_name)
+
+            if result == 0:
+                logger.info(f"✅ Stack '{stack_name}' started successfully")
+            else:
+                logger.error(f"❌ Failed to start stack '{stack_name}'")
+
+        else:
+            logger.info(f"🔄 Stack '{stack_name}' is already running, reloading config...")
+            result = docker_manager.stack_up(stack_name)
+
+            if result == 0:
+                logger.info(f"✅ Stack '{stack_name}' reloaded successfully")
+            else:
+                logger.error(f"⚠️  Failed to reload stack '{stack_name}'")
+
+        return result

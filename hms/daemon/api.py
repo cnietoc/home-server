@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     jobs = get_jobs_status()
     logger.info(f"📋 Scheduler iniciado con {len(jobs)} job(s)")
     for job in jobs:
-        logger.info(f"   ✓ {job['name']} - {job['trigger']}")
+        logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
     yield
 

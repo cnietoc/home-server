@@ -1,0 +1,15 @@
+# Stack Necesse - Servidor de juego
+# ===================================
+
+description:
+
+config_files:
+  - necesse  # Configuración específica para el servidor de Necesse
+
+services:
+  necesse:
+    protected: false
+
+backups:
+  exclude: []
+

@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from hms.core.plugin import GlobalPlugin
 from hms.lib.cloudflare import CloudflareClient, CloudflareError, get_cloudflare_client
-from hms.lib.state import get_state_manager
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +125,7 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
             logger.error(f"❌ Error: {e}")
             return 1
         except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}")
-            if verbose:
-                logger.exception("Stack trace:")
+            logger.error(f"❌ Error inesperado: {e}", e)
             return 1
 
     def _list_records(self, client: CloudflareClient) -> int:
@@ -167,12 +164,10 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
     ) -> int:
         """Actualizar registros DNS."""
         try:
-            state_manager = get_state_manager()
 
             # Detectar IP si no se especificó
             if not target_ip:
-                fallback_ip = state_manager.get_last_dns_ip()
-                target_ip = client.get_public_ip(fallback_ip=fallback_ip)
+                target_ip = client.get_public_ip()
             else:
                 logger.info(f"🎯 Usando IP especificada: {target_ip}")
 
@@ -240,23 +235,6 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
                 message = "Algunos registros tuvieron problemas"
                 logger.warning(f"⚠️  {message}")
 
-            # Actualizar state.yml
-            if not dry_run:
-                state_manager.update_dns_state(
-                    ip=target_ip,
-                    domain=target_domain,
-                    records=[
-                        {
-                            "name": r.get("name", "?"),
-                            "ip": target_ip,
-                            "proxied": False,
-                        }
-                        for r in results
-                    ],
-                    status=status,
-                    message=message,
-                )
-
             return 0 if success_count == len(records_to_update) else 1
 
         except CloudflareError as e:
@@ -264,7 +242,5 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
             return 1
         except Exception as e:
             logger.error(f"❌ Error inesperado: {e}")
-            if verbose:
-                logger.exception("Stack trace:")
             return 1
 

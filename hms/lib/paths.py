@@ -1,5 +1,4 @@
 """Helpers de rutas comunes para HMS."""
-
 import os
 from pathlib import Path
 
@@ -17,35 +16,34 @@ def get_project_root() -> Path:
 
 def get_hms_root() -> Path:
     """Obtiene la ruta raíz del paquete hms."""
-    root = os.environ.get("HMS_ROOT")
-    if root:
-        return Path(root)
     return Path(__file__).resolve().parents[1]
 
 
 def get_logs_root() -> Path:
-    root = os.environ.get("LOGS_ROOT")
-    if root:
-        return Path(root)
     return get_project_root() / "logs"
 
 
 def get_config_root() -> Path:
-    root = os.environ.get("CONFIG_ROOT")
-    if root:
-        return Path(root)
-    return get_project_root() / "config"
+    return get_project_root()
 
 
-def get_docker_root() -> Path:
-    root = os.environ.get("DOCKER_ROOT")
-    if root:
-        return Path(root)
-    return get_project_root() / "docker"
+def get_stacks_root() -> Path:
+    """Obtiene la ruta raíz de stacks de aplicación."""
+    return get_project_root() / "stacks"
+
+
+def get_stack_dir(stack_name: str) -> Path:
+    """Obtiene la ruta del directorio de un stack específico."""
+    if stack_name == "infra":
+        return get_core_root() / "infra"
+    return get_stacks_root() / stack_name
+
+
+def get_core_root() -> Path:
+    """Obtiene la ruta raíz de componentes core."""
+    return get_project_root() / "core"
 
 
 def get_data_root() -> Path:
-    root = os.environ.get("DATA_ROOT")
-    if root:
-        return Path(root)
+    """Obtiene la ruta raíz de datos."""
     return get_project_root() / "data"

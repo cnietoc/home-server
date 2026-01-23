@@ -7,7 +7,7 @@ import logging
 from typing import List
 
 from hms.core.plugin import GlobalPlugin
-from hms.lib.stacks import get_stack_manager
+from hms.lib.stacks import stack_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,7 @@ DESCRIPTION:
 
     def run(self, args: List[str]) -> int:
         """Execute plugin."""
-        stack_manager = get_stack_manager()
-        stacks = stack_manager.list_all_stacks()
+        stacks = stack_metadata.list_stacks()
 
         if not stacks:
             logger.info("ℹ️  No stacks found in docker/")
@@ -47,8 +46,9 @@ DESCRIPTION:
         logger.info("")
 
         for stack in stacks:
-            predeploy_icon = "🔧" if stack['has_predeploy'] else "  "
-            logger.info(f"{predeploy_icon} {stack['name']:<15} {stack['description']}")
+            predeploy_icon = "🔧" if stack_metadata.has_predeploy(stack) else "  "
+            description = stack_metadata.get_description(stack) or "No description"
+            logger.info(f"{predeploy_icon} {stack:<15} {description}")
 
         logger.info("")
         logger.info("🔧 = Has pre-deploy script")

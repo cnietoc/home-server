@@ -6,7 +6,7 @@ Maneja detección de IP pública, gestión de registros DNS y caché de estado.
 import logging
 from typing import Dict, List, Optional, Any
 
-from hms.lib.config import get_env_manager
+from hms.lib.config import config_manager
 
 try:
     import requests
@@ -66,15 +66,11 @@ class CloudflareClient:
             "Content-Type": "application/json",
         })
 
-    def get_public_ip(self, fallback_ip: Optional[str] = None) -> str:
+    def get_public_ip(self) -> str:
         """
         Detectar IP pública del servidor.
 
-        Intenta múltiples servicios con fallback. Si todos fallan y se proporciona
-        fallback_ip, lo usa.
-
-        Args:
-            fallback_ip: IP para usar si no se puede detectar (ej: última conocida)
+        Intenta múltiples servicios.
 
         Returns:
             IP pública detectada
@@ -100,13 +96,6 @@ class CloudflareClient:
             except Exception as e:
                 logger.debug(f"⚠️  Error en {service}: {e}")
                 continue
-
-        # Si todos fallan, usar fallback si está disponible
-        if fallback_ip and self._is_valid_ip(fallback_ip):
-            logger.warning(
-                f"⚠️  No se detectó IP pública. Usando IP cacheada: {fallback_ip}"
-            )
-            return fallback_ip
 
         raise CloudflareError("No se pudo detectar la IP pública")
 
@@ -404,29 +393,22 @@ def get_cloudflare_client() -> CloudflareClient:
     """
     Factory function para crear cliente de Cloudflare.
 
-    Args:
-        api_token: Token de API (o se carga desde env CLOUDFLARE_DNS_API_TOKEN)
-        base_domain: Dominio base (o se carga desde env BASE_DOMAIN)
-
     Returns:
         CloudflareClient configurado
 
     Raises:
         CloudflareError: Si faltan variables de entorno o configuración
     """
-    env_manager = get_env_manager()
-    api_token = env_manager.get_env_value("cloudflare", "CLOUDFLARE_DNS_API_TOKEN")
+    api_token = config_manager.get_config_value("infra.cloudflare.dns_api_token")
     if not api_token:
         raise CloudflareError(
-            "CLOUDFLARE_DNS_API_TOKEN no configurado. "
-            "Configúralo en config/private/cloudflare.env"
+            "Api Token no configurado en infra.cloudflare.dns_api_token"
         )
 
-    base_domain = env_manager.get_env_value("common", "BASE_DOMAIN")
+    base_domain = config_manager.get_config_value("global.domain")
     if not base_domain:
         raise CloudflareError(
-            "BASE_DOMAIN no configurado. "
-            "Configúralo en config/private/common.env"
+            "Dominio base no configurado en global.domain"
         )
 
     return CloudflareClient(api_token, base_domain)

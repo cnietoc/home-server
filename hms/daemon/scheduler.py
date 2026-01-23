@@ -5,18 +5,17 @@ Usa APScheduler para ejecutar jobs periódicos directamente como plugins del CLI
 
 import logging
 import time
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Optional, Dict, Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
-from hms.lib.jobs_defaults import get_default_jobs
-from hms.lib.state import get_state_manager
-from hms.lib.plugin_loader import get_plugin_loader
+from hms.lib.config import config_manager
 from hms.lib.interval import parse_interval, format_interval
+from hms.lib.plugin_loader import get_plugin_loader
 
 logger = logging.getLogger(__name__)
 
@@ -62,29 +61,6 @@ def _build_trigger(config: Dict[str, Any]):
 
     # 3. Default: 30 minutos
     return IntervalTrigger(minutes=30)
-
-
-def _record_run(job_id: str, status: str, message: str = "", duration_seconds: float = 0) -> None:
-    """
-    Persistir resultado de ejecución de un job.
-
-    Guarda tanto timestamp unix como formato legible (ISO 8601).
-    """
-    state = get_state_manager()
-    now = int(time.time())
-    now_iso = datetime.fromtimestamp(now).isoformat()
-
-    state.set(
-        f"daemon.jobs.{job_id}.last_run",
-        {
-            "timestamp": now,
-            "datetime": now_iso,
-            "status": status,
-            "duration": round(duration_seconds, 2),
-            "duration_formatted": format_interval(int(duration_seconds)),
-            "message": message,
-        },
-    )
 
 
 def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
@@ -140,93 +116,95 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
 
         if result != 0:
             logger.warning(f"⚠️  Job {job_id} falló ({plugin_spec}) en {format_interval(int(duration))}")
-            _record_run(job_id, "error", f"Plugin returned {result}", duration)
         else:
             logger.info(f"✅ Job {job_id} ok ({plugin_spec}) en {format_interval(int(duration))}")
-            _record_run(job_id, "success", "", duration)
         return result
     except Exception as e:
         duration = time.time() - start
         logger.error(f"❌ Error ejecutando job {job_id} ({plugin_spec}): {e}")
-        _record_run(job_id, "error", str(e), duration)
         return 1
 
 
-def _schedule_job(scheduler: BackgroundScheduler, job_id: str, cfg: Dict[str, Any], is_startup: bool = True):
-    """
-    Registrar un job en el scheduler con validaciones básicas.
+def _load_jobs(scheduler: BackgroundScheduler):
+    job_definitions = config_manager.get_job_definitions()
 
-    Args:
-        scheduler: Instancia del scheduler
-        job_id: ID del job
-        cfg: Configuración del job
-        is_startup: True si se está llamando al arrancar, False en reload
-    """
+    current_jobs = scheduler.get_jobs()
+
+    logger.debug(f"Actualmente hay {len(current_jobs)} job(s) en el scheduler: {[job.id for job in current_jobs]}")
     global _is_startup
 
-    enabled = cfg.get("enabled", True)
-    if not enabled:
-        logger.info(f"⏸️  Job {job_id} deshabilitado")
-        return
+    for job_definition in job_definitions:
 
-    plugin_spec = cfg.get("plugin")
-    if not plugin_spec:
-        logger.warning(f"⚠️  Job {job_id} sin plugin, skipeado")
-        return
+        enabled = job_definition.enabled
+        if not enabled:
+            logger.info(f"⏸️ Job {job_definition.name} deshabilitado")
+            continue
 
-    # Parámetros adicionales para pasar al plugin
-    args = cfg.get("args", [])
+        plugin_spec = job_definition.plugin
+        if not plugin_spec:
+            logger.warning(f"⚠️ Job {job_definition.name} sin plugin, skipeado")
+            continue
 
-    # Si hay startup_trigger y es startup (no reload), ejecutar con DateTrigger
-    startup_trigger_cfg = cfg.get("startup_trigger")
-    if startup_trigger_cfg and is_startup:
-        delay_seconds = startup_trigger_cfg.get("delay_seconds", 0)
-        run_time = datetime.fromtimestamp(time.time() + delay_seconds)
+        args = job_definition.args
 
-        startup_job_id = f"__startup__{job_id}"
-        startup_trigger = DateTrigger(run_date=run_time)
+        triggers = job_definition.triggers or {}
 
-        scheduler.add_job(
-            lambda spec=plugin_spec, jid=job_id, job_args=args: _run_plugin(jid, spec, job_args),
-            trigger=startup_trigger,
-            id=startup_job_id,
-            name=f"{cfg.get('meta', {}).get('description', job_id)} [STARTUP]",
-            replace_existing=True,
-            misfire_grace_time=300,
-        )
-        logger.info(f"🚀 Job {job_id} registrado para startup en {delay_seconds}s")
+        if not triggers:
+            logger.warning(f"⚠️ Job {job_definition.name} sin triggers, skipeado")
+            continue
 
-    # Registrar el job periódico si tiene trigger normal
-    if cfg.get("trigger"):
-        try:
-            trigger = _build_trigger(cfg)
-        except Exception as e:
-            logger.error(f"❌ Trigger inválido para job {job_id}: {e}")
-            return
+        for trigger in triggers:
+            skip = False
+            if not trigger.value:
+                logger.warning(
+                    f"❌ Trigger inválido para job {job_definition.name}: tipo '{trigger.type}' sin valor: {trigger.config}")
+                continue
+            if trigger.type == "startup":
+                seconds = parse_interval(trigger.value)
+                job_id = f"{job_definition.name}-on-startup-{seconds}s"
+                trigger = DateTrigger(run_date=datetime.fromtimestamp(time.time() + seconds))
+                if not _is_startup:
+                    logger.debug(f"⏭️ Skipping startup trigger for job {job_definition.name} on reload")
+                    skip = True
+            elif trigger.type == "interval":
+                seconds = parse_interval(trigger.value)
+                if seconds is None:
+                    logger.warning(
+                        f"❌ Trigger inválido para job {job_definition.name}: intervalo inválido: {trigger.value}")
+                    continue
+                job_id = f"{job_definition.name}-interval-{seconds}s"
+                trigger = IntervalTrigger(seconds=seconds)
+            elif trigger.type == "cron":
+                job_id = f"{job_definition.name}-cron-{trigger.value}"
+                try:
+                    trigger = CronTrigger.from_crontab(trigger.value)
+                except Exception as e:
+                    logger.warning(f"❌ Trigger inválido para job {job_definition.name}: {e}")
+                    continue
+            else:
+                logger.warning(f"❌ Trigger inválido para job {job_definition.name}: tipo desconocido: {type}")
+                continue
+            if not skip:
+                scheduler.add_job(
+                    func=_run_plugin,
+                    args=[job_id, plugin_spec, args],
+                    trigger=trigger,
+                    id=job_id,
+                    name=job_definition.description,
+                    replace_existing=True
+                )
+                logger.info(f"✅ Job {job_id} registrado: {trigger}")
 
-        scheduler.add_job(
-            lambda spec=plugin_spec, jid=job_id, job_args=args: _run_plugin(jid, spec, job_args),
-            trigger=trigger,
-            id=job_id,
-            name=cfg.get("meta", {}).get("description", job_id),
-            replace_existing=True,
-            misfire_grace_time=300,
-        )
-        logger.info(f"✅ Job {job_id} registrado: {trigger}")
+            current_jobs = [job for job in current_jobs if job.id != job_id]
 
+    logger.debug(f"Quedan {len(current_jobs)} job(s) sin definir: {[job.id for job in current_jobs]}")
 
-def _load_jobs_from_state(scheduler: BackgroundScheduler, is_startup: bool = True):
-    state = get_state_manager()
-    jobs_cfg = state.get_jobs_config()
-    if not jobs_cfg:
-        jobs_cfg = get_default_jobs()
-        state.set("daemon.jobs", jobs_cfg)
-
-    for job in scheduler.get_jobs():
+    # Remover jobs que ya no están en la configuración
+    for job in current_jobs:
         scheduler.remove_job(job.id)
+        logger.info(f"🗑️ Job {job.id} eliminado (ya no está en configuración)")
 
-    for job_id, cfg in jobs_cfg.items():
-        _schedule_job(scheduler, job_id, cfg, is_startup=is_startup)
+    _is_startup = False
 
 
 # Instancia global del scheduler
@@ -245,7 +223,7 @@ def _get_scheduler() -> BackgroundScheduler:
             daemon=True,
             max_instances=1,
         )
-        _load_jobs_from_state(_scheduler, is_startup=True)
+        _load_jobs(_scheduler)
         logger.info("📝 Scheduler configurado con jobs")
 
     return _scheduler
@@ -254,7 +232,7 @@ def _get_scheduler() -> BackgroundScheduler:
 def reload_scheduler():
     """Recargar jobs desde state y reconfigurar scheduler (sin ejecutar startup_triggers)."""
     scheduler = _get_scheduler()
-    _load_jobs_from_state(scheduler, is_startup=False)
+    _load_jobs(scheduler)
     logger.info(f"🔄 Scheduler recargado ({len(scheduler.get_jobs())} job(s))")
 
 
@@ -289,6 +267,7 @@ def get_jobs_status() -> list:
         }
         for job in scheduler.get_jobs()
     ]
+
 
 def check_scheduler_running() -> bool:
     """Verificar si el scheduler está corriendo."""

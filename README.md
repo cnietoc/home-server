@@ -18,13 +18,28 @@ Este proyecto configura un servidor doméstico con:
 home-server/
 ├── config/
 │   ├── templates/           # Plantillas de configuración
-│   ├── stacks.yml           # Configuración de stacks y servicios
 │   └── private -> /ruta/config  # Enlace a tu configuración (crear)
-├── docker/
-│   ├── platform/           # Stack de infraestructura (Traefik + TinyAuth + Watchtower + Samba)
-│   ├── home/               # Stack principal - Dashboard del Home Server
-│   ├── media/              # Stack de medios (Jellyfin, Radarr, Sonarr, etc.)
-│   └── helloworld/         # Stack de aplicación de prueba
+├── stacks/                 # Stacks de aplicación
+│   ├── home/               # Dashboard del Home Server
+│   │   ├── docker-compose.yml
+│   │   └── stack.yml       # Metadata del stack
+│   ├── media/              # Suite de medios (Jellyfin, Radarr, Sonarr, etc.)
+│   │   ├── docker-compose.yml
+│   │   └── stack.yml
+│   ├── helloworld/         # Stack de prueba
+│   └── ...
+├── core/                   # Componentes core del sistema
+│   ├── hms/                # Contenedor del CLI HMS
+│   │   ├── docker-compose.yml
+│   │   └── Dockerfile
+│   └── infra/              # Infraestructura base (Traefik, TinyAuth, Watchtower, Samba)
+│       ├── docker-compose.yml
+│       └── stack.yml
+├── hms/                    # CLI Python
+│   ├── cli/
+│   ├── commands/
+│   ├── lib/
+│   └── plugins/
 ├── scripts/                # Scripts de automatización
 │   ├── deploy.sh           # Script principal de despliegue
 │   ├── install-docker.sh   # Instalación de Docker (Ubuntu)

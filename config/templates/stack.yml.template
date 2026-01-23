@@ -1,0 +1,32 @@
+# Stack Template - Configuración de metadata del stack
+# ======================================================
+# Este archivo define la metadata de orquestación del stack.
+# Coloca este archivo junto a docker-compose.yml en tu directorio de stack.
+
+description: "Descripción del stack"
+
+# Config files a incluir en el .env (además de common.env)
+config_files: []
+  # - nombre_config  # Buscará config/private/nombre_config.env
+
+# Servicios expuestos (para documentación y dashboard)
+services:
+  nombre_servicio:
+    subdomain: "subdominio"  # Se combina con BASE_DOMAIN
+    description: "Descripción del servicio"
+    protected: false  # true para proteger con TinyAuth
+
+# Shares para Samba (opcional)
+shares:
+  nombre_share:
+    path: "/ruta/relativa"  # Relativa al directorio data del stack
+    exposed_path: "/ruta/expuesta"  # Path como aparece en Samba
+    description: "Descripción del share"
+    permissions: "ro"  # ro (read-only) o rw (read-write)
+
+# Exclusiones de backup (opcional)
+backups:
+  exclude:
+    - ruta/a/excluir/
+    - config/logs/
+

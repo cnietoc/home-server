@@ -1,0 +1,42 @@
+[global]
+host_root = "__REQUIRED__"
+puid = "__REQUIRED__"
+pgid = "__REQUIRED__"
+tz = "__REQUIRED__"
+domain = "__REQUIRED__"
+log_level = "info"
+
+[infra.cloudflare]
+email = "__REQUIRED__"
+dns_api_token = "__REQUIRED__"
+
+[infra.auth]
+google_client_id = "__REQUIRED__"
+google_client_secret = "__REQUIRED__"
+oauth_whitelist = "__REQUIRED__"
+
+[infra.watchtower]
+schedule = '0 0 */12 * * *'
+notifications = "shoutrrr"
+notification_url = "__REQUIRED__"
+notifications_level = "info"
+log_level = "info"
+
+[jobs.update-dns]
+description = "Actualizar DNS en Cloudflare"
+plugin = "system:update-dns"
+args = []
+triggers = [
+    { type = "startup", delay = "10s" },
+    { type = "interval", interval = "30m" },
+    # { type = "cron", cron = "*/15 * * * *" }
+]
+
+[stacks.media]
+enable_intel_qsv = false
+enable_nvidia = false
+enable_vaapi = false
+
+[stacks.necesse]
+motd = "Welcome to my Neccesse server!"
+password = "__REQUIRED__"

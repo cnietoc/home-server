@@ -1,0 +1,11 @@
+# Stack Hello World - Ejemplo básico
+# ====================================
+
+
+config_files: []  # Solo usa common.env
+
+services:
+  web:
+    subdomain: test
+    protected: false
+

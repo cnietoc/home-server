@@ -1,0 +1,22 @@
+# Configuración del Stack Media
+  recordings: /media/recordings
+  downloads: /media/downloads
+  library: /media/library
+paths:
+# Rutas personalizadas (opcional)
+
+  target_bitrate: 5000k
+  target_resolution: 1080p
+  preferred_codec: h264
+transcoding:
+# Configuración de transcodificación
+
+  amd_vaapi: true
+  nvidia: false
+  intel_qsv: false
+hardware_accel:
+# Aceleración por hardware
+
+# Config específica del stack media (NO secretos)
+# ==============================
+

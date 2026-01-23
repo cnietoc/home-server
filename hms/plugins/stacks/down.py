@@ -1,76 +1,61 @@
-"""Plugin: down
-Detiene un stack usando docker compose down.
+"""
+Plugin: show stacks
+Lists all available stacks with their descriptions.
 """
 
-import subprocess
 import logging
 from typing import List
 
-from hms.core.plugin import StackPlugin
-from hms.lib.stacks import get_stack_manager
+from hms.core.plugin import StackPlugin, EmptyStackBehavior
+from hms.lib.config import config_manager
+from hms.lib.docker import docker_manager
 
 logger = logging.getLogger(__name__)
 
 
 class DownPlugin(StackPlugin):
+    """Down a stack."""
+
     def get_name(self) -> str:
         return "down"
 
     def get_description(self) -> str:
-        return "Detiene un stack (docker compose down)"
+        return "Down a stack"
 
     def get_help(self) -> str:
         return """
-down - Detiene un stack
+down - Down a stack
 
-USO:
-  hms [STACK] down [--volumes] [--images] [--networks]
-
-COMPORTAMIENTO:
-  - Verifica que el stack exista en stacks.yml y tenga docker-compose.yml
-  - Ejecuta docker compose down con flags opcionales
+USAGE:
+  hms [STACK] down
+  
+DESCRIPTION:
+  Downs the specified stack.
 """
 
+    def get_empty_stack_behavior(self) -> EmptyStackBehavior:
+        return EmptyStackBehavior.ALL
+
     def run_for_stack(self, stack_name: str, args: List[str]) -> int:
-        stack_manager = get_stack_manager()
+        """Execute plugin."""
+        enabled = config_manager.is_stack_enabled(stack_name)
 
-        if not stack_manager.stack_exists(stack_name):
-            logger.error(f"Stack '{stack_name}' no definido en stacks.yml")
-            return 1
+        if enabled:
+            config_manager.disable_stack(stack_name)
 
-        info = stack_manager.get_stack_info(stack_name)
-        if not info.get("has_compose"):
-            logger.error(f"Stack '{stack_name}' no tiene docker-compose.yml")
-            return 1
+        current_status = docker_manager.get_stack_status(stack_name)
 
-        stack_dir = stack_manager.get_stack_docker_dir(stack_name)
+        if current_status in ['running', 'partial']:
+            logger.info(f"🔴 Stopping stack '{stack_name}'...")
+            result = docker_manager.stack_down(stack_name)
 
-        # Flags
-        volumes = "--volumes" in args
-        images = "--images" in args
-        networks = "--networks" in args
+            if result == 0:
+                logger.info(f"✅ Stack '{stack_name}' stopped successfully")
+            else:
+                logger.error(f"❌ Failed to stop stack '{stack_name}'")
+        else:
+            logger.info(f"ℹ️  Stack '{stack_name}' is not running, nothing to stop.")
+            result = docker_manager.stack_down(stack_name)
+            logger.debug(f"ℹ️  Stack '{stack_name}' is already stopped")
 
-        cmd = ["docker", "compose", "down"]
-        if volumes:
-            cmd.append("--volumes")
-        if images:
-            cmd.append("--rmi")
-            cmd.append("all")
-        if networks:
-            cmd.append("--remove-orphans")
-
-        try:
-            logger.info(f"🛑 Parando stack {stack_name}...")
-            result = subprocess.run(cmd, cwd=str(stack_dir), check=False, text=True)
-            if result.returncode != 0:
-                logger.error(f"docker compose down falló con código {result.returncode}")
-                return result.returncode
-            logger.info(f"✅ Stack {stack_name} detenido")
-            return 0
-        except FileNotFoundError:
-            logger.error("docker compose no encontrado")
-            return 1
-        except Exception as e:
-            logger.error(f"Error ejecutando docker compose: {e}")
-            return 1
-
+        return result

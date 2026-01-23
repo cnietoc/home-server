@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# HMS installer - crea symlink en ~/.local/bin/hms y levanta el contenedor
+# HMS installer - crea symlink en ~/.local/bin/hms y prepara config.toml
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 USER_BIN="$HOME/.local/bin"
 WRAPPER_SRC="$REPO_ROOT/hms/bin/hms"
-COMPOSE_DIR="$REPO_ROOT/docker/hms"
-CONTAINER_NAME="hms"
-FORCE="${1:---force}"
+COMPOSE_DIR="$REPO_ROOT/core/hms"
+CONFIG_FILE="$REPO_ROOT/config.toml"
+FORCE="${1:-}"
 
 # Colores para output
 RED='\033[0;31m'
@@ -66,7 +66,7 @@ echo -e "${GREEN}✅ Symlink creado: $TARGET -> $WRAPPER_SRC${NC}"
 
 # Verificar PATH contiene ~/.local/bin
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
-    echo -e "${YELLOW}❌ ~/.local/bin no está en PATH${NC}"
+    echo -e "${YELLOW}⚠️  ~/.local/bin no está en PATH${NC}"
     echo ""
     echo "Añade esta línea a tu ~/.zshrc:"
     echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
@@ -103,10 +103,10 @@ else
     fi
 fi
 
-# Generar .env con PUID/PGID dinámicos
+# Generar o actualizar config.toml
 echo ""
-echo "📝 Generando archivo .env para HMS..."
-ENV_FILE="$COMPOSE_DIR/.env"
+echo "📝 Configurando config.toml..."
+
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
 
@@ -119,56 +119,74 @@ else
     SYSTEM_TZ="UTC"
 fi
 
-cat > "$ENV_FILE" << EOF
-# Archivo generado automáticamente por install.sh
-# Variables del sistema
-PUID=$CURRENT_UID
-PGID=$CURRENT_GID
-TZ=$SYSTEM_TZ
+if [ ! -f "$CONFIG_FILE" ]; then
+    # Crear config.toml básico si no existe
+    cat > "$CONFIG_FILE" << EOF
+[global]
+host_root = "$REPO_ROOT"
+puid = $CURRENT_UID
+pgid = $CURRENT_GID
+tz = "$SYSTEM_TZ"
 EOF
+    echo -e "${GREEN}✅ config.toml creado con valores básicos${NC}"
+fi
 
-echo -e "${GREEN}✅ .env generado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, TZ=$SYSTEM_TZ${NC}"
+# Actualizar puid, pgid, tz en config.toml existente
+if [ -f "$CONFIG_FILE" ]; then
+    # Función auxiliar para actualizar o agregar campo en una sección
+    update_toml_field() {
+        local file="$1"
+        local section="$2"
+        local key="$3"
+        local value="$4"
 
-# Ajustar permisos de directorios de datos si existen
-for dir in "$REPO_ROOT/data" "$REPO_ROOT/logs"; do
-    if [ -d "$dir" ]; then
-        echo "🔧 Ajustando permisos de $dir..."
-        if [ -w "$dir" ]; then
-            chown -R "$CURRENT_UID:$CURRENT_GID" "$dir" 2>/dev/null || {
-                echo -e "${YELLOW}⚠️  No se pudieron cambiar todos los permisos en $dir (algunos archivos pueden ser de root)${NC}"
+        awk -v section="[$section]" -v key="$key" -v value="$value" '
+        BEGIN { in_section=0; done=0 }
+        /^\[.*\]/ {
+            if ($0 == section) in_section=1
+            else if (in_section && !done) {
+                print key " = " value
+                done=1
+                in_section=0
             }
-        fi
-    fi
-done
+            print
+            next
+        }
+        /^[[:space:]]*'"$key"'[[:space:]]*=/ && in_section {
+            print key " = " value
+            done=1
+            next
+        }
+        { print }
+        END {
+            if (in_section && !done)
+                print key " = " value
+        }
+        ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    }
 
-# Levantar contenedor HMS
-echo ""
-echo "📦 Levantando contenedor HMS..."
-(cd "$COMPOSE_DIR" && docker compose up -d --build)
-sleep 2
+    # Actualizar campos en sección [global]
+    update_toml_field "$CONFIG_FILE" "global" "puid" "$CURRENT_UID"
+    update_toml_field "$CONFIG_FILE" "global" "pgid" "$CURRENT_GID"
+    update_toml_field "$CONFIG_FILE" "global" "tz" "\"$SYSTEM_TZ\""
+    update_toml_field "$CONFIG_FILE" "global" "host_root" "\"$REPO_ROOT\""
 
-# Verificar contenedor corriendo
-if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo -e "${GREEN}✅ Contenedor HMS corriendo${NC}"
+    echo -e "${GREEN}✅ config.toml actualizado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
 else
-    echo -e "${RED}❌ El contenedor HMS no está corriendo${NC}"
-    docker logs "$CONTAINER_NAME" 2>&1 | tail -20
-    exit 1
+    echo -e "${YELLOW}⚠️  config.toml no existe${NC}"
 fi
 
-# Probar CLI dentro del contenedor
+# Finalizar
 echo ""
-echo "🔍 Probando CLI HMS..."
-if docker exec "$CONTAINER_NAME" python -m hms --help >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ CLI HMS OK${NC}"
-else
-    echo -e "${RED}❌ Error al ejecutar CLI HMS${NC}"
-    exit 1
-fi
-
-echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✅ Instalación completada${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "Prueba con:"
-echo "    hms --help"
-echo "    hms show stacks"
+echo "Siguiente paso:"
+echo -e "  ${GREEN}hms start${NC}    # Inicia el contenedor HMS"
+echo ""
+echo "Después podrás usar:"
+echo "  hms list          # Listar stacks disponibles"
+echo "  hms <stack> up    # Levantar un stack"
+echo "  hms stop          # Detener HMS"
+echo ""

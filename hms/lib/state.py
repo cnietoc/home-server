@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
+from typing_extensions import deprecated
 
 from hms.lib.paths import get_data_root
 
@@ -200,6 +201,7 @@ class StateManager:
         self.set("daemon.jobs", get_default_jobs())
 
 
+@deprecated("Ya no vamos a tener estado más")
 def get_state_manager() -> StateManager:
     """Factory function para obtener state manager."""
     return StateManager()

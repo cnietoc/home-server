@@ -1,137 +1,467 @@
-"""Configuración y generación de .env por stack.
+"""
+Gestor de configuración TOML para HMS.
 
-Actualmente lee desde `config/private/*.env` en el host y genera
-`docker/<stack>/.env`. Diseñado para sustituir fácilmente la fuente
-por OneDrive en el futuro.
+Proporciona:
+- Carga de config.toml como fuente única de verdad
+- Valores por defecto desde config.default.toml
+- Inyección dinámica de variables de entorno
+- Aislamiento de configuración por stack
+- Detección y validación de variables faltantes
 """
 
+import logging
 from pathlib import Path
-from typing import List
-import os
-import subprocess
+from typing import Dict, Optional, Any, List, Literal
+from dataclasses import dataclass, field
 
-from hms.lib.paths import get_config_root, get_docker_root
-from hms.lib.stacks import get_stack_manager
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
+import tomlkit
+
+from hms.lib.paths import get_config_root
+
+logger = logging.getLogger(__name__)
 
 
-class EnvManager:
-    def __init__(self, project_root: Path | None = None) -> None:
-        self._stack_manager = get_stack_manager()
-        self._config_dir = get_config_root() / "private"
+@dataclass
+class JobTrigger:
+    type: Literal["interval", "cron", "startup"]
+    config: Dict[str, str] = field(default_factory=dict)
 
-    def _get_system_timezone(self) -> str:
-        """Detecta el timezone del sistema actual.
-        Intenta múltiples métodos para máxima compatibilidad.
+    @property
+    def value(self) -> str:
+        """Devuelve el valor principal de configuración según el tipo de trigger."""
+        return {
+            "interval": self.config.get("interval"),
+            "cron": self.config.get("cron"),
+            "startup": self.config.get("delay")
+        }.get(self.type)
+
+
+@dataclass
+class JobDefinition:
+    name: str
+    plugin: str
+    enabled: bool = True
+    description: str = ""
+    args: List[Any] = field(default_factory=list)
+    triggers: List[JobTrigger] = field(default_factory=list)
+
+
+class TomlConfigManager:
+    """Gestor de configuración TOML con soporte para defaults y validación."""
+
+    def __init__(self):
+        self._config_path = get_config_root() / "config.toml"
+        self._default_config_path = get_config_root() / "config.default.toml"
+        if not self._config_path.exists():
+            # Crear config.toml vacío si no existe
+            self._config_path.touch()
+
+    def load_env_config(self):
         """
-        # Método 1: Variable de entorno TZ
-        tz = os.environ.get('TZ')
-        if tz:
-            return tz
+        Carga la configuración y cambia el UID/GID y timezone del proceso Python.
 
-        # Método 2: /etc/timezone (Linux)
-        tz_file = Path('/etc/timezone')
-        if tz_file.exists():
-            return tz_file.read_text().strip()
+        - Cambia el UID/GID real del proceso (requiere permisos o gosu)
+        - Establece el timezone del proceso
+        - Actualiza variables de entorno
+        """
+        config = self._load_config()
+        global_config = config.get("global", {})
 
-        # Método 3: /etc/localtime symlink (Linux/macOS)
-        localtime = Path('/etc/localtime')
-        if localtime.is_symlink():
-            target = os.readlink(str(localtime))
-            # Extraer timezone de rutas como /usr/share/zoneinfo/Europe/Madrid
-            for prefix in ['/var/db/timezone/zoneinfo/', '/usr/share/zoneinfo/']:
-                if prefix in target:
-                    return target.split(prefix)[1]
+        puid = global_config.get("puid", 1000)
+        pgid = global_config.get("pgid", 1000)
+        tz = global_config.get("tz", "UTC")
 
-        # Método 4: systemd (Linux)
+        import os
+
+        # 1. Cambiar timezone del proceso
+        os.environ["TZ"] = str(tz)
         try:
-            result = subprocess.run(
-                ['timedatectl', 'show', '-p', 'Timezone', '--value'],
-                capture_output=True,
-                text=True,
-                timeout=1
-            )
-            if result.returncode == 0:
-                tz = result.stdout.strip()
-                if tz:
-                    return tz
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+            import time
+            time.tzset()  # Aplicar el cambio de timezone
+        except Exception as e:
+            logger.warning(f"No se pudo cambiar timezone: {e}")
 
-        # Fallback: UTC
-        return 'UTC'
+        # 2. Cambiar UID/GID del proceso (solo si somos root o tenemos permisos)
+        try:
+            current_uid = os.getuid()
+            current_gid = os.getgid()
 
-    def _read_env_file(self, name: str) -> List[str]:
-        """Lee un archivo .env desde config/private/<name>.env.
-        Si no existe, devuelve lista vacía.
+            # Solo intentar cambiar si somos root (uid=0) y los valores son diferentes
+            if current_uid == 0 and (current_uid != puid or current_gid != pgid):
+                # Primero cambiar GID, luego UID (en ese orden por seguridad)
+                os.setgid(pgid)
+                os.setuid(puid)
+                logger.debug(f"UID/GID cambiado a: {puid}:{pgid}")
+            elif current_uid != puid or current_gid != pgid:
+                logger.debug(
+                    f"No se puede cambiar UID/GID (no somos root). Actual: {current_uid}:{current_gid}, Deseado: {puid}:{pgid}")
+        except AttributeError:
+            # getuid/setuid no disponible en Windows
+            logger.debug("Cambio de UID/GID no disponible en esta plataforma")
+        except Exception as e:
+            logger.warning(f"No se pudo cambiar UID/GID: {e}")
+
+        # 3. Establecer variables de entorno (para subprocesos)
+        os.environ["PUID"] = str(puid)
+        os.environ["PGID"] = str(pgid)
+
+    def get_config_value(self, key: str, default: Optional[str] = None) -> str:
         """
-        path = self._config_dir / f"{name}.env"
+        Obtiene el valor de configuración para una clave dada,
+        considerando el stack si se proporciona.
+
+        :param key: Clave de configuración (p.ej. "database.host")
+        :param default: Valor por defecto si la clave no existe
+        :return: Valor de configuración
+        :raises KeyError: Si la clave no existe en la configuración
+        """
+        config = self._load_config()
+        keys = key.split(".")
+        value = config
+        for k in keys:
+            if k in value:
+                value = value[k]
+            else:
+                break
+
+        if value == "__REQUIRED__":
+            raise KeyError(f"La clave de configuración requerida '{key}' no está establecida.")
+        if value is None:
+            if default is not None:
+                return default
+            else:
+                raise KeyError(f"La clave de configuración '{key}' no existe.")
+        return value
+
+    def _load_config(self) -> Dict:
+        """
+        Carga la configuración desde config.toml y aplica defaults.
+
+        :param stack: Nombre del stack (opcional)
+        :return: Diccionario de configuración
+        """
+        default_config = self._load_toml_file(self._default_config_path)
+        user_config = self._load_toml_file(self._config_path)
+
+        # Merge user config over defaults
+        default_config = self._merge_dicts(default_config, user_config)
+
+        return default_config
+
+    def _load_toml_file(self, path: Path) -> Dict:
+        """Carga un archivo TOML y devuelve su contenido como diccionario."""
         if not path.exists():
-            return []
-        return path.read_text().splitlines()
+            logger.warning(f"Archivo de configuración '{path}' no encontrado.")
+            return {}
+        with path.open("rb") as f:
+            return tomllib.load(f)
 
-    def get_env_value(self, config_name: str, key: str) -> str | None:
-        """Devuelve el valor de `key` desde las configs privadas.
-        Ignora comentarios y líneas vacías; devuelve None si no se encuentra.
+    def _merge_dicts(self, default_config: Dict, user_config: Dict) -> Dict:
+        """Fusiona dos diccionarios, con user_config teniendo prioridad."""
+        for key, value in user_config.items():
+            if (
+                    key in default_config
+                    and isinstance(default_config[key], dict)
+                    and isinstance(value, dict)
+            ):
+                default_config[key] = self._merge_dicts(default_config[key], value)
+            else:
+                default_config[key] = value
+        return default_config
+
+    def _save_config(self, config: Dict):
+        """Guarda el diccionario de configuración en config.toml."""
+        toml_content = tomlkit.dumps(tomlkit.parse(tomlkit.dumps(config)))
+        with self._config_path.open("w", encoding="utf-8") as f:
+            f.write(toml_content)
+
+    def _find_missing_required_keys(self, default_config: Dict, user_config: Dict, prefix: str = "") -> List[str]:
         """
-        for raw_line in self._read_env_file(config_name):
-            line = raw_line.strip()
-            if not line or line.startswith('#'):
-                continue
-            if '=' not in line:
-                continue
-            current_key, value = line.split('=', 1)
-            if current_key.strip() == key:
-                return value
-        return None
+        Encuentra claves marcadas como requeridas en default_config que faltan en user_config.
 
-    def generate_stack_env(self, stack_name: str) -> Path:
-        """Genera docker/<stack>/.env combinando common.env y los envs declarados en stacks.yml.
-        Retorna la ruta del archivo generado.
+        :param default_config: Configuración por defecto
+        :param user_config: Configuración del usuario
+        :param prefix: Prefijo para claves anidadas
+        :return: Lista de claves faltantes
         """
-        info = self._stack_manager.get_stack_info(stack_name)
-        # Si el stack no existe en stacks.yml, fallamos explícitamente
-        if not self._stack_manager.stack_exists(stack_name):
-            raise ValueError(f"Stack '{stack_name}' no definido en stacks.yml")
+        missing_keys = []
+        for key, value in default_config.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                # Verificar recursivamente en sub-diccionarios
+                missing_keys.extend(
+                    self._find_missing_required_keys(
+                        value,
+                        user_config.get(key, {}),
+                        prefix=full_key
+                    )
+                )
+            else:
+                # Verificar si la clave es requerida y falta en user_config
+                if (
+                        isinstance(value, str)
+                        and value.__eq__("__REQUIRED__")
+                        and key not in user_config
+                ):
+                    missing_keys.append(full_key)
 
-        stack_dir = get_docker_root() / stack_name
-        target_env = stack_dir / ".env"
-        target_env.parent.mkdir(parents=True, exist_ok=True)
+        return missing_keys
 
-        # common.env siempre primero, luego los específicos del stack
-        env_names = ["common"] + info.get("config_files", [])
-        if not info.get("config_files"):
-            # fallback: si no hay config_files declarados, intenta stack_name
-            env_names.append(stack_name)
+    def _add_missing_keys_to_config(self, missing_keys: List[str], user_config: Dict):
+        """
+        Añade claves faltantes a user_config dejándolas como __REQUIRED__.
 
-        lines: List[str] = []
+        :param missing_keys: Lista de claves faltantes
+        :param user_config: Configuración del usuario (a modificar)
+        """
+        logger.debug(f"Añadiendo claves faltantes a la configuración: {missing_keys}")
+        logger.debug(f"Configuración antes de añadir claves faltantes: {user_config}")
+        for key in missing_keys:
+            keys = key.split(".")
+            current_level = user_config
+            for k in keys[:-1]:
+                if k not in current_level or not isinstance(current_level[k], dict):
+                    current_level[k] = {}
+                current_level = current_level[k]
+            # Añadir la clave faltante como __REQUIRED__
+            current_level[keys[-1]] = "__REQUIRED__"
+        logger.debug(f"Configuración después de añadir claves faltantes: {user_config}")
 
-        # Variables dinámicas del stack
-        data_dir = get_stack_manager().get_stack_data_dir(stack_name)
-        relative_data = os.path.relpath(data_dir, stack_dir)
-        lines.append("# Variables dinámicas del stack")
-        lines.append(f"STACK_NAME={stack_name}")
-        lines.append(f"STACK_PREFIX=hms-{stack_name}")
-        lines.append(f"STACK_DATA={relative_data}")
-        lines.append("")
+    def _find_still_required_keys(self, config: Dict, prefix: str = "") -> List[str]:
+        """
+        Encuentra claves que siguen marcadas como __REQUIRED__ en la configuración.
 
-        # Variables del sistema dinámicas
-        lines.append("# Variables del sistema (dinámicas)")
-        lines.append(f"PUID={os.getuid()}")
-        lines.append(f"PGID={os.getgid()}")
-        lines.append(f"TZ={self._get_system_timezone()}")
-        lines.append("")
+        :param config: Diccionario de configuración a analizar
+        :param prefix: Prefijo para claves anidadas
+        :return: Lista de claves que siguen siendo requeridas
+        """
+        still_required = []
+        for key, value in config.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                # Verificar recursivamente en sub-diccionarios
+                still_required.extend(
+                    self._find_still_required_keys(value, prefix=full_key)
+                )
+            else:
+                # Verificar si la clave sigue siendo __REQUIRED__
+                if isinstance(value, str) and value == "__REQUIRED__":
+                    still_required.append(full_key)
+        return still_required
 
-        for name in env_names:
-            file_lines = self._read_env_file(name)
-            if file_lines:
-                lines.append(f"# Source: {name}.env")
-                lines.extend(file_lines)
-                lines.append("")
+    def check_missing_global_config(self) -> List[str]:
+        """
+        Crea entradas faltantes en config.toml basadas en config.default.toml
+        para claves marcadas como requeridas.
 
-        target_env.write_text("\n".join(lines).rstrip() + "\n")
-        return target_env
+        También devuelve las claves que siguen marcadas como requeridas en config.toml.
+
+        :return: Lista de claves que siguen siendo requeridas
+        """
+        default_config = self._load_toml_file(self._default_config_path)
+        user_config = self._load_toml_file(self._config_path)
+
+        missing_keys = self._find_missing_required_keys(default_config, user_config)
+
+        for key in missing_keys:
+            if key.startswith("stacks."):
+                # Clave de stack, manejar por separado
+                missing_keys.remove(key)
+
+        if missing_keys:
+            self._add_missing_keys_to_config(missing_keys, user_config)
+            self._save_config(user_config)
+
+        # Detectar claves que siguen siendo requeridas después de las adiciones
+        updated_config = self._load_toml_file(self._config_path)
+        still_required_keys = self._find_still_required_keys(updated_config)
+
+        # Eliminar claves de stacks ya que se manejan por separado
+        still_required_keys = [k for k in still_required_keys if not k.startswith("stacks.")]
+
+        return still_required_keys
+
+    def check_missing_stack_config(self, stack_name: str) -> List[str]:
+        """
+        Verifica claves requeridas faltantes para un stack específico.
+
+        :param stack_name: Nombre del stack
+        :return: Lista de claves que siguen siendo requeridas para el stack
+        """
+        default_config = self._load_toml_file(self._default_config_path)
+        user_config = self._load_toml_file(self._config_path)
+
+        if stack_name is "infra":
+            stack_default_config = default_config.get("infra", {})
+            stack_user_config = user_config.get("infra", {})
+        else:
+            stack_default_config = default_config.get("stacks", {}).get(stack_name, {})
+            stack_user_config = user_config.get("stacks", {}).get(stack_name, {})
+
+        missing_keys = self._find_missing_required_keys(
+            stack_default_config,
+            stack_user_config,
+            prefix=f"stacks.{stack_name}"
+        )
+
+        if missing_keys:
+            if "stacks" not in user_config:
+                user_config["stacks"] = {}
+            if stack_name not in user_config["stacks"]:
+                user_config["stacks"][stack_name] = {}
+
+            self._add_missing_keys_to_config(
+                missing_keys,
+                user_config
+            )
+            self._save_config(user_config)
+
+        # Detectar claves que siguen siendo requeridas después de las adiciones
+        updated_config = self._load_toml_file(self._config_path)
+        updated_stack_config = updated_config.get("stacks", {}).get(stack_name, {})
+        still_required_keys = self._find_still_required_keys(
+            updated_stack_config,
+            prefix=f"stacks.{stack_name}"
+        )
+
+        return still_required_keys
+
+    def get_global_config(self) -> Dict[str, Any]:
+        """
+        Obtiene la configuración global desde config.toml.
+
+        :return: Diccionario con la configuración global
+        """
+        config = self._load_config()
+        return config.get("global", {})
+
+    def get_stack_config(self, stack_name: str) -> Dict[str, Any]:
+        """
+        Obtiene la configuración específica de un stack.
+
+        :param stack_name: Nombre del stack
+        :return: Diccionario con la configuración del stack
+        """
+        config = self._load_config()
+
+        if stack_name == "infra":
+            return config.get(stack_name, {})
+
+        stacks_config = config.get("stacks", {})
+        return stacks_config.get(stack_name, {})
+
+    def is_stack_enabled(self, stack_name: str) -> bool:
+        """
+        Verifica si un stack está habilitado en la configuración.
+        El stack 'infra' siempre está habilitado por defecto.
+
+        :param stack_name: Nombre del stack
+        :return: True si está habilitado, False en caso contrario
+        """
+        # Stack infra siempre está activo por defecto
+        if stack_name == "infra":
+            stack_config = self.get_stack_config(stack_name)
+            # Permitir deshabilitar infra explícitamente si alguien lo necesita
+            return stack_config.get("enabled", True)
+
+        stack_config = self.get_stack_config(stack_name)
+        return stack_config.get("enabled", False)
+
+    def enable_stack(self, stack_name: str):
+        """
+        Habilita un stack en la configuración.
+
+        :param stack_name: Nombre del stack
+        """
+        config = self._load_toml_file(self._config_path)
+
+        if stack_name == "infra":
+            del config[stack_name]["enabled"]
+        else:
+            if "stacks" not in config:
+                config["stacks"] = {}
+
+            if stack_name not in config["stacks"]:
+                config["stacks"][stack_name] = {}
+
+            config["stacks"][stack_name]["enabled"] = True
+
+        self._save_config(config)
+
+    def disable_stack(self, stack_name: str):
+        """
+        Deshabilita un stack en la configuración.
+
+        :param stack_name: Nombre del stack
+        """
+        config = self._load_toml_file(self._config_path)
+
+        if stack_name == "infra":
+            config[stack_name]["enabled"] = False
+        else:
+            if "stacks" not in config:
+                config["stacks"] = {}
+
+            if stack_name not in config["stacks"]:
+                config["stacks"][stack_name] = {}
+
+            del config["stacks"][stack_name]["enabled"]
+
+        self._save_config(config)
+
+    def get_job_definitions(self) -> List[JobDefinition]:
+        """
+        Nueva API: devuelve lista de JobDefinition desde `[jobs.<name>]`.
+        Cada trigger puede ser objeto o lista de objetos.
+        No altera el flujo actual; solo expone la estructura tipada.
+        """
+        config = self._load_config()
+        jobs_cfg = config.get("jobs", {}) or {}
+
+        result: List[JobDefinition] = []
+        for name, cfg in jobs_cfg.items():
+            if not isinstance(cfg, dict):
+                logger.warning(f"Job '{name}' ignorado: config no es un objeto")
+                continue
+
+            plugin = cfg.get("plugin")
+            if not plugin:
+                logger.warning(f"Job '{name}' ignorado: falta 'plugin'")
+                continue
+
+            raw_triggers = cfg.get("triggers") or []
+            if isinstance(raw_triggers, dict):
+                raw_triggers = [raw_triggers]
+
+            triggers: List[JobTrigger] = []
+            for trig in raw_triggers:
+                if not isinstance(trig, dict):
+                    logger.warning(f"Trigger inválido en job '{name}': {trig}")
+                    continue
+                trig_type = trig.get("type")
+                if not trig_type:
+                    logger.warning(f"Trigger sin 'type' en job '{name}': {trig}")
+                    continue
+                trig_config = {k: v for k, v in trig.items() if k != "type"}
+                triggers.append(JobTrigger(type=trig_type, config=trig_config))
+
+            result.append(
+                JobDefinition(
+                    name=name,
+                    plugin=plugin,
+                    enabled=cfg.get("enabled", True),
+                    description=cfg.get("description", ""),
+                    args=cfg.get("args", []) or [],
+                    triggers=triggers,
+                )
+            )
+
+        return result
 
 
-def get_env_manager(project_root: Path | None = None) -> EnvManager:
-    return EnvManager(project_root)
-
+config_manager = TomlConfigManager()

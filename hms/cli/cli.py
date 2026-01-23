@@ -10,7 +10,8 @@ from typing import List, Optional, Tuple
 
 from hms.core.plugin import BasePlugin, StackPlugin
 from hms.lib.plugin_loader import get_plugin_loader
-from hms.lib.stacks import get_stack_manager
+from hms.lib.stacks import stack_metadata
+from hms.lib.stacks_old import get_stack_manager
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,10 @@ class CLIDispatcher:
         self.hms_root = Path(__file__).parent.parent
         self.verbose = False
         self.dry_run = False
-        self.stack_manager = get_stack_manager()
+        self.stack_manager_old = get_stack_manager()
+        self._stack_manager = stack_metadata
         self.plugin_loader = get_plugin_loader()
+        self._stack_manager.list_stacks()
 
     def discover_stacks(self) -> List[str]:
         """
@@ -41,7 +44,7 @@ class CLIDispatcher:
         Returns:
             List of stack names
         """
-        return self.stack_manager.discover_stacks()
+        return self._stack_manager.list_stacks()
 
     def discover_stack_plugins(self) -> dict:
         """Discover stack action plugins."""
@@ -83,7 +86,7 @@ class CLIDispatcher:
 
         return remaining, flags
 
-    def is_stack_action(self, arg: str, available_stacks: List[str]) -> bool:
+    def is_stack_action(self, arg: str) -> bool:
         """
         Determine if argument is a stack name/list or an action.
 
@@ -94,6 +97,7 @@ class CLIDispatcher:
         Returns:
             True if it's a stack name/list, False otherwise
         """
+        available_stacks = self.discover_stacks()
         # Check if it's a single stack
         if arg in available_stacks:
             return True
@@ -146,7 +150,6 @@ class CLIDispatcher:
             return 0
 
         try:
-            available_stacks = self.discover_stacks()
             stack_plugins = self.discover_stack_plugins()
             global_plugins = self.discover_global_plugins()
             global_order = self._get_global_command_order()
@@ -155,12 +158,12 @@ class CLIDispatcher:
             first_arg = args[0]
 
             # Check if first arg is a stack or stack list
-            if self.is_stack_action(first_arg, available_stacks):
-                return self._handle_stack_command(args, available_stacks, stack_plugins)
+            if self.is_stack_action(first_arg):
+                return self._handle_stack_command(args, stack_plugins)
 
             # Check if it's a known stack action (without stack specified = all stacks)
             elif first_arg in stack_plugins:
-                return self._handle_stack_command(args, available_stacks, stack_plugins)
+                return self._handle_stack_command(args, stack_plugins)
 
             # Otherwise, treat as global command
             else:
@@ -176,8 +179,7 @@ class CLIDispatcher:
             logger.error(f"Error: {e}")
             return 1
 
-    def _handle_stack_command(self, args: List[str], available_stacks: List[str],
-                               stack_plugins: dict) -> int:
+    def _handle_stack_command(self, args: List[str], stack_plugins: dict) -> int:
         """Handle stack-specific command."""
         # Parse: [stacks] <action> [args]
         stack_names = []
@@ -186,7 +188,7 @@ class CLIDispatcher:
 
         first_arg = args[0]
 
-        if self.is_stack_action(first_arg, available_stacks):
+        if self.is_stack_action(first_arg):
             # First arg is stack(s)
             stack_names = [s.strip() for s in first_arg.split(",")]
             if len(args) > 1:
@@ -214,30 +216,14 @@ class CLIDispatcher:
             logger.error(f"Failed to load plugin for action: {action}")
             return 1
 
-        # If no stacks specified, use all stacks (TODO: filter by enabled)
-        if not stack_names:
-            stack_names = available_stacks
-            logger.info(f"No stacks specified, applying to all: {', '.join(stack_names)}")
-
         # Execute plugin for each stack
         exit_code = 0
-        for stack_name in stack_names:
-            if stack_name not in available_stacks:
-                logger.warning(f"Unknown stack: {stack_name}")
-                exit_code = 1
-                continue
-
-            if self.verbose:
-                logger.debug(f"Executing {action} on {stack_name}...")
-
-            if isinstance(plugin, StackPlugin):
-                result = plugin.run_for_stack(stack_name, plugin_args)
+        if isinstance(plugin, StackPlugin):
+            if not stack_names:
+                # Run for all enabled stacks
+                exit_code = plugin.run_all_stacks(plugin_args)
             else:
-                # Fallback for plugins that don't implement StackPlugin
-                result = plugin.run([stack_name] + plugin_args)
-
-            if result != 0:
-                exit_code = result
+                exit_code = plugin.run_stacks(stack_names if stack_names else "all", plugin_args)
 
         return exit_code
 
@@ -375,8 +361,9 @@ Version 0.1.0
 USAGE:
   hms [OPTIONS] [STACKS] <ACTION> [ARGS]
   hms [OPTIONS] <COMMAND> [SUBCOMMAND] [ARGS]
+  hms stack <stack_name> <command> [OPTIONS]           # NEW: TOML-based stacks
 
-STACK ACTIONS:
+STACK ACTIONS (legacy):
 """)
 
         for action in self._sort_with_order(list(stack_plugins.keys()), stack_order):
@@ -406,6 +393,15 @@ GLOBAL COMMANDS:
                 print(f"    {subcommand_name:<12}  {description}")
 
         print(f"""
+NEW COMMAND - TOML-BASED STACKS:
+  stack validate                Valida la configuración TOML
+  stack <name> up               Levanta un stack
+  stack <name> down             Derriba un stack
+  stack <name> restart          Reinicia un stack o servicios
+  stack <name> logs [-f]        Ver logs (con -f para seguir)
+  stack <name> ps               Estado del stack
+  stack <name> config           Configuración resolvida
+  stack <name> env              Variables de entorno inyectadas
 
 OPTIONS:
   --verbose, -v   Verbose output
@@ -444,6 +440,8 @@ EXAMPLES:
 
         print(f"""
   {sample_global}                   # Run a global command
+  hms stack helloworld up            # NEW: Levanta stack desde TOML
+  hms stack media env --verbose      # NEW: Variables de entorno
   hms --help                          # Show this help
   hms {first_stack} {first_action} --verbose          # Verbose output
 """)

@@ -1,0 +1,35 @@
+networks:
+  hms-network:
+    external: true
+
+x-hms:
+  description: "Página principal del Home Server con información dinámica"
+
+services:
+  web:
+    build: .
+    container_name: ${STACK_PREFIX}
+    restart: unless-stopped
+    networks:
+      - hms-network
+    volumes:
+      # Acceso al socket de Docker para obtener información
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Acceso a información del sistema
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    labels:
+      traefik.enable: true
+      traefik.http.routers.home.rule: "Host(`${DOMAIN}`)"
+      traefik.http.routers.home.tls: "true"
+      traefik.http.routers.home.tls.certresolver: "cloudflare"
+      traefik.http.services.home.loadbalancer.server.port: "3000"
+      # Excluir de Watchtower (imagen construida localmente)
+      com.centurylinklabs.watchtower.enable: "false"
+      hms.description: "🏠 Home Server Dashboard"
