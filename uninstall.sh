@@ -1,43 +1,17 @@
 #!/usr/bin/env bash
-# HMS uninstaller - ejecuta hms stop y elimina symlink
+# HMS uninstaller wrapper - ejecuta el comando uninstall desde commands/
+# Este script se mantiene para compatibilidad de ejecución directa: ./uninstall.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$SCRIPT_DIR"
-USER_BIN="$HOME/.local/bin"
-WRAPPER="$USER_BIN/hms"
-WRAPPER_SRC="$REPO_ROOT/hms/bin/hms"
+UNINSTALL_CMD="$SCRIPT_DIR/commands/uninstall"
 
-# Colores para output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-echo "🗑️  Desinstalador HMS"
-echo ""
-
-# Ejecutar hms stop usando el bin directo (no symlink)
-echo "⏹️  Deteniendo HMS..."
-if [ -f "$WRAPPER_SRC" ]; then
-    "$WRAPPER_SRC" stop 2>/dev/null || {
-        echo -e "${YELLOW}⚠️  No se pudo ejecutar hms stop${NC}"
-    }
-else
-    echo -e "${YELLOW}⚠️  No se encontró wrapper en $WRAPPER_SRC${NC}"
+# Verificar que existe el comando uninstall
+if [ ! -f "$UNINSTALL_CMD" ]; then
+    echo "❌ No se encontró $UNINSTALL_CMD"
+    exit 1
 fi
 
-echo ""
-
-# Eliminar symlink
-if [ -L "$WRAPPER" ]; then
-    rm -f "$WRAPPER"
-    echo -e "${GREEN}✅ Symlink eliminado: $WRAPPER${NC}"
-elif [ -e "$WRAPPER" ]; then
-    echo -e "${YELLOW}⚠️  $WRAPPER existe pero no es symlink. No se elimina automáticamente.${NC}"
-else
-    echo -e "${YELLOW}ℹ️  No existe symlink en $WRAPPER${NC}"
-fi
-
-echo ""
-echo -e "${GREEN}✅ Desinstalación completada${NC}"
+# Delegar la ejecución al comando uninstall, pasando todos los argumentos
+exec "$UNINSTALL_CMD" "$@"
 

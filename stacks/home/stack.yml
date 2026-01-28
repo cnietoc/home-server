@@ -1,9 +1,0 @@
-# Stack Home - Dashboard del Home Server
-# =======================================
-config_files: []  # Solo usa common.env
-
-services:
-  web:
-    subdomain: ""  # Sin subdominio - dominio principal
-    protected: false
-

@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# HMS Update Command - pull del repo y rebuild del contenedor si hay cambios
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+STOP_CMD="$REPO_ROOT/commands/stop"
+START_CMD="$REPO_ROOT/commands/start"
+
+# Colores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🔄 HMS Updater${NC}"
+echo ""
+
+# Validar que estamos en el repo correcto
+if [ ! -d "$REPO_ROOT/.git" ]; then
+    echo -e "${RED}❌ No se encontró .git en $REPO_ROOT${NC}"
+    exit 1
+fi
+
+# Validar Docker (solo para verificar disponibilidad)
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}❌ Docker no está instalado en el host${NC}"
+    exit 1
+fi
+
+if ! docker info &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Docker daemon no disponible. No se puede actualizar HMS.${NC}"
+    exit 1
+fi
+
+# Guardar hash antes de pull
+echo "📊 Comparando cambios..."
+HASH_BEFORE=$(git -C "$REPO_ROOT" rev-parse HEAD)
+
+# Git pull
+echo "⬇️  Haciendo git pull..."
+if ! git -C "$REPO_ROOT" pull; then
+    echo -e "${RED}❌ Error en git pull. Verifica conflictos manualmente.${NC}"
+    exit 1
+fi
+
+HASH_AFTER=$(git -C "$REPO_ROOT" rev-parse HEAD)
+
+# Si el hash no cambió, nada que hacer
+if [ "$HASH_BEFORE" = "$HASH_AFTER" ]; then
+    echo -e "${YELLOW}ℹ️  El repositorio ya estaba actualizado; se reiniciará igualmente${NC}"
+fi
+
+# Detectar cambios relevantes
+CHANGED_FILES=$(git -C "$REPO_ROOT" diff --name-only $HASH_BEFORE..$HASH_AFTER)
+
+if echo "$CHANGED_FILES" | grep -qE '^hms/|^core/hms/|^pyproject\.toml|^requirements\.txt'; then
+    echo "📦 Cambios detectados en el código HMS:"
+    echo "$CHANGED_FILES" | grep -E '^hms/|^core/hms/|^pyproject\.toml|^requirements\.txt' || true
+else
+    echo -e "${GREEN}ℹ️  Sin cambios relevantes en el código HMS${NC}"
+fi
+
+# Reiniciar HMS usando los comandos del sistema
+echo ""
+echo -e "${BLUE}🔄 Reiniciando HMS...${NC}"
+
+# Parar HMS
+echo "🛑 Deteniendo HMS..."
+if ! "$STOP_CMD"; then
+    echo -e "${RED}❌ Error al detener HMS${NC}"
+    exit 1
+fi
+
+echo ""
+
+# Iniciar HMS (que reconstruirá la imagen si es necesario)
+echo "🚀 Iniciando HMS..."
+if ! "$START_CMD"; then
+    echo -e "${RED}❌ Error al iniciar HMS${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${GREEN}✅ Actualización completada${NC}"
+if [ -n "$CHANGED_FILES" ]; then
+    echo -e "${GREEN}Cambios aplicados:${NC}"
+    echo "$CHANGED_FILES"
+fi

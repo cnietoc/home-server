@@ -17,15 +17,12 @@ resolve_realpath() {
 REALPATH="$(resolve_realpath "$SCRIPT_PATH")"
 REPO_ROOT="$(cd "$(dirname "$REALPATH")/../.." && pwd)"
 
-COMPOSE_DIR="$REPO_ROOT/core/hms"
 CONTAINER_NAME="hms"
 CONFIG_FILE="$REPO_ROOT/config.toml"
 COMMANDS_DIR="$REPO_ROOT/commands"
 
 # Colors
 RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 log_error() { echo -e "${RED}❌ $*${NC}" >&2; }
@@ -49,7 +46,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
-# Check if command is start or stop (special handling)
+# Check if command is start, stop, install, update, or uninstall (special handling)
 COMMAND="${1:-}"
 if [ "$COMMAND" = "start" ]; then
   # Execute start command (starts container if needed)
@@ -59,6 +56,18 @@ elif [ "$COMMAND" = "stop" ]; then
   # Execute stop command (stops container and services)
   shift
   exec "$COMMANDS_DIR/stop" "$@"
+elif [ "$COMMAND" = "install" ]; then
+  # Execute install command (sets up symlink and config)
+  shift
+  exec "$COMMANDS_DIR/install" "$@"
+elif [ "$COMMAND" = "update" ]; then
+  # Execute update command (pulls repo and restarts HMS)
+  shift
+  exec "$COMMANDS_DIR/update" "$@"
+elif [ "$COMMAND" = "uninstall" ]; then
+  # Execute uninstall command (removes symlink and stops HMS)
+  shift
+  exec "$COMMANDS_DIR/uninstall" "$@"
 fi
 
 # For all other commands, verify HMS container is running
