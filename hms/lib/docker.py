@@ -182,9 +182,16 @@ class DockerComposeManager:
             return "not-found"
 
         try:
+            import os
+            env = os.environ.copy()
+            env_vars = stack_metadata.get_stack_vars(stack_name)
+            if env_vars:
+                env.update(env_vars)
+
             result, output = self._exec(
                 ["docker", "compose", "ps", "--format", "json"],
                 stack_name,
+                env,
                 hidden=True
             )
 
@@ -222,7 +229,7 @@ class DockerComposeManager:
             logger.error(f"Error checking status for stack '{stack_name}': {e}")
             return "not-found"
 
-    def _exec(self, command: list, stack_name: str, env: Optional[dict] = None, hidden: bool = False) -> Tuple[int, str]:
+    def _exec(self, command: list, stack_name: str, env: Optional[dict], hidden: bool = False) -> Tuple[int, str]:
         """
         Ejecuta un comando docker compose en el directorio del stack.
 

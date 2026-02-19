@@ -1,3 +1,5 @@
+name: ${STACK_PREFIX}
+
 networks:
   hms-network:
     external: true

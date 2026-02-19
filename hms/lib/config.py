@@ -10,9 +10,9 @@ Proporciona:
 """
 
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional, Any, List, Literal
-from dataclasses import dataclass, field
 
 try:
     import tomllib
@@ -296,7 +296,7 @@ class TomlConfigManager:
         default_config = self._load_toml_file(self._default_config_path)
         user_config = self._load_toml_file(self._config_path)
 
-        if stack_name is "infra":
+        if stack_name == "infra":
             stack_default_config = default_config.get("infra", {})
             stack_user_config = user_config.get("infra", {})
         else:
@@ -338,7 +338,24 @@ class TomlConfigManager:
         :return: Diccionario con la configuración global
         """
         config = self._load_config()
-        return config.get("global", {})
+
+        # Quitamos de la configuración algunas claves específicas de backups y shares
+        result = config.get("global", {}).copy()
+        if "backups" in result:
+            del result["backups"]
+        if "shares" in result:
+            del result["shares"]
+        return result
+
+    def get_global_backup_config(self) -> Dict[str, Any]:
+        """
+        Obtiene la configuración global de backups desde config.toml.
+
+        :return: Diccionario con la configuración global de backups
+        """
+        config = self._load_config()
+
+        return config.get("global", {}).get("backups", {})
 
     def get_stack_config(self, stack_name: str) -> Dict[str, Any]:
         """
@@ -353,7 +370,29 @@ class TomlConfigManager:
             return config.get(stack_name, {})
 
         stacks_config = config.get("stacks", {})
-        return stacks_config.get(stack_name, {})
+
+        result = stacks_config.get(stack_name, {}).copy()
+        if "backups" in result:
+            del result["backups"]
+        if "shares" in result:
+            del result["shares"]
+        return result
+
+    def get_stack_backup_config(self, stack_name: str) -> Dict[str, Any]:
+        """
+        Obtiene la configuración específica de un stack relacionada con backups.
+
+        :param stack_name: Nombre del stack
+        :return: Diccionario con la configuración del stack de backups
+        """
+        config = self._load_config()
+
+        if stack_name == "infra":
+            return config.get(stack_name, {}).get("backups", {})
+
+        stacks_config = config.get("stacks", {})
+
+        return stacks_config.get(stack_name, {}).get("backups", {})
 
     def is_stack_enabled(self, stack_name: str) -> bool:
         """

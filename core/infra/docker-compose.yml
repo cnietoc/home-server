@@ -1,3 +1,5 @@
+name: ${STACK_PREFIX}
+
 networks:
   hms-network:
     name: hms-network
@@ -131,6 +133,8 @@ services:
       - "hms.description=🔄 Actualizaciones automáticas de imágenes"
 
   samba:
+    profiles:
+      - TODO
     image: crazymax/samba:latest
     container_name: ${STACK_PREFIX}-samba
     restart: unless-stopped

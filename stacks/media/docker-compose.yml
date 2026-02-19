@@ -1,3 +1,11 @@
+name: ${STACK_PREFIX}
+
+networks:
+  hms-network:
+    external: true
+  media_internal:
+    name: ${STACK_PREFIX}-network
+
 x-hms:
   description: "Suite completa de medios: descargas, gestión y streaming"
 
@@ -223,8 +231,3 @@ services:
       - TZ=${TZ}
     # No necesita proxy inverso (solo para uso interno)
 
-networks:
-  hms-network:
-    external: true
-  media_internal:
-    name: ${STACK_PREFIX}-network

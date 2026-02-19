@@ -127,9 +127,9 @@ def _generate_empty_config(override_file: Path, config_dir: Path):
         "    volumes:",
         "      - ${STACK_DATA}/samba:/config",
         "    environment:",
-        "      - SAMBA_USERNAME=${{SAMBA_USERNAME:-smbuser}}",
-        "      - SAMBA_PASSWORD=${{SAMBA_PASSWORD:-changeme}}",
-        "      - SAMBA_WORKGROUP=${{SAMBA_WORKGROUP:-WORKGROUP}}",
+        "      - SAMBA_USERNAME=${SAMBA_USERNAME:-smbuser}",
+        "      - SAMBA_PASSWORD=${SAMBA_PASSWORD:-changeme}",
+        "      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}",
     ]
     override_file.write_text("\n".join(lines) + "\n")
     config_lines = [

@@ -1,3 +1,5 @@
+name: ${STACK_PREFIX}
+
 x-hms:
   description: "Servidor de juego Necesse"
 

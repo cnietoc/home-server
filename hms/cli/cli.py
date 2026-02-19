@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple
 from hms.core.plugin import BasePlugin, StackPlugin
 from hms.lib.plugin_loader import get_plugin_loader
 from hms.lib.stacks import stack_metadata
-from hms.lib.stacks_old import get_stack_manager
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,6 @@ class CLIDispatcher:
         self.hms_root = Path(__file__).parent.parent
         self.verbose = False
         self.dry_run = False
-        self.stack_manager_old = get_stack_manager()
         self._stack_manager = stack_metadata
         self.plugin_loader = get_plugin_loader()
         self._stack_manager.list_stacks()
