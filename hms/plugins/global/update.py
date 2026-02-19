@@ -39,7 +39,7 @@ NOTE:
   This command delegates to commands/update script for execution.
 """
 
-    def execute(self, args: list) -> int:
+    def run(self, args: list) -> int:
         """Execute update command."""
         # This is handled by the wrapper in hms/bin/hms
         # which delegates to commands/update
