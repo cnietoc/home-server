@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_CMD="$SCRIPT_DIR/commands/install"
+INSTALL_CMD="$SCRIPT_DIR/hms/bin/commands/install"
 
 # Verificar que existe el comando install
 if [ ! -f "$INSTALL_CMD" ]; then

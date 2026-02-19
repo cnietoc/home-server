@@ -19,7 +19,7 @@ REPO_ROOT="$(cd "$(dirname "$REALPATH")/../.." && pwd)"
 
 CONTAINER_NAME="hms"
 CONFIG_FILE="$REPO_ROOT/config.toml"
-COMMANDS_DIR="$REPO_ROOT/commands"
+COMMANDS_DIR="$(dirname "$REALPATH")/commands"
 
 # Colors
 RED='\033[0;31m'

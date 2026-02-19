@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UPDATE_CMD="$SCRIPT_DIR/commands/update"
+UPDATE_CMD="$SCRIPT_DIR/hms/bin/commands/update"
 
 # Verificar que existe el comando update
 if [ ! -f "$UPDATE_CMD" ]; then

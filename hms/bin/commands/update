@@ -3,9 +3,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-STOP_CMD="$REPO_ROOT/commands/stop"
-START_CMD="$REPO_ROOT/commands/start"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+STOP_CMD="$REPO_ROOT/hms/bin/commands/stop"
+START_CMD="$REPO_ROOT/hms/bin/commands/start"
 
 # Colores para output
 RED='\033[0;31m'

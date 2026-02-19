@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UNINSTALL_CMD="$SCRIPT_DIR/commands/uninstall"
+UNINSTALL_CMD="$SCRIPT_DIR/hms/bin/commands/uninstall"
 
 # Verificar que existe el comando uninstall
 if [ ! -f "$UNINSTALL_CMD" ]; then
