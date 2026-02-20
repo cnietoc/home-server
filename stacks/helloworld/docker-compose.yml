@@ -23,6 +23,7 @@ services:
       - PGID=${PGID}
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.test.rule: "Host(`test.${DOMAIN}`)"
       traefik.http.routers.test.tls: "true"
       traefik.http.routers.test.tls.certresolver: "cloudflare"

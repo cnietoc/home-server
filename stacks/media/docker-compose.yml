@@ -3,6 +3,8 @@ name: ${STACK_PREFIX}
 networks:
   hms-network:
     external: true
+  media_internal:
+    name: ${STACK_PREFIX}-network
 
 x-hms:
   description: "Suite completa de medios: descargas, gestión y streaming"
@@ -15,6 +17,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/jellyfin:/config
       - ${STACK_DATA}/config/jellyfin/temp:/cache
@@ -31,6 +34,7 @@ services:
       - JELLYFIN_PublishedServerUrl=https://jellyfin.${DOMAIN}
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.jellyfin.rule: "Host(`jellyfin.${DOMAIN}`)"
       traefik.http.routers.jellyfin.tls: "true"
       traefik.http.routers.jellyfin.tls.certresolver: "cloudflare"
@@ -44,6 +48,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/qbittorrent:/config
       - ${STACK_DATA}/downloads:/media/downloads
@@ -58,6 +63,7 @@ services:
       - "6881:6881/udp"
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.qbittorrent.rule: "Host(`qbittorrent.${DOMAIN}`)"
       traefik.http.routers.qbittorrent.tls: "true"
       traefik.http.routers.qbittorrent.tls.certresolver: "cloudflare"
@@ -72,6 +78,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/radarr:/config
       - ${STACK_DATA}/library/movies:/media/library/movies
@@ -83,6 +90,7 @@ services:
       - UMASK=002
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.radarr.rule: "Host(`radarr.${DOMAIN}`)"
       traefik.http.routers.radarr.tls: "true"
       traefik.http.routers.radarr.tls.certresolver: "cloudflare"
@@ -100,6 +108,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/sonarr:/config
       - ${STACK_DATA}/library/tv:/media/library/tv
@@ -111,6 +120,7 @@ services:
       - UMASK=002
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.sonarr.rule: "Host(`sonarr.${DOMAIN}`)"
       traefik.http.routers.sonarr.tls: "true"
       traefik.http.routers.sonarr.tls.certresolver: "cloudflare"
@@ -128,6 +138,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/prowlarr:/config
     environment:
@@ -137,6 +148,7 @@ services:
       - UMASK=002
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.prowlarr.rule: "Host(`prowlarr.${DOMAIN}`)"
       traefik.http.routers.prowlarr.tls: "true"
       traefik.http.routers.prowlarr.tls.certresolver: "cloudflare"
@@ -152,6 +164,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/tdarr/server:/app/server
       - ${STACK_DATA}/config/tdarr:/app/configs
@@ -174,6 +187,7 @@ services:
       - nodeName=${STACK_PREFIX}_node
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.tdarr.rule: "Host(`tdarr.${DOMAIN}`)"
       traefik.http.routers.tdarr.tls: "true"
       traefik.http.routers.tdarr.tls.certresolver: "cloudflare"
@@ -189,6 +203,7 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/jackett:/config
       - ${STACK_DATA}/downloads/watch:/media/downloads/watch        # RW - deposita .torrents en watch folder
@@ -199,6 +214,7 @@ services:
       - UMASK=002
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.jackett.rule: "Host(`jackett.${DOMAIN}`)"
       traefik.http.routers.jackett.tls: "true"
       traefik.http.routers.jackett.tls.certresolver: "cloudflare"
@@ -212,7 +228,7 @@ services:
     container_name: ${STACK_PREFIX}-flaresolverr
     restart: unless-stopped
     networks:
-      - hms-network
+      - media_internal
     volumes:
       - ${STACK_DATA}/config/flaresolverr:/config
     environment:
