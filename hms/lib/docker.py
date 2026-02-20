@@ -229,6 +229,91 @@ class DockerComposeManager:
             logger.error(f"Error checking status for stack '{stack_name}': {e}")
             return "not-found"
 
+    def _get_stack_containers(self, stack_name: str) -> list[dict]:
+        """
+        Obtiene la lista de contenedores para un stack.
+
+        :param stack_name: Nombre del stack
+        :return: Lista de diccionarios con información de los contenedores
+        """
+        compose_file = self._get_compose_file(stack_name)
+        if not compose_file:
+            return []
+
+        try:
+            env = os.environ.copy()
+            env_vars = stack_metadata.get_stack_vars(stack_name)
+            if env_vars:
+                env.update(env_vars)
+
+            _, output = self._exec(
+                ["docker", "compose", "ps", "--format", "json"],
+                stack_name,
+                env,
+                hidden=True,
+            )
+
+            containers: list[dict] = []
+            for line in output.split("\n"):
+                if line.strip():
+                    try:
+                        containers.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+            return containers
+        except Exception as e:
+            logger.error(f"Error listing containers for stack '{stack_name}': {e}")
+            return []
+
+    def get_stack_container_counts(self, stack_name: str) -> dict:
+        """
+        Obtiene el conteo de contenedores por estado para un stack.
+
+        :param stack_name: Nombre del stack
+        :return: Diccionario con conteos de contenedores en ejecución, detenidos y total
+        """
+        containers = self._get_stack_containers(stack_name)
+        if not containers:
+            return {"running": 0, "stopped": 0, "total": 0}
+
+        running = sum(1 for c in containers if c.get("State") == "running")
+        total = len(containers)
+        return {"running": running, "stopped": max(total - running, 0), "total": total}
+
+    def get_stack_service_counts(self, stack_name: str) -> dict[str, dict]:
+        """
+        Obtiene el conteo de contenedores por servicio para un stack.
+
+        :param stack_name: Nombre del stack
+        :return: Diccionario con conteos de contenedores por servicio
+        """
+        containers = self._get_stack_containers(stack_name)
+        if not containers:
+            return {}
+
+        services: dict[str, dict] = {}
+        for container in containers:
+            service = container.get("Service") or container.get("service")
+            if not service:
+                continue
+            state = container.get("State") or container.get("state")
+            if service not in services:
+                services[service] = {"running": 0, "stopped": 0, "total": 0}
+            services[service]["total"] += 1
+            if state == "running":
+                services[service]["running"] += 1
+
+        for service, counts in services.items():
+            counts["stopped"] = max(counts["total"] - counts["running"], 0)
+            if counts["running"] == 0:
+                counts["state"] = "stopped"
+            elif counts["running"] == counts["total"]:
+                counts["state"] = "running"
+            else:
+                counts["state"] = "partial"
+
+        return services
+
     def _exec(self, command: list, stack_name: str, env: Optional[dict], hidden: bool = False) -> Tuple[int, str]:
         """
         Ejecuta un comando docker compose en el directorio del stack.

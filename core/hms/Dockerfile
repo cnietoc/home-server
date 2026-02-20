@@ -42,9 +42,9 @@ RUN chmod +x /entrypoint.sh
 
 VOLUME [ "/app/config.toml", "/app/logs", "/app/data" , "/app/stacks" , "/app/core", "/var/run/docker.sock"]
 
-# Healthcheck: simple llamada HTTP al endpoint /health
+# Healthcheck: simple llamada HTTP al endpoint /api/health
 HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
 # Crear carpeta de trabajo de docker y dar permisos
 RUN mkdir -p /.docker && chown -R ${PUID}:${PGID} /.docker

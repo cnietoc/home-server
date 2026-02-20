@@ -147,6 +147,85 @@
             word-break: break-all;
         }
 
+        .stack-block {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stack-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .stack-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .stack-desc {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 0.25rem;
+        }
+
+        .stack-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: right;
+        }
+
+        .stack-counts {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .endpoint-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.35rem;
+        }
+
+        .endpoint-link {
+            font-size: 0.7rem;
+            color: #e0e7ff;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .endpoint-link:hover {
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .visibility-badge {
+            margin-left: 0.5rem;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .visibility-public {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .visibility-private {
+            background: rgba(249, 115, 22, 0.15);
+            color: #f97316;
+        }
 
         .status-indicator {
             padding: 0.25rem 0.75rem;
@@ -225,7 +304,7 @@
     <div class="container">
     <div class="header">
         <h1>🏠 Home Server</h1>
-        <p class="subtitle">Monitor de Sistema y Contenedores Docker</p>
+        <p class="subtitle">Resumen del sistema y servicios activos</p>
         <div class="last-updated" id="lastUpdated">Cargando...</div>
     </div>
 
@@ -237,11 +316,11 @@
             </div>
         </div>
 
-        <!-- Contenedores Docker -->
+        <!-- Stacks y servicios -->
         <div class="card">
-            <h2><span class="icon">🐳</span> Contenedores Docker</h2>
-            <div class="services-container" id="dockerContainers">
-                <div class="loading">Cargando contenedores...</div>
+            <h2><span class="icon">🧩</span> Stacks y servicios</h2>
+            <div class="services-container" id="stacksContainer">
+                <div class="loading">Cargando servicios...</div>
             </div>
         </div>
     </div>
@@ -253,7 +332,9 @@
     <script>
         // Función para formatear fechas
         function formatDate(dateString) {
-            const date = new Date(dateString);
+            const date = typeof dateString === 'number'
+                ? new Date(dateString * 1000)
+                : new Date(dateString);
             return date.toLocaleString('es-ES', {
                 year: 'numeric',
                 month: 'short',
@@ -264,6 +345,16 @@
             });
         }
 
+        function getStatusBadge(state) {
+            const statusMap = {
+                running: { class: 'status-low', text: '🟢 On' },
+                partial: { class: 'status-medium', text: '🟡 Parcial' },
+                stopped: { class: 'status-high', text: '🔴 Off' },
+                'not-found': { class: 'status-medium', text: '⚪ N/A' }
+            };
+            return statusMap[state] || { class: 'status-medium', text: `⚪ ${state}` };
+        }
+
         // Función para renderizar información del sistema
         function renderSystemInfo(system) {
             const container = document.getElementById('systemInfo');
@@ -271,7 +362,7 @@
             container.innerHTML = `
                 <div class="info-item">
                     <span class="info-label">Servidor</span>
-                    <span class="info-value">${system.serverName}</span>
+                    <span class="info-value">${system.server_name}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Tiempo Activo</span>
@@ -280,14 +371,14 @@
                 <div class="info-item">
                     <span class="info-label">Memoria</span>
                     <div class="info-value">
-                        ${system.memory.usage}
+                        ${system.memory.usage_percent}%
                         <span class="status-indicator status-${system.memory.status}">${system.memory.status}</span>
                     </div>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Disco</span>
                     <div class="info-value">
-                        ${system.disk.usage} usado, ${system.disk.available} libre
+                        ${system.disk.usage_percent}% usado
                         <span class="status-indicator status-${system.disk.status}">${system.disk.status}</span>
                     </div>
                 </div>
@@ -299,64 +390,71 @@
                     </div>
                 </div>
                 <div class="info-item">
+                    <span class="info-label">Stacks</span>
+                    <span class="info-value">${system.totals.stacks}</span>
+                </div>
+                <div class="info-item">
                     <span class="info-label">Contenedores</span>
                     <span class="info-value">
-                        ${system.containers.running} activos /
-                        ${system.containers.stopped} detenidos /
-                        ${system.containers.total} total
+                        ${system.totals.containers.running} on /
+                        ${system.totals.containers.stopped} off /
+                        ${system.totals.containers.total} total
                     </span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Imágenes Docker</span>
-                    <span class="info-value">
-                        ${system.images.total} total
-                        ${system.images.dangling > 0 ? `(${system.images.dangling} sin usar)` : ''}
-                    </span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Volúmenes Docker</span>
-                    <span class="info-value">${system.volumes.total}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Redes Docker</span>
-                    <span class="info-value">${system.networks.total}</span>
                 </div>
             `;
         }
 
-        // Función para obtener el estado visual del contenedor
-        function getContainerStatus(state) {
-            const statusMap = {
-                'running': { class: 'status-low', text: '🟢 Activo' },
-                'exited': { class: 'status-high', text: '🔴 Detenido' },
-                'paused': { class: 'status-medium', text: '🟡 Pausado' },
-                'restarting': { class: 'status-medium', text: '🟡 Reiniciando' },
-                'dead': { class: 'status-high', text: '💀 Muerto' }
-            };
-            return statusMap[state] || { class: 'status-medium', text: `⚪ ${state}` };
-        }
+        function renderStacks(stacks) {
+            const container = document.getElementById('stacksContainer');
 
-        // Función para renderizar contenedores Docker
-        function renderDockerContainers(containers) {
-            const container = document.getElementById('dockerContainers');
-
-            if (!containers || containers.length === 0) {
-                container.innerHTML = '<div class="info-item"><span class="info-label">No hay contenedores Docker</span></div>';
+            if (!stacks || stacks.length === 0) {
+                container.innerHTML = '<div class="info-item"><span class="info-label">No hay stacks disponibles</span></div>';
                 return;
             }
 
-            container.innerHTML = containers.map(c => {
-                const status = getContainerStatus(c.state);
+            container.innerHTML = stacks.map(stack => {
+                const status = getStatusBadge(stack.status);
+                const services = stack.services || [];
                 return `
-                    <div class="service-item">
-                        <div class="service-info">
-                            <div class="service-name">${c.name}</div>
-                            <div class="service-url">
-                                📦 ${c.image} | ${c.status}
-                                ${c.ports ? ` | 🔌 ${c.ports}` : ''}
+                    <div class="stack-block">
+                        <div class="stack-header">
+                            <div>
+                                <div class="stack-title">${stack.name}</div>
+                                <div class="stack-desc">${stack.description || ''}</div>
+                            </div>
+                            <div class="stack-meta">
+                                <span class="status-indicator ${status.class}">${status.text}</span>
+                                <span class="stack-counts">
+                                    ${stack.containers.running} on /
+                                    ${stack.containers.stopped} off /
+                                    ${stack.containers.total} total
+                                </span>
                             </div>
                         </div>
-                        <span class="status-indicator ${status.class}">${status.text}</span>
+                        <div class="services-container">
+                            ${services.length ? services.map(service => {
+                                const serviceStatus = getStatusBadge(service.state);
+                                const visibilityClass = service.public ? 'visibility-public' : 'visibility-private';
+                                const visibilityText = service.public ? 'publico' : 'protegido';
+                                return `
+                                    <div class="service-item">
+                                        <div class="service-info">
+                                            <div class="service-name">
+                                                ${service.name}
+                                                <span class="visibility-badge ${visibilityClass}">${visibilityText}</span>
+                                            </div>
+                                            <div class="service-url">${service.description || ''}</div>
+                                            <div class="endpoint-list">
+                                                ${(service.endpoints || []).map(endpoint => `
+                                                    <a class="endpoint-link" href="${endpoint.url}" target="_blank" rel="noreferrer">${endpoint.host}</a>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        <span class="status-indicator ${serviceStatus.class}">${serviceStatus.text}</span>
+                                    </div>
+                                `;
+                            }).join('') : '<div class="info-item"><span class="info-label">Sin servicios</span></div>'}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -377,14 +475,14 @@
 
                 // Renderizar componentes
                 renderSystemInfo(data.system);
-                renderDockerContainers(data.containers);
+                renderStacks(data.stacks);
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
                 document.getElementById('systemInfo').innerHTML =
                     '<div class="error">Error cargando información del sistema</div>';
-                document.getElementById('dockerContainers').innerHTML =
-                    '<div class="error">Error cargando contenedores Docker</div>';
+                document.getElementById('stacksContainer').innerHTML =
+                    '<div class="error">Error cargando servicios</div>';
             } finally {
                 refreshIcon.classList.remove('spinning');
             }

@@ -37,11 +37,11 @@ EXAMPLES:
 
     def run(self, args: List[str]) -> int:
         """Execute plugin."""
-        # Lanza una llamada al scheduler para recargar los jobs al endpoint /reload
+        # Lanza una llamada al scheduler para recargar los jobs via API
         import requests
 
         try:
-            scheduler_url = "http://localhost:8080/reload"  # Ajustar si el scheduler está en otra URL/puerto
+            scheduler_url = "http://localhost:8080/api/scheduler/reload"  # Ajustar si el scheduler está en otra URL/puerto
             response = requests.post(scheduler_url, timeout=10)
             if response.status_code == 200:
                 data = response.json()

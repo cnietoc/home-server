@@ -202,6 +202,32 @@ class StackMetadata:
                 return False
         return True and self.get_service_subdomain(stack_name, service) is not None
 
+    def get_service_hosts(self, stack_name: str, service: str) -> list[str]:
+        """
+        Get hostnames from Traefik rule labels (Host(`a.example`, `b.example`)).
+        :param stack_name: Name of the stack
+        :param service: Name of the service
+        :return: List of hostnames
+        """
+        import re
+
+        traefik_rules = self._get_service_labels(stack_name, service, "traefik.http.routers.*.rule")
+        hosts: list[str] = []
+
+        for _, rule in traefik_rules.items():
+            for match in re.findall(r"Host\(`([^`]+)`\)", rule):
+                for host in match.split("`,`"):
+                    host = host.strip()
+                    if host:
+                        hosts.append(host)
+
+        # Deduplicate while preserving order
+        unique_hosts = []
+        for host in hosts:
+            if host not in unique_hosts:
+                unique_hosts.append(host)
+        return unique_hosts
+
     def get_service_subdomain(self, stack_name: str, service: str) -> str | None:
         """
         Get subdomain of a service from traefik labels.

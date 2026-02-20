@@ -14,20 +14,16 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-    volumes:
-      # Acceso al socket de Docker para obtener información
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Acceso a información del sistema
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+      - HMS_API_URL=http://hms:8080
     labels:
       traefik.enable: true
+      traefik.docker.network: "hms-network"
       traefik.http.routers.home.rule: "Host(`${DOMAIN}`)"
       traefik.http.routers.home.tls: "true"
       traefik.http.routers.home.tls.certresolver: "cloudflare"
