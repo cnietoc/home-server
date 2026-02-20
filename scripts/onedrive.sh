@@ -103,16 +103,16 @@ configure_onedrive_remote() {
     log "🔧 Iniciando configuración interactiva de OneDrive..."
     echo ""
     info "INSTRUCCIONES:"
-    echo "  1. Selecciona 'n' para crear un nuevo remoto"
-    echo "  2. Nombre del remoto: ${GREEN}${REMOTE_NAME}${NC}"
-    echo "  3. Tipo de almacenamiento: busca '${GREEN}onedrive${NC}' o su número"
-    echo "  4. Client ID y Secret: déjalos ${GREEN}vacíos${NC} (presiona Enter)"
-    echo "  5. Región: selecciona '${GREEN}1${NC}' (Microsoft Cloud Global)"
-    echo "  6. Configuración avanzada: ${GREEN}No${NC}"
-    echo "  7. Autorización automática: ${GREEN}Sí${NC}"
-    echo "  8. Se abrirá un navegador para autorizar el acceso"
-    echo "  9. Tipo de configuración: ${GREEN}1${NC} (OneDrive Personal o Business)"
-    echo "  10. Confirma la selección y guarda"
+    echo -e "  1. Selecciona 'n' para crear un nuevo remoto"
+    echo -e "  2. Nombre del remoto: ${GREEN}${REMOTE_NAME}${NC}"
+    echo -e "  3. Tipo de almacenamiento: busca '${GREEN}onedrive${NC}' o su número"
+    echo -e "  4. Client ID y Secret: déjalos ${GREEN}vacíos${NC} (presiona Enter)"
+    echo -e "  5. Región: selecciona '${GREEN}1${NC}' (Microsoft Cloud Global)"
+    echo -e "  6. Configuración avanzada: ${GREEN}No${NC}"
+    echo -e "  7. Autorización automática: ${GREEN}Sí${NC}"
+    echo -e "  8. Se abrirá un navegador para autorizar el acceso"
+    echo -e "  9. Tipo de configuración: ${GREEN}1${NC} (OneDrive Personal o Business)"
+    echo -e "  10. Confirma la selección y guarda"
     echo ""
     warn "⚠️  Asegúrate de tener un navegador disponible para la autorización"
     echo ""
@@ -154,16 +154,16 @@ list_onedrive_folders() {
         echo ""
         info "Carpetas disponibles:"
         for i in "${!folders[@]}"; do
-            echo "  ${CYAN}$((i+1)).${NC} ${folders[$i]}"
+            echo -e "  ${CYAN}$((i+1)).${NC} ${folders[$i]}"
         done
     fi
 
     echo ""
-    echo "Opciones:"
-    echo "  ${GREEN}[número]${NC} - Entrar en una carpeta"
-    echo "  ${GREEN}..${NC}       - Volver atrás"
-    echo "  ${GREEN}.${NC}        - Usar la carpeta actual"
-    echo "  ${GREEN}q${NC}        - Cancelar y salir"
+    echo -e "Opciones:"
+    echo -e "  ${GREEN}[número]${NC} - Entrar en una carpeta"
+    echo -e "  ${GREEN}..${NC}       - Volver atrás"
+    echo -e "  ${GREEN}.${NC}        - Usar la carpeta actual"
+    echo -e "  ${GREEN}q${NC}        - Cancelar y salir"
     echo ""
     prompt "Selección: "
     read -r selection
@@ -425,42 +425,42 @@ show_final_info() {
 
     success "Resumen de la configuración:"
     echo ""
-    echo "  ${CYAN}Remoto rclone:${NC}        ${REMOTE_NAME}"
-    echo "  ${CYAN}Carpeta OneDrive:${NC}     ${onedrive_path}"
-    echo "  ${CYAN}Carpeta local backups:${NC} ${PROJECT_ROOT}/backups"
-    echo "  ${CYAN}Archivo config.toml:${NC}  ${PROJECT_ROOT}/config.toml"
+    echo -e "  ${CYAN}Remoto rclone:${NC}        ${REMOTE_NAME}"
+    echo -e "  ${CYAN}Carpeta OneDrive:${NC}     ${onedrive_path}"
+    echo -e "  ${CYAN}Carpeta local backups:${NC} ${PROJECT_ROOT}/backups"
+    echo -e "  ${CYAN}Archivo config.toml:${NC}  ${PROJECT_ROOT}/config.toml"
     echo ""
 
     info "Servicios configurados:"
-    echo "  ${GREEN}✓${NC} home-server-backup-sync  - Sincroniza backups diariamente a las 3 AM"
-    echo "  ${GREEN}✓${NC} home-server-config-sync  - Sincroniza config.toml cada hora"
+    echo -e "  ${GREEN}✓${NC} home-server-backup-sync  - Sincroniza backups diariamente a las 3 AM"
+    echo -e "  ${GREEN}✓${NC} home-server-config-sync  - Sincroniza config.toml cada hora"
     echo ""
 
     info "Comportamiento especial:"
-    echo "  ${GREEN}✓${NC} Si el PC está apagado a las 3 AM, el backup se ejecuta al arrancar"
-    echo "  ${GREEN}✓${NC} Los archivos borrados localmente se borran también en OneDrive"
-    echo "  ${GREEN}✓${NC} OneDrive mantiene papelera de reciclaje (30 días de recuperación)"
+    echo -e "  ${GREEN}✓${NC} Si el PC está apagado a las 3 AM, el backup se ejecuta al arrancar"
+    echo -e "  ${GREEN}✓${NC} Los archivos borrados localmente se borran también en OneDrive"
+    echo -e "  ${GREEN}✓${NC} OneDrive mantiene papelera de reciclaje (30 días de recuperación)"
     echo ""
 
     info "Comandos útiles:"
     echo ""
-    echo "  ${CYAN}# Ver estado de los servicios${NC}"
+    echo -e "  ${CYAN}# Ver estado de los servicios${NC}"
     echo "  systemctl --user status home-server-backup-sync.timer"
     echo "  systemctl --user status home-server-config-sync.timer"
     echo ""
-    echo "  ${CYAN}# Ver logs de sincronización${NC}"
+    echo -e "  ${CYAN}# Ver logs de sincronización${NC}"
     echo "  journalctl --user -u home-server-backup-sync.service -f"
     echo "  journalctl --user -u home-server-config-sync.service -f"
     echo ""
-    echo "  ${CYAN}# Forzar sincronización inmediata${NC}"
+    echo -e "  ${CYAN}# Forzar sincronización inmediata${NC}"
     echo "  systemctl --user start home-server-backup-sync.service"
     echo "  systemctl --user start home-server-config-sync.service"
     echo ""
-    echo "  ${CYAN}# Ver archivos en rclone${NC}"
+    echo -e "  ${CYAN}# Ver archivos en rclone${NC}"
     echo "  cat ${PROJECT_ROOT}/logs/rclone-backup-sync.log"
     echo "  cat ${PROJECT_ROOT}/logs/rclone-config-sync.log"
     echo ""
-    echo "  ${CYAN}# Deshabilitar sincronización${NC}"
+    echo -e "  ${CYAN}# Deshabilitar sincronización${NC}"
     echo "  systemctl --user stop home-server-backup-sync.timer"
     echo "  systemctl --user disable home-server-backup-sync.timer"
     echo ""
@@ -604,49 +604,47 @@ list_onedrive() {
 
 # Función de ayuda
 show_help() {
-    cat << EOF
-${CYAN}═══════════════════════════════════════════════════════════════════${NC}
-  OneDrive Sync Manager - Setup y Gestión todo-en-uno
-${CYAN}═══════════════════════════════════════════════════════════════════${NC}
-
-${GREEN}SETUP (Primera vez):${NC}
-  $0 setup              Configuración completa interactiva
-  $0 setup --force      Reconfigurar desde cero
-
-${GREEN}GESTIÓN:${NC}
-  $0 status             Estado de sincronización
-  $0 sync               Sincronizar todo ahora
-  $0 sync-backup        Sincronizar solo backups
-  $0 sync-config        Sincronizar solo config.toml
-
-  $0 logs [N]           Ver últimos N logs de backup
-  $0 logs-config [N]    Ver últimos N logs de config
-  $0 follow             Seguir logs de backup en vivo
-  $0 follow-config      Seguir logs de config en vivo
-
-  $0 enable             Habilitar sincronización automática
-  $0 disable            Deshabilitar sincronización automática
-  $0 restart            Reiniciar servicios
-
-  $0 list               Listar archivos en OneDrive
-  $0 health             Verificar salud del sistema
-
-${GREEN}EJEMPLOS:${NC}
-  $0 setup              # Primera configuración
-  $0 status             # Ver estado
-  $0 sync               # Sincronizar ahora
-  $0 logs 100           # Ver últimos 100 logs
-  $0 follow             # Seguir logs en vivo
-
-${GREEN}ARCHIVOS DE LOG:${NC}
-  ${PROJECT_ROOT}/logs/rclone-backup-sync.log
-  ${PROJECT_ROOT}/logs/rclone-config-sync.log
-
-${GREEN}COMANDOS SYSTEMD:${NC}
-  systemctl --user status ${BACKUP_SERVICE}.timer
-  journalctl --user -u ${BACKUP_SERVICE}.service -f
-
-EOF
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "  OneDrive Sync Manager - Setup y Gestión todo-en-uno"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${GREEN}SETUP (Primera vez):${NC}"
+    echo -e "  $0 setup              Configuración completa interactiva"
+    echo -e "  $0 setup --force      Reconfigurar desde cero"
+    echo ""
+    echo -e "${GREEN}GESTIÓN:${NC}"
+    echo -e "  $0 status             Estado de sincronización"
+    echo -e "  $0 sync               Sincronizar todo ahora"
+    echo -e "  $0 sync-backup        Sincronizar solo backups"
+    echo -e "  $0 sync-config        Sincronizar solo config.toml"
+    echo ""
+    echo -e "  $0 logs [N]           Ver últimos N logs de backup"
+    echo -e "  $0 logs-config [N]    Ver últimos N logs de config"
+    echo -e "  $0 follow             Seguir logs de backup en vivo"
+    echo -e "  $0 follow-config      Seguir logs de config en vivo"
+    echo ""
+    echo -e "  $0 enable             Habilitar sincronización automática"
+    echo -e "  $0 disable            Deshabilitar sincronización automática"
+    echo -e "  $0 restart            Reiniciar servicios"
+    echo ""
+    echo -e "  $0 list               Listar archivos en OneDrive"
+    echo -e "  $0 health             Verificar salud del sistema"
+    echo ""
+    echo -e "${GREEN}EJEMPLOS:${NC}"
+    echo -e "  $0 setup              # Primera configuración"
+    echo -e "  $0 status             # Ver estado"
+    echo -e "  $0 sync               # Sincronizar ahora"
+    echo -e "  $0 logs 100           # Ver últimos 100 logs"
+    echo -e "  $0 follow             # Seguir logs en vivo"
+    echo ""
+    echo -e "${GREEN}ARCHIVOS DE LOG:${NC}"
+    echo -e "  ${PROJECT_ROOT}/logs/rclone-backup-sync.log"
+    echo -e "  ${PROJECT_ROOT}/logs/rclone-config-sync.log"
+    echo ""
+    echo -e "${GREEN}COMANDOS SYSTEMD:${NC}"
+    echo -e "  systemctl --user status ${BACKUP_SERVICE}.timer"
+    echo -e "  journalctl --user -u ${BACKUP_SERVICE}.service -f"
+    echo ""
 }
 
 # ============================================================================
