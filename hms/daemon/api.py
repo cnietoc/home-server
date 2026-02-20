@@ -211,13 +211,15 @@ def _build_dashboard_data() -> dict:
                     host = host.replace("${DOMAIN}", domain)
                 endpoints.append({"host": host, "url": f"https://{host}"})
             counts = service_counts.get(service, {})
+            has_endpoint = len(endpoints) > 0
             services.append(
                 {
                     "name": service,
                     "description": stack_metadata.get_service_description(stack_name, service) or "",
-                    "public": stack_metadata.is_service_public(stack_name, service),
+                    "public": stack_metadata.is_service_public(stack_name, service) if has_endpoint else False,
                     "endpoints": endpoints,
                     "state": counts.get("state", "stopped"),
+                    "has_endpoint": has_endpoint,
                 }
             )
 

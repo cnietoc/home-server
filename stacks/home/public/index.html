@@ -347,10 +347,10 @@
 
         function getStatusBadge(state) {
             const statusMap = {
-                running: { class: 'status-low', text: '🟢 On' },
+                running: { class: 'status-low', text: '🟢 Activo' },
                 partial: { class: 'status-medium', text: '🟡 Parcial' },
-                stopped: { class: 'status-high', text: '🔴 Off' },
-                'not-found': { class: 'status-medium', text: '⚪ N/A' }
+                stopped: { class: 'status-high', text: '🔴 Parado' },
+                'not-found': { class: 'status-medium', text: '⚪ Sin datos' }
             };
             return statusMap[state] || { class: 'status-medium', text: `⚪ ${state}` };
         }
@@ -396,9 +396,9 @@
                 <div class="info-item">
                     <span class="info-label">Contenedores</span>
                     <span class="info-value">
-                        ${system.totals.containers.running} on /
-                        ${system.totals.containers.stopped} off /
-                        ${system.totals.containers.total} total
+                        Activos: ${system.totals.containers.running} |
+                        Parados: ${system.totals.containers.stopped} |
+                        Total: ${system.totals.containers.total}
                     </span>
                 </div>
             `;
@@ -425,9 +425,9 @@
                             <div class="stack-meta">
                                 <span class="status-indicator ${status.class}">${status.text}</span>
                                 <span class="stack-counts">
-                                    ${stack.containers.running} on /
-                                    ${stack.containers.stopped} off /
-                                    ${stack.containers.total} total
+                                    Activos: ${stack.containers.running} |
+                                    Parados: ${stack.containers.stopped} |
+                                    Total: ${stack.containers.total}
                                 </span>
                             </div>
                         </div>
@@ -436,18 +436,19 @@
                                 const serviceStatus = getStatusBadge(service.state);
                                 const visibilityClass = service.public ? 'visibility-public' : 'visibility-private';
                                 const visibilityText = service.public ? 'publico' : 'protegido';
+                                const showVisibility = service.has_endpoint;
                                 return `
                                     <div class="service-item">
                                         <div class="service-info">
                                             <div class="service-name">
                                                 ${service.name}
-                                                <span class="visibility-badge ${visibilityClass}">${visibilityText}</span>
+                                                ${showVisibility ? `<span class="visibility-badge ${visibilityClass}">${visibilityText}</span>` : ''}
                                             </div>
                                             <div class="service-url">${service.description || ''}</div>
                                             <div class="endpoint-list">
-                                                ${(service.endpoints || []).map(endpoint => `
+                                                ${(service.endpoints || []).length ? (service.endpoints || []).map(endpoint => `
                                                     <a class="endpoint-link" href="${endpoint.url}" target="_blank" rel="noreferrer">${endpoint.host}</a>
-                                                `).join('')}
+                                                `).join('') : '<span class="service-url">Sin endpoint accesible</span>'}
                                             </div>
                                         </div>
                                         <span class="status-indicator ${serviceStatus.class}">${serviceStatus.text}</span>
