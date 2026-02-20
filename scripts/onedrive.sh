@@ -259,7 +259,6 @@ ExecStart=/usr/bin/rclone sync \\
     ${PROJECT_ROOT}/backups \\
     ${REMOTE_NAME}:${onedrive_path}backups \\
     --delete-during \\
-    --verbose \\
     --log-file=${PROJECT_ROOT}/logs/rclone-backup-sync.log \\
     --log-level INFO \\
     --exclude .gitignore \\
@@ -321,7 +320,6 @@ ExecStartPre=/bin/bash -c 'echo $$ > ${PROJECT_ROOT}/logs/config-sync.lock'
 ExecStart=/usr/bin/rclone copyto \\
     ${PROJECT_ROOT}/config.toml \\
     ${REMOTE_NAME}:${onedrive_path}config/config.toml \\
-    --verbose \\
     --log-file=${PROJECT_ROOT}/logs/rclone-config-sync.log \\
     --log-level INFO \\
     --contimeout 60s \\
