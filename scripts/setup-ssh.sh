@@ -1,22 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cargar configuración común
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common/env-loader.sh"
-load_common_config
+log() {
+    echo "[$(date '+%H:%M:%S')] $*"
+}
 
 # === ARGUMENTOS: usar configuración o parámetros ===
 if [[ $# -gt 0 ]]; then
     GITHUB_USERS=("$@")
     log "Usando usuarios de GitHub desde argumentos: ${GITHUB_USERS[*]}"
-elif [[ -n "${GITHUB_SSH_USERS:-}" ]]; then
-    read -ra GITHUB_USERS <<< "$GITHUB_SSH_USERS"
-    log "Usando usuarios de GitHub desde configuración: ${GITHUB_USERS[*]}"
 else
     echo "❌ Especifica usuarios de GitHub:"
     echo "   - Como argumentos: $0 <github_user1> [github_user2 ...]"
-    echo "   - O configurando GITHUB_SSH_USERS en config/private/common.env"
     exit 1
 fi
 
@@ -24,10 +19,6 @@ LOCAL_USER="$(whoami)"       # Usuario local que ejecuta el script
 SSH_DIR="$HOME/.ssh"
 AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
 TMP_KEYS="/tmp/github_keys_tmp_$$"
-
-log() {
-    echo "[$(date '+%H:%M:%S')] $*"
-}
 
 cleanup() {
     rm -f "$TMP_KEYS"

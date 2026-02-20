@@ -56,52 +56,6 @@ check_sudo() {
     log "✅ Permisos de sudo verificados"
 }
 
-# Actualizar sistema
-update_system() {
-    log "🔄 Actualizando lista de paquetes..."
-    sudo apt-get update
-
-    log "🔄 Actualizando paquetes instalados..."
-    sudo apt-get upgrade -y
-
-    log "✅ Sistema actualizado"
-}
-
-# Instalar dependencias básicas
-install_basic_deps() {
-    log "📦 Instalando dependencias básicas..."
-
-    local packages=(
-        curl
-        wget
-        gnupg
-        lsb-release
-        ca-certificates
-        apt-transport-https
-        software-properties-common
-        git
-        jq
-        yq
-        htop
-        unzip
-        vim
-        nano
-        net-tools
-        ufw
-    )
-
-    for package in "${packages[@]}"; do
-        if dpkg -l | grep -q "^ii  $package "; then
-            info "$package ya está instalado"
-        else
-            log "Instalando $package..."
-            sudo apt-get install -y "$package"
-        fi
-    done
-
-    log "✅ Dependencias básicas instaladas"
-}
-
 # Verificar si Docker ya está instalado
 check_docker_installed() {
     if command -v docker >/dev/null 2>&1; then
@@ -249,52 +203,12 @@ verify_docker() {
 
 
 
-# Optimizaciones del sistema para Docker
-optimize_system() {
-    log "⚙️ Aplicando optimizaciones del sistema para Docker..."
-
-    # Configurar límites de archivos abiertos
-    local limits_file="/etc/security/limits.conf"
-    if ! grep -q "# Docker optimizations" "$limits_file"; then
-        cat << EOF | sudo tee -a "$limits_file" >/dev/null
-
-# Docker optimizations
-* soft nofile 65536
-* hard nofile 65536
-root soft nofile 65536
-root hard nofile 65536
-EOF
-        log "Límites de archivos abiertos configurados"
-    else
-        info "Límites de archivos ya configurados"
-    fi
-
-    # Configurar parámetros del kernel
-    local sysctl_file="/etc/sysctl.d/99-docker.conf"
-    if [[ ! -f "$sysctl_file" ]]; then
-        cat << EOF | sudo tee "$sysctl_file" >/dev/null
-# Docker optimizations
-vm.max_map_count=262144
-fs.file-max=2097152
-net.core.somaxconn=65535
-EOF
-        sudo sysctl -p "$sysctl_file"
-        log "Parámetros del kernel optimizados"
-    else
-        info "Parámetros del kernel ya optimizados"
-    fi
-
-    log "✅ Optimizaciones aplicadas"
-}
-
 # Función para mostrar información final
 show_final_info() {
     log "🎉 Instalación completada exitosamente!"
     echo ""
     log "📋 Resumen de lo instalado:"
     log "   ✅ Docker Engine y Docker Compose"
-    log "   ✅ Dependencias básicas (curl, git, jq, etc.)"
-    log "   ✅ Optimizaciones del sistema"
     echo ""
     warn "⚠️ IMPORTANTE: Reinicia tu sesión SSH para que los cambios del grupo docker tengan efecto"
     log "  O ejecuta: newgrp docker"
@@ -308,16 +222,14 @@ show_help() {
 Uso: $0 [opciones]
 
 DESCRIPCIÓN:
-  Instala Docker, Docker Compose y dependencias en Ubuntu Server.
+  Instala Docker y Docker Compose en Ubuntu Server.
   El script es idempotente (se puede ejecutar múltiples veces).
 
 OPCIONES:
-  --skip-optimize    No aplicar optimizaciones del sistema
   --help             Mostrar esta ayuda
 
 EJEMPLOS:
-  $0                       # Instalación completa
-  $0 --skip-optimize       # Sin optimizaciones del sistema
+  $0                       # Instalación de Docker
 
 PREREQUISITOS:
   - Ubuntu Server (18.04 o superior)
@@ -329,15 +241,9 @@ EOF
 
 # Función principal
 main() {
-    local skip_optimize=false
-
     # Parsear argumentos
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --skip-optimize)
-                skip_optimize=true
-                shift
-                ;;
             --help|-h)
                 show_help
                 exit 0
@@ -358,19 +264,9 @@ main() {
     check_sudo
 
     # Instalación
-    update_system
-    install_basic_deps
     install_docker
     configure_docker_user
     verify_docker
-
-    # Configuraciones opcionales
-
-    if [[ "$skip_optimize" != "true" ]]; then
-        optimize_system
-    else
-        info "⏭️ Optimizaciones del sistema omitidas"
-    fi
 
     # Información final
     show_final_info
