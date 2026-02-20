@@ -193,6 +193,8 @@ def _build_dashboard_data() -> dict:
     total_containers = 0
 
     for stack_name in stack_metadata.list_stacks():
+        if not config_manager.is_stack_enabled(stack_name):
+            continue
         services = []
         service_counts = docker_manager.get_stack_service_counts(stack_name)
         stack_counts = docker_manager.get_stack_container_counts(stack_name)
