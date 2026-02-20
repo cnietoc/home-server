@@ -225,7 +225,7 @@ select_onedrive_folder() {
     # Crear la estructura de carpetas en OneDrive si no existe
     log "Verificando estructura de carpetas en OneDrive..."
 
-    local base_path="${SELECTED_FOLDER:+$SELECTED_FOLDER/}home-server"
+    local base_path="${SELECTED_FOLDER:+$SELECTED_FOLDER/}"
     rclone mkdir "${REMOTE_NAME}:${base_path}/backups" 2>/dev/null || true
     rclone mkdir "${REMOTE_NAME}:${base_path}/config" 2>/dev/null || true
 
@@ -602,6 +602,64 @@ list_onedrive() {
     rclone ls onedrive:${onedrive_path}/config 2>/dev/null || echo "  (vacío)"
 }
 
+# Quitar sincronización completamente
+remove_sync() {
+    header "Desinstalando sincronización OneDrive"
+    echo ""
+
+    warn "Esto eliminará:"
+    echo -e "  ${RED}●${NC} Servicios systemd (timers y services)"
+    echo -e "  ${RED}●${NC} Archivo de configuración de ruta OneDrive (.onedrive-path)"
+    echo -e "  ${RED}●${NC} Archivos de bloqueo"
+    echo ""
+    echo -e "  Los archivos en OneDrive y rclone.conf ${CYAN}se mantienen${NC}"
+    echo ""
+
+    prompt "¿Deseas continuar? (s/N): "
+    read -r response
+    if [[ ! "$response" =~ ^[Ss]$ ]]; then
+        info "Operación cancelada"
+        return 0
+    fi
+
+    log "Deteniendo servicios..."
+    systemctl --user stop ${BACKUP_SERVICE}.timer 2>/dev/null || true
+    systemctl --user stop ${CONFIG_SERVICE}.timer 2>/dev/null || true
+    systemctl --user stop ${BACKUP_SERVICE}.service 2>/dev/null || true
+    systemctl --user stop ${CONFIG_SERVICE}.service 2>/dev/null || true
+
+    log "Deshabilitando servicios..."
+    systemctl --user disable ${BACKUP_SERVICE}.timer 2>/dev/null || true
+    systemctl --user disable ${CONFIG_SERVICE}.timer 2>/dev/null || true
+    systemctl --user disable ${BACKUP_SERVICE}.service 2>/dev/null || true
+    systemctl --user disable ${CONFIG_SERVICE}.service 2>/dev/null || true
+
+    log "Eliminando archivos de servicio..."
+    rm -f "${SYSTEMD_USER_DIR}/${BACKUP_SERVICE}.service" 2>/dev/null || true
+    rm -f "${SYSTEMD_USER_DIR}/${BACKUP_SERVICE}.timer" 2>/dev/null || true
+    rm -f "${SYSTEMD_USER_DIR}/${CONFIG_SERVICE}.service" 2>/dev/null || true
+    rm -f "${SYSTEMD_USER_DIR}/${CONFIG_SERVICE}.timer" 2>/dev/null || true
+
+    log "Recargando systemd..."
+    systemctl --user daemon-reload
+
+    log "Eliminando archivo de configuración..."
+    rm -f "${PROJECT_ROOT}/.onedrive-path" 2>/dev/null || true
+
+    log "Eliminando archivos de bloqueo..."
+    rm -f "${PROJECT_ROOT}/logs/backup-sync.lock" 2>/dev/null || true
+    rm -f "${PROJECT_ROOT}/logs/config-sync.lock" 2>/dev/null || true
+
+    echo ""
+    success "✅ Sincronización desinstalada completamente"
+    echo ""
+    info "Para reinstalar la sincronización, ejecuta:"
+    echo -e "  ${CYAN}$0 setup${NC}"
+    echo ""
+    info "Para reconfigurar desde cero:"
+    echo -e "  ${CYAN}$0 setup --force${NC}"
+}
+
 # Función de ayuda
 show_help() {
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
@@ -630,12 +688,16 @@ show_help() {
     echo -e "  $0 list               Listar archivos en OneDrive"
     echo -e "  $0 health             Verificar salud del sistema"
     echo ""
+    echo -e "${RED}DESINSTALACIÓN:${NC}"
+    echo -e "  $0 remove             Quitar sincronización completamente"
+    echo ""
     echo -e "${GREEN}EJEMPLOS:${NC}"
     echo -e "  $0 setup              # Primera configuración"
     echo -e "  $0 status             # Ver estado"
     echo -e "  $0 sync               # Sincronizar ahora"
     echo -e "  $0 logs 100           # Ver últimos 100 logs"
     echo -e "  $0 follow             # Seguir logs en vivo"
+    echo -e "  $0 remove             # Quitar sincronización"
     echo ""
     echo -e "${GREEN}ARCHIVOS DE LOG:${NC}"
     echo -e "  ${PROJECT_ROOT}/logs/rclone-backup-sync.log"
@@ -739,6 +801,9 @@ main() {
             ;;
         health|check)
             check_health
+            ;;
+        remove|uninstall)
+            remove_sync
             ;;
         help|--help|-h)
             show_help
