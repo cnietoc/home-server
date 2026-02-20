@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
     group_add:
       - "0"  # Agregar al grupo root para acceso al docker.sock
+      - ${DOCKER_GID}  # Agregar al grupo de Docker para acceso al docker.sock
     volumes:
       - ../../config.toml:/app/config.toml
       - ../../data:/app/data

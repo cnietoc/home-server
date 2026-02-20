@@ -109,6 +109,7 @@ echo "📝 Configurando config.toml..."
 
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
+DOCKER_GID=$(getent group docker | cut -d: -f3)
 
 # Detectar timezone del sistema
 if [ -f /etc/timezone ]; then
@@ -126,12 +127,13 @@ if [ ! -f "$CONFIG_FILE" ]; then
 host_root = "$REPO_ROOT"
 puid = $CURRENT_UID
 pgid = $CURRENT_GID
+docker_gid = $DOCKER_GID
 tz = "$SYSTEM_TZ"
 EOF
     echo -e "${GREEN}✅ config.toml creado con valores básicos${NC}"
 fi
 
-# Actualizar puid, pgid, tz en config.toml existente
+# Actualizar puid, pgid, docker_gid y tz en config.toml existente
 if [ -f "$CONFIG_FILE" ]; then
     # Función auxiliar para actualizar o agregar campo en una sección
     update_toml_field() {
@@ -168,10 +170,11 @@ if [ -f "$CONFIG_FILE" ]; then
     # Actualizar campos en sección [global]
     update_toml_field "$CONFIG_FILE" "global" "puid" "$CURRENT_UID"
     update_toml_field "$CONFIG_FILE" "global" "pgid" "$CURRENT_GID"
+    update_toml_field "$CONFIG_FILE" "global" "docker_gid" "$DOCKER_GID"
     update_toml_field "$CONFIG_FILE" "global" "tz" "\"$SYSTEM_TZ\""
     update_toml_field "$CONFIG_FILE" "global" "host_root" "\"$REPO_ROOT\""
 
-    echo -e "${GREEN}✅ config.toml actualizado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
+    echo -e "${GREEN}✅ config.toml actualizado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, DOCKER_GID=$DOCKER_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
 else
     echo -e "${YELLOW}⚠️  config.toml no existe${NC}"
 fi
