@@ -1,5 +1,10 @@
 name: hms
 
+networks:
+  hms-network:
+    name: hms-network
+    driver: bridge
+
 services:
   cli:
     user: ${PUID}:${PGID}
@@ -11,6 +16,8 @@ services:
         - PGID=${PGID}
     container_name: hms
     restart: unless-stopped
+    networks:
+      - hms-network
     group_add:
       - ${DOCKER_GID}  # Agregar al grupo de Docker para acceso al docker.sock
     volumes:

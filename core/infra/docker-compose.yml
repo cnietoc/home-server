@@ -2,8 +2,7 @@ name: ${STACK_PREFIX}
 
 networks:
   hms-network:
-    name: hms-network
-    driver: bridge
+    external: true
 
 x-hms:
   description: "Servicios de infraestructura base"

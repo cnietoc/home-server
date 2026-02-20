@@ -3,8 +3,6 @@ name: ${STACK_PREFIX}
 networks:
   hms-network:
     external: true
-  media_internal:
-    name: ${STACK_PREFIX}-network
 
 x-hms:
   description: "Suite completa de medios: descargas, gestión y streaming"
@@ -17,7 +15,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/jellyfin:/config
       - ${STACK_DATA}/config/jellyfin/temp:/cache
@@ -47,7 +44,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/qbittorrent:/config
       - ${STACK_DATA}/downloads:/media/downloads
@@ -76,7 +72,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/radarr:/config
       - ${STACK_DATA}/library/movies:/media/library/movies
@@ -105,7 +100,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/sonarr:/config
       - ${STACK_DATA}/library/tv:/media/library/tv
@@ -134,7 +128,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/prowlarr:/config
     environment:
@@ -159,7 +152,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/tdarr/server:/app/server
       - ${STACK_DATA}/config/tdarr:/app/configs
@@ -197,7 +189,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-      - media_internal
     volumes:
       - ${STACK_DATA}/config/jackett:/config
       - ${STACK_DATA}/downloads/watch:/media/downloads/watch        # RW - deposita .torrents en watch folder
@@ -221,7 +212,7 @@ services:
     container_name: ${STACK_PREFIX}-flaresolverr
     restart: unless-stopped
     networks:
-      - media_internal
+      - hms-network
     volumes:
       - ${STACK_DATA}/config/flaresolverr:/config
     environment:
