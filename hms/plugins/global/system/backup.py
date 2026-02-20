@@ -470,7 +470,10 @@ CONFIGURATION:
                 # Añadir config.toml
                 if config_file.exists():
                     logger.debug("   Incluyendo: config.toml")
-                    tar.add(config_file, arcname="config.toml")
+                    try:
+                        tar.add(config_file, arcname="config.toml")
+                    except (PermissionError, OSError) as e:
+                        logger.warning(f"      ⚠️  No se pudo incluir 'config.toml': {e}")
 
                 # Crear manifest
                 manifest = self._create_manifest("hms", [])
@@ -528,6 +531,7 @@ CONFIGURATION:
                         exclude_patterns: List[str]):
         """
         Añade un directorio al tar, respetando patrones de exclusión.
+        Ignora archivos que no se pueden leer (permisos insuficientes, etc.)
         """
         for item in source_dir.rglob("*"):
             if item.is_dir():
@@ -542,9 +546,13 @@ CONFIGURATION:
                 logger.debug(f"      [EXCLUIDO] {rel_path_str}")
                 continue
 
-            # Añadir al tar
-            arcname = f"{arcname_prefix}/{rel_path_str}"
-            tar.add(item, arcname=arcname)
+            # Añadir al tar, ignorando archivos que no se pueden leer
+            try:
+                arcname = f"{arcname_prefix}/{rel_path_str}"
+                tar.add(item, arcname=arcname)
+            except (PermissionError, OSError) as e:
+                logger.warning(f"      ⚠️  No se pudo incluir '{rel_path_str}': {e}")
+                continue
 
     def _matches_exclude_patterns(self, path: str, patterns: List[str]) -> bool:
         """
