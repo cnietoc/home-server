@@ -109,7 +109,11 @@ echo "📝 Configurando config.toml..."
 
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
-DOCKER_GID=$(getent group docker | cut -d: -f3)
+if command -v getent >/dev/null 2>&1 && getent group docker >/dev/null 2>&1; then
+    DOCKER_GID=$(getent group docker | cut -d: -f3)
+else
+    DOCKER_GID=0
+fi
 
 # Detectar timezone del sistema
 if [ -f /etc/timezone ]; then

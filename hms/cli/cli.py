@@ -333,16 +333,16 @@ EXAMPLES:
 
     def _get_subcommand_order(self, command: str) -> Optional[List[str]]:
         """Load the COMMAND_ORDER from a command category's __init__.py."""
-        category_dir = self.hms_root / "plugins" / "global" / command
-        return self._load_order(category_dir / "__init__.py", f"hms.plugins.global.{command}")
+        category_dir = self.hms_root / "plugins" / "common" / command
+        return self._load_order(category_dir / "__init__.py", f"hms.plugins.common.{command}")
 
     def _get_stack_action_order(self) -> Optional[List[str]]:
         """Load COMMAND_ORDER from plugins/stacks/__init__.py for stack actions."""
         return self._load_order(self.hms_root / "plugins" / "stacks" / "__init__.py", "hms.plugins.stacks")
 
     def _get_global_command_order(self) -> Optional[List[str]]:
-        """Load COMMAND_ORDER from plugins/global/__init__.py for global commands."""
-        return self._load_order(self.hms_root / "plugins" / "global" / "__init__.py", "hms.plugins.global")
+        """Load COMMAND_ORDER from plugins/common/__init__.py for global commands."""
+        return self._load_order(self.hms_root / "plugins" / "common" / "__init__.py", "hms.plugins.common")
 
     def print_help(self) -> None:
         """Print general help text."""

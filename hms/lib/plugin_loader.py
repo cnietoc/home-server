@@ -80,19 +80,19 @@ class PluginLoader:
         Descubre plugins globales.
         Retorna: {comando: path} o {comando: {subcomando: path}}
         """
-        global_dir = self.hms_root / "plugins" / "global"
+        common_dir = self.hms_root / "plugins" / "common"
         commands = {}
 
-        if not global_dir.exists():
+        if not common_dir.exists():
             return commands
 
         # Comandos directos (archivos .py)
-        for py_file in global_dir.glob("*.py"):
+        for py_file in common_dir.glob("*.py"):
             if not py_file.name.startswith("_"):
                 commands[py_file.stem] = str(py_file)
 
         # Comandos con categoría (directorios)
-        for category_dir in global_dir.iterdir():
+        for category_dir in common_dir.iterdir():
             if category_dir.is_dir() and not category_dir.name.startswith("_"):
                 subcommands = self._scan_dir(category_dir)
                 if subcommands:
@@ -113,4 +113,3 @@ class PluginLoader:
 def get_plugin_loader() -> PluginLoader:
     """Obtener instancia singleton."""
     return PluginLoader()
-
