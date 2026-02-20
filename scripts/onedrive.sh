@@ -257,7 +257,7 @@ ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/backup-sync.lock ]; then
 ExecStartPre=/bin/bash -c 'echo $$ > ${PROJECT_ROOT}/logs/backup-sync.lock'
 ExecStart=/usr/bin/rclone sync \\
     ${PROJECT_ROOT}/backups \\
-    ${REMOTE_NAME}:${onedrive_path}/backups \\
+    ${REMOTE_NAME}:${onedrive_path}backups \\
     --delete-during \\
     --verbose \\
     --log-file=${PROJECT_ROOT}/logs/rclone-backup-sync.log \\
@@ -320,7 +320,7 @@ ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/config-sync.lock ]; then
 ExecStartPre=/bin/bash -c 'echo $$ > ${PROJECT_ROOT}/logs/config-sync.lock'
 ExecStart=/usr/bin/rclone copyto \\
     ${PROJECT_ROOT}/config.toml \\
-    ${REMOTE_NAME}:${onedrive_path}/config/config.toml \\
+    ${REMOTE_NAME}:${onedrive_path}config/config.toml \\
     --verbose \\
     --log-file=${PROJECT_ROOT}/logs/rclone-config-sync.log \\
     --log-level INFO \\
@@ -595,11 +595,11 @@ list_onedrive() {
     header "Contenido en OneDrive: ${onedrive_path}"
 
     log "Backups:"
-    rclone ls onedrive:${onedrive_path}/backups --max-depth 1 2>/dev/null || echo "  (vacío)"
+    rclone ls onedrive:${onedrive_path}backups --max-depth 1 2>/dev/null || echo "  (vacío)"
 
     echo ""
     log "Config:"
-    rclone ls onedrive:${onedrive_path}/config 2>/dev/null || echo "  (vacío)"
+    rclone ls onedrive:${onedrive_path}config 2>/dev/null || echo "  (vacío)"
 }
 
 # Quitar sincronización completamente
