@@ -548,17 +548,47 @@ CONFIGURATION:
 
     def _matches_exclude_patterns(self, path: str, patterns: List[str]) -> bool:
         """
-        Verifica si una ruta coincide con algún patrón de exclusión.
+        Verifica si una ruta coincide con algún patrón de exclusión (subconjunto estilo .gitignore).
         """
-        for pattern in patterns:
-            if fnmatch.fnmatch(path, pattern):
-                return True
-            if pattern.endswith("/") and path.startswith(pattern.rstrip("/")):
-                return True
-            if pattern.endswith("/*"):
-                dir_pattern = pattern.rstrip("/*")
-                if path.startswith(dir_pattern):
-                    return True
+        norm_path = path.replace("\\", "/").lstrip("./")
+        parts = [p for p in norm_path.split("/") if p]
+
+        for raw_pattern in patterns:
+            pattern = raw_pattern.strip()
+            if not pattern or pattern.startswith("#"):
+                continue
+
+            anchored = pattern.startswith("/")
+            pattern = pattern.lstrip("/")
+            dir_only = pattern.endswith("/")
+            if dir_only:
+                pattern = pattern.rstrip("/")
+
+            if not pattern:
+                continue
+
+            # Sin slash: aplica a cualquier segmento (o solo raiz si es anchored).
+            if "/" not in pattern:
+                if anchored:
+                    if parts and fnmatch.fnmatch(parts[0], pattern):
+                        return True
+                else:
+                    if any(fnmatch.fnmatch(part, pattern) for part in parts):
+                        return True
+                continue
+
+            # Con slash: comparar contra ruta completa (anchored) o cualquier subruta.
+            candidates = [norm_path] if anchored else [
+                "/".join(parts[i:]) for i in range(len(parts))
+            ]
+
+            for candidate in candidates:
+                if fnmatch.fnmatch(candidate, pattern):
+                    if not dir_only:
+                        return True
+                    if candidate == pattern or candidate.startswith(pattern + "/"):
+                        return True
+
         return False
 
     def _create_manifest(self, name: str, exclude_patterns: List[str]) -> str:

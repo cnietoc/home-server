@@ -52,20 +52,20 @@ enable_vaapi = false
 
 [stacks.media.backups]
 exclude = [
-    "library",
-    "downloads",
-    "recordings",
-    "config/tdarr/server/Tdarr/Samples/",
-    "config/tdarr/server/Tdarr/DB2/JobReports/",
-    "config/tdarr/server/Tdarr/Backups/",
-    "config/qbittorrent/data/BT_backup/",
-    "config/prowlarr/Backups/",
-    "config/radarr/Backups/",
-    "config/sonarr/logs/",
-    "config/sonarr/Backups",
-    "config/jackett/*.txt",
-    "config/jellyfin/log/",
-    "config/jellyfin/temp/"
+    "/library",
+    "/downloads",
+    "/recordings",
+    "/config/tdarr/server/Tdarr/Samples/",
+    "/config/tdarr/server/Tdarr/DB2/JobReports/",
+    "/config/tdarr/server/Tdarr/Backups/",
+    "/config/qbittorrent/data/BT_backup/",
+    "/config/prowlarr/Backups/",
+    "/config/radarr/Backups/",
+    "/config/sonarr/logs/",
+    "/config/sonarr/Backups",
+    "/config/jackett/*.txt",
+    "/config/jellyfin/log/",
+    "/config/jellyfin/temp/"
 ]
 
 [stacks.home.backups]
