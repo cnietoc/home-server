@@ -359,9 +359,8 @@ Version 0.1.0
 USAGE:
   hms [OPTIONS] [STACKS] <ACTION> [ARGS]
   hms [OPTIONS] <COMMAND> [SUBCOMMAND] [ARGS]
-  hms stack <stack_name> <command> [OPTIONS]           # NEW: TOML-based stacks
 
-STACK ACTIONS (legacy):
+STACK ACTIONS:
 """)
 
         for action in self._sort_with_order(list(stack_plugins.keys()), stack_order):
@@ -391,15 +390,6 @@ GLOBAL COMMANDS:
                 print(f"    {subcommand_name:<12}  {description}")
 
         print(f"""
-NEW COMMAND - TOML-BASED STACKS:
-  stack validate                Valida la configuración TOML
-  stack <name> up               Levanta un stack
-  stack <name> down             Derriba un stack
-  stack <name> restart          Reinicia un stack o servicios
-  stack <name> logs [-f]        Ver logs (con -f para seguir)
-  stack <name> ps               Estado del stack
-  stack <name> config           Configuración resolvida
-  stack <name> env              Variables de entorno inyectadas
 
 OPTIONS:
   --verbose, -v   Verbose output
@@ -438,8 +428,6 @@ EXAMPLES:
 
         print(f"""
   {sample_global}                   # Run a global command
-  hms stack helloworld up            # NEW: Levanta stack desde TOML
-  hms stack media env --verbose      # NEW: Variables de entorno
   hms --help                          # Show this help
   hms {first_stack} {first_action} --verbose          # Verbose output
 """)

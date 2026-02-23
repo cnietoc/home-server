@@ -446,5 +446,49 @@ class DockerComposeManager:
             logger.error(f"Error bringing down stack '{stack_name}': {e}")
             return 1
 
+    def stack_logs(self, stack_name: str, args: list = None) -> int:
+        """
+        Muestra los logs de un stack usando docker compose logs.
+        Soporta pasar todos los argumentos de docker compose logs.
+
+        :param stack_name: Nombre del stack
+        :param args: Argumentos adicionales para docker compose logs (ej: ['-f', '--tail=100'])
+        :return: Código de retorno (0 = éxito)
+        """
+        if args is None:
+            args = []
+
+        stack_dir = get_stack_dir(stack_name)
+        compose_file = self._get_compose_file(stack_name)
+
+        if not compose_file:
+            logger.error(f"No compose file found for stack '{stack_name}'")
+            return 1
+
+        try:
+            # Preparar entorno
+            env = os.environ.copy()
+            env_vars = stack_metadata.get_stack_vars(stack_name)
+            if env_vars:
+                env.update(env_vars)
+
+            # Construir comando: docker compose logs [args]
+            command = ["docker", "compose", "logs"] + args
+
+            logger.debug(f"Running: {' '.join(command)} in {stack_dir}")
+
+            result, output = self._exec(
+                command,
+                stack_name,
+                env=env,
+                hidden=False
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error retrieving logs for stack '{stack_name}': {e}")
+            return 1
+
 
 docker_manager = DockerComposeManager()

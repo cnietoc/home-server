@@ -6,6 +6,8 @@ Stack action plugins configuration.
 COMMAND_ORDER = [
     'up',
     'down',
+    'restart',
     'prep',
     'status',
+    'logs',
 ]
