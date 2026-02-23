@@ -17,5 +17,5 @@ oauth_whitelist = "__REQUIRED__"
 [infra.watchtower]
 notification_url = "__REQUIRED__"
 
-[stacks.necesse]
+[necesse]
 password = "__REQUIRED__"

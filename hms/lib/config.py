@@ -169,7 +169,7 @@ class TomlConfigManager:
                     and isinstance(default_config[key], dict)
                     and isinstance(value, dict)
             ):
-                default_config[key] = self._merge_dicts(default_config[key], value)
+                default_config[key] = self._merge_dicts(default_config[key], user_config[key])
             else:
                 default_config[key] = value
         return default_config
@@ -268,10 +268,11 @@ class TomlConfigManager:
 
         missing_keys = self._find_missing_required_keys(default_config, user_config)
 
-        for key in missing_keys:
-            if key.startswith("stacks."):
-                # Clave de stack, manejar por separado
-                missing_keys.remove(key)
+        def is_non_global_key(key: str) -> bool:
+            root = key.split(".", 1)[0]
+            return root not in {"global", "infra", "jobs"}
+
+        missing_keys = [k for k in missing_keys if not is_non_global_key(k)]
 
         if missing_keys:
             self._add_missing_keys_to_config(missing_keys, user_config)
@@ -280,9 +281,7 @@ class TomlConfigManager:
         # Detectar claves que siguen siendo requeridas después de las adiciones
         updated_config = self._load_toml_file(self._config_path)
         still_required_keys = self._find_still_required_keys(updated_config)
-
-        # Eliminar claves de stacks ya que se manejan por separado
-        still_required_keys = [k for k in still_required_keys if not k.startswith("stacks.")]
+        still_required_keys = [k for k in still_required_keys if not is_non_global_key(k)]
 
         return still_required_keys
 
@@ -296,24 +295,19 @@ class TomlConfigManager:
         default_config = self._load_toml_file(self._default_config_path)
         user_config = self._load_toml_file(self._config_path)
 
-        if stack_name == "infra":
-            stack_default_config = default_config.get("infra", {})
-            stack_user_config = user_config.get("infra", {})
-        else:
-            stack_default_config = default_config.get("stacks", {}).get(stack_name, {})
-            stack_user_config = user_config.get("stacks", {}).get(stack_name, {})
+        stack_default_config = default_config.get(stack_name, {})
+        stack_user_config = user_config.get(stack_name, {})
 
+        prefix = stack_name
         missing_keys = self._find_missing_required_keys(
             stack_default_config,
             stack_user_config,
-            prefix=f"stacks.{stack_name}"
+            prefix=prefix
         )
 
         if missing_keys:
-            if "stacks" not in user_config:
-                user_config["stacks"] = {}
-            if stack_name not in user_config["stacks"]:
-                user_config["stacks"][stack_name] = {}
+            if stack_name not in user_config:
+                user_config[stack_name] = {}
 
             self._add_missing_keys_to_config(
                 missing_keys,
@@ -323,10 +317,10 @@ class TomlConfigManager:
 
         # Detectar claves que siguen siendo requeridas después de las adiciones
         updated_config = self._load_toml_file(self._config_path)
-        updated_stack_config = updated_config.get("stacks", {}).get(stack_name, {})
+        updated_stack_config = updated_config.get(stack_name, {})
         still_required_keys = self._find_still_required_keys(
             updated_stack_config,
-            prefix=f"stacks.{stack_name}"
+            prefix=prefix
         )
 
         return still_required_keys
@@ -366,12 +360,7 @@ class TomlConfigManager:
         """
         config = self._load_config()
 
-        if stack_name == "infra":
-            return config.get(stack_name, {})
-
-        stacks_config = config.get("stacks", {})
-
-        result = stacks_config.get(stack_name, {}).copy()
+        result = config.get(stack_name, {}).copy()
         if "backups" in result:
             del result["backups"]
         if "shares" in result:
@@ -387,12 +376,7 @@ class TomlConfigManager:
         """
         config = self._load_config()
 
-        if stack_name == "infra":
-            return config.get(stack_name, {}).get("backups", {})
-
-        stacks_config = config.get("stacks", {})
-
-        return stacks_config.get(stack_name, {}).get("backups", {})
+        return config.get(stack_name, {}).get("backups", {})
 
     def is_stack_enabled(self, stack_name: str) -> bool:
         """
@@ -422,13 +406,10 @@ class TomlConfigManager:
         if stack_name == "infra":
             del config[stack_name]["enabled"]
         else:
-            if "stacks" not in config:
-                config["stacks"] = {}
+            if stack_name not in config:
+                config[stack_name] = {}
 
-            if stack_name not in config["stacks"]:
-                config["stacks"][stack_name] = {}
-
-            config["stacks"][stack_name]["enabled"] = True
+            config[stack_name]["enabled"] = True
 
         self._save_config(config)
 
@@ -443,13 +424,11 @@ class TomlConfigManager:
         if stack_name == "infra":
             config[stack_name]["enabled"] = False
         else:
-            if "stacks" not in config:
-                config["stacks"] = {}
+            if stack_name not in config:
+                config[stack_name] = {}
 
-            if stack_name not in config["stacks"]:
-                config["stacks"][stack_name] = {}
-
-            del config["stacks"][stack_name]["enabled"]
+            if "enabled" in config[stack_name]:
+                del config[stack_name]["enabled"]
 
         self._save_config(config)
 

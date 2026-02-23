@@ -45,12 +45,12 @@ triggers = [
     { type = "cron", cron = "0 3 * * *" }  # 03:00 cada día
 ]
 
-[stacks.media]
+[media]
 enable_intel_qsv = false
 enable_nvidia = false
 enable_vaapi = false
 
-[stacks.media.backups]
+[media.backups]
 exclude = [
     "/library",
     "/downloads",
@@ -68,9 +68,9 @@ exclude = [
     "/config/jellyfin/temp/"
 ]
 
-[stacks.home.backups]
+[home.backups]
 enabled = false
 
-[stacks.necesse]
+[necesse]
 motd = "Welcome to my Neccesse server!"
 password = "__REQUIRED__"
