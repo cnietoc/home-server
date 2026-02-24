@@ -1,0 +1,23 @@
+name: ${STACK_PREFIX}
+
+x-hms:
+  description: "Servidor de juego Necesse"
+
+services:
+  necesse:
+    container_name: necesse-server
+    image: brammys/necesse-server
+    restart: unless-stopped
+    ports:
+      -  14159:14159/udp
+    environment:
+      MOTD: ${MOTD}
+      PASSWORD: ${PASSWORD}
+      SLOTS: 25
+      PAUSE: 1
+    volumes:
+      - ${STACK_DATA}/saves:/necesse/saves
+      - ${STACK_DATA}/logs:/necesse/logs
+      - ${STACK_DATA}/cfg:/necesse/cfg
+    labels:
+      - "hms.description=🎮 Servidor de juego Necesse"

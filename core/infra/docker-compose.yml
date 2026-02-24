@@ -1,0 +1,160 @@
+name: ${STACK_PREFIX}
+
+networks:
+  hms-network:
+    external: true
+
+x-hms:
+  description: "Servicios de infraestructura base"
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: ${STACK_PREFIX}-traefik
+    restart: unless-stopped
+    networks:
+      - hms-network
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${STACK_DIR}/traefik:/etc/traefik:ro
+      - ${STACK_DATA}/traefik/certs:/certs
+      - ${STACK_DATA}/traefik/logs:/logs
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
+      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+    command:
+      # API y Dashboard
+      - --api.dashboard=true
+      - --api.insecure=true
+
+      # Entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+
+      # Providers
+      - --providers.docker=true
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+
+      # Certificados SSL con Let's Encrypt
+      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.storage=/certs/acme.json
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+
+      # Logs
+      - --log.level=INFO
+      - --log.filepath=/logs/traefik.log
+      - --accesslog=true
+      - --accesslog.filepath=/logs/access.log
+
+      # Redirect HTTP to HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hms-network"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=cloudflare"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=tinyauth@docker"
+      - "hms.description=🔀 Traefik Dashboard"
+
+  tinyauth:
+    image: ghcr.io/steveiliop56/tinyauth:latest
+    container_name: ${STACK_PREFIX}-tinyauth
+    restart: unless-stopped
+    networks:
+      - hms-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${STACK_DATA}/tinyauth:/data
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - APP_URL=https://auth.${DOMAIN}
+      - PROVIDERS_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID}
+      - PROVIDERS_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET}
+      - OAUTH_WHITELIST=${AUTH_OAUTH_WHITELIST}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hms-network"
+      - "traefik.http.routers.tinyauth.rule=Host(`auth.${DOMAIN}`)"
+      - "traefik.http.routers.tinyauth.tls=true"
+      - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
+      - "traefik.http.middlewares.tinyauth.forwardauth.address=http://tinyauth:3000/api/auth/traefik"
+      - "hms.description=🔐 Panel de Autenticación"
+
+  watchtower:
+    image: nickfedor/watchtower:latest
+    container_name: ${STACK_PREFIX}-watchtower
+    restart: unless-stopped
+    networks:
+      - hms-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Variables comunes
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+      # Configuración básica
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_REMOVE_VOLUMES=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+
+      # Programación de actualizaciones
+      - WATCHTOWER_SCHEDULE=${WATCHTOWER_SCHEDULE}
+      - WATCHTOWER_UPDATE_ON_START=true
+
+      # Notificaciones y logs
+      - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS}
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL}
+      - WATCHTOWER_NOTIFICATIONS_LEVEL=${WATCHTOWER_NOTIFICATIONS_LEVEL}
+      - WATCHTOWER_LOG_LEVEL=${WATCHTOWER_LOG_LEVEL}
+
+      # Configuración de actualización
+      - WATCHTOWER_ROLLING_RESTART=false
+      - WATCHTOWER_TIMEOUT=90s
+      - WATCHTOWER_NO_STARTUP_MESSAGE=true
+    labels:
+      - "hms.description=🔄 Actualizaciones automáticas de imágenes"
+
+  samba:
+    profiles:
+      - TODO
+    image: crazymax/samba:latest
+    container_name: ${STACK_PREFIX}-samba
+    restart: unless-stopped
+    hostname: ${STACK_PREFIX}-samba
+    networks:
+      - hms-network
+    ports:
+      - "445:445"     # SMB
+      - "139:139"     # NetBIOS
+    volumes:
+      - ${STACK_DATA}/samba:/data
+      # Los mappings de volúmenes se añaden dinámicamente via pre-deploy script
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - SAMBA_WORKGROUP=${SAMBA_WORKGROUP:-WORKGROUP}
+      - SAMBA_LOG_LEVEL=2
+      - WSDD2_ENABLE=1
+      - WSDD2_NETBIOS_NAME=docker_samba
+    labels:
+      - "hms.description=📁 Servidor de archivos Samba/CIFS"

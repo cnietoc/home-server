@@ -1,0 +1,269 @@
+"""
+Stack discovery and metadata management.
+Handles discovering stacks from stacks/ and core/infra directories by reading
+individual stack.yml files in each stack directory.
+"""
+
+from pathlib import Path
+from typing import List, Dict
+
+import yaml
+from typing_extensions import deprecated
+
+from hms.lib.paths import get_config_root, get_stacks_root, get_core_root, get_data_root
+
+
+class StackOldManager:
+    """Manages stack discovery and metadata."""
+
+    def __init__(self):
+        """
+        Initialize stack manager.
+        """
+        self._stacks_dir = get_stacks_root()
+        self._core_dir = get_core_root()
+        self._data_dir = get_data_root()
+        self._config_file = get_config_root() / "stacks.yml"  # Deprecated fallback
+        self._metadata_cache = None
+
+    def _load_metadata(self) -> Dict:
+        """
+        Load stack metadata from individual stack.yml files.
+
+        Returns:
+            Dict with stack metadata (cached after first load)
+        """
+        if self._metadata_cache is not None:
+            return self._metadata_cache
+
+        metadata = {}
+
+        # Scan stacks/ directory
+        if self._stacks_dir.exists():
+            for stack_dir in self._stacks_dir.iterdir():
+                if stack_dir.is_dir():
+                    stack_yml = stack_dir / "stack.yml"
+                    if stack_yml.exists():
+                        try:
+                            with open(stack_yml) as f:
+                                stack_metadata = yaml.safe_load(f)
+                                if stack_metadata:
+                                    metadata[stack_dir.name] = stack_metadata
+                        except Exception as e:
+                            # Log warning but continue
+                            pass
+
+        # Scan core/infra as special stack
+        infra_dir = self._core_dir / "infra"
+        if infra_dir.exists():
+            stack_yml = infra_dir / "stack.yml"
+            if stack_yml.exists():
+                try:
+                    with open(stack_yml) as f:
+                        stack_metadata = yaml.safe_load(f)
+                        if stack_metadata:
+                            metadata["infra"] = stack_metadata
+                except Exception as e:
+                    pass
+
+        # Fallback: try loading from config/stacks.yml (deprecated)
+        if not metadata and self._config_file.exists():
+            try:
+                with open(self._config_file) as f:
+                    config = yaml.safe_load(f)
+                    if config and 'stacks' in config:
+                        metadata = config['stacks']
+            except Exception as e:
+                pass
+
+        self._metadata_cache = metadata
+        return metadata
+
+    def _get_stack_dir(self, stack_name: str) -> Path:
+        """
+        Get the directory path for a stack (handles core/infra vs stacks/).
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            Path to stack directory
+        """
+        if stack_name == "infra":
+            return self._core_dir / "infra"
+        return self._stacks_dir / stack_name
+
+    def discover_stacks(self) -> List[str]:
+        """
+        Discover available stacks based on stack.yml + docker-compose.yml.
+
+        Returns:
+            Sorted list of stack names that have both stack.yml and docker-compose.yml
+        """
+        metadata = self._load_metadata()
+        if not metadata:
+            return []
+
+        stacks = []
+        for stack_name in metadata.keys():
+            stack_dir = self._get_stack_dir(stack_name)
+            compose_file = stack_dir / "docker-compose.yml"
+            if compose_file.exists():
+                stacks.append(stack_name)
+        return sorted(stacks)
+
+    def get_stack_info(self, stack_name: str) -> Dict:
+        """
+        Get metadata for a specific stack.
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            Dict with stack info (description, config_files, services, etc.)
+        """
+        metadata = self._load_metadata()
+        stack_metadata = metadata.get(stack_name)
+
+        stack_dir = self._get_stack_dir(stack_name)
+        compose_exists = (stack_dir / "docker-compose.yml").exists()
+        predeploy_sh_exists = (stack_dir / "pre-deploy.sh").exists()
+        predeploy_py_exists = (stack_dir / "pre-deploy.py").exists()
+        predeploy_exists = predeploy_sh_exists or predeploy_py_exists
+
+        if stack_metadata is None:
+            # Not defined in stack.yml → treated as non-existent
+            return {
+                'name': stack_name,
+                'description': 'Not defined in stack.yml',
+                'config_files': [],
+                'services': {},
+                'backups': {},
+                'path': str(stack_dir),
+                'exists': False,
+                'has_compose': compose_exists,
+                'has_predeploy': predeploy_exists,
+            }
+
+        info = {
+            'name': stack_name,
+            'description': stack_metadata.get('description', 'No description'),
+            'config_files': stack_metadata.get('config_files', []),
+            'services': stack_metadata.get('services', {}),
+            'backups': stack_metadata.get('backups', {}),
+            'shares': stack_metadata.get('shares', {}),
+            'path': str(stack_dir),
+            'exists': compose_exists,
+            'has_compose': compose_exists,
+            'has_predeploy': predeploy_exists,
+        }
+
+        return info
+
+    def list_all_stacks(self) -> List[Dict]:
+        """
+        List all available stacks with their metadata (only those defined in stacks.yml).
+
+        Returns:
+            List of dicts with stack info
+        """
+        stack_names = sorted(self._load_metadata().keys())
+        return [self.get_stack_info(name) for name in stack_names if self.get_stack_info(name)['has_compose']]
+
+    def stack_exists(self, stack_name: str) -> bool:
+        """
+        Check if a stack exists (must be defined in stacks.yml).
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            True if stack is defined in stacks.yml, False otherwise
+        """
+        metadata = self._load_metadata()
+        return stack_name in metadata
+
+    def get_stack_docker_dir(self, stack_name: str) -> Path:
+        """
+        Get directory path for a stack.
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            Path to stack directory
+        """
+        return self._get_stack_dir(stack_name)
+
+    def get_stack_data_dir(self, stack_name: str) -> Path:
+        """
+        Get data directory path for a stack.
+
+        Args:
+            stack_name: Name of the stack
+        Returns:
+            Path to stack data directory
+        """
+        return self._data_dir / stack_name
+
+    def has_predeploy(self, stack_name: str) -> bool:
+        """
+        Check if stack has a pre-deploy script (.sh or .py).
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            True if pre-deploy.sh or pre-deploy.py exists
+        """
+        if not self.stack_exists(stack_name):
+            return False
+        stack_dir = self.get_stack_docker_dir(stack_name)
+        return (stack_dir / "pre-deploy.sh").exists() or (stack_dir / "pre-deploy.py").exists()
+
+    def get_config_files(self, stack_name: str) -> List[str]:
+        """
+        Get list of config files needed by a stack.
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            List of config file names (e.g., ['cloudflare', 'auth'])
+        """
+        info = self.get_stack_info(stack_name)
+        return info.get('config_files', [])
+
+    def get_services(self, stack_name: str) -> Dict:
+        """
+        Get services defined in a stack.
+
+        Args:
+            stack_name: Name of the stack
+
+        Returns:
+            Dict of service definitions
+        """
+        info = self.get_stack_info(stack_name)
+        return info.get('services', {})
+
+
+# Singleton instance
+_stack_manager = None
+
+
+@deprecated("Use StackManager from hms.lib.stacks instead")
+def get_stack_manager() -> StackOldManager:
+    """
+    Get singleton instance of StackManager.
+
+    Args:
+        project_root: Root directory (optional, uses env or default)
+
+    Returns:
+        StackManager instance
+    """
+    global _stack_manager
+    if _stack_manager is None:
+        _stack_manager = StackOldManager()
+    return _stack_manager

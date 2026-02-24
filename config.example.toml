@@ -1,0 +1,21 @@
+[global]
+host_root = "__REQUIRED__"
+puid = "__REQUIRED__"
+pgid = "__REQUIRED__"
+tz = "__REQUIRED__"
+domain = "__REQUIRED__"
+
+[infra.cloudflare]
+email = "__REQUIRED__"
+dns_api_token = "__REQUIRED__"
+
+[infra.auth]
+google_client_id = "__REQUIRED__"
+google_client_secret = "__REQUIRED__"
+oauth_whitelist = "__REQUIRED__"
+
+[infra.watchtower]
+notification_url = "__REQUIRED__"
+
+[necesse]
+password = "__REQUIRED__"

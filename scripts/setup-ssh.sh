@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cargar configuración común
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common/env-loader.sh"
-load_common_config
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Función de logging con colores
+log() {
+    echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $*"
+}
+
+warn() {
+    echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠️${NC} $*"
+}
+
+error() {
+    echo -e "${RED}[$(date '+%H:%M:%S')] ❌${NC} $*"
+}
+
+info() {
+    echo -e "${BLUE}[$(date '+%H:%M:%S')] ℹ️${NC} $*"
+}
 
 # === ARGUMENTOS: usar configuración o parámetros ===
 if [[ $# -gt 0 ]]; then
     GITHUB_USERS=("$@")
     log "Usando usuarios de GitHub desde argumentos: ${GITHUB_USERS[*]}"
-elif [[ -n "${GITHUB_SSH_USERS:-}" ]]; then
-    read -ra GITHUB_USERS <<< "$GITHUB_SSH_USERS"
-    log "Usando usuarios de GitHub desde configuración: ${GITHUB_USERS[*]}"
 else
-    echo "❌ Especifica usuarios de GitHub:"
-    echo "   - Como argumentos: $0 <github_user1> [github_user2 ...]"
-    echo "   - O configurando GITHUB_SSH_USERS en config/private/common.env"
+    error "Especifica usuarios de GitHub:"
+    info "Como argumentos: $0 <github_user1> [github_user2 ...]"
     exit 1
 fi
 
@@ -24,10 +38,6 @@ LOCAL_USER="$(whoami)"       # Usuario local que ejecuta el script
 SSH_DIR="$HOME/.ssh"
 AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
 TMP_KEYS="/tmp/github_keys_tmp_$$"
-
-log() {
-    echo "[$(date '+%H:%M:%S')] $*"
-}
 
 cleanup() {
     rm -f "$TMP_KEYS"
@@ -61,12 +71,12 @@ for GH_USER in "${GITHUB_USERS[@]}"; do
             ACTIVE_USERS+=("$GH_USER")
         fi
     else
-        echo "⚠️ No se pudieron obtener claves de $GH_USER, se salta."
+        warn "No se pudieron obtener claves de $GH_USER, se salta."
     fi
 done
 
 if [[ ${#ACTIVE_USERS[@]} -eq 0 ]]; then
-    echo "❌ No se descargó ninguna clave pública válida, abortando."
+    error "No se descargó ninguna clave pública válida, abortando."
     rm -f "$TMP_KEYS"
     exit 1
 fi
@@ -122,7 +132,7 @@ if sudo sshd -t -f "$TEMP_CONFIG"; then
     log "✅ Configuración SSH validada correctamente."
     sudo rm -f "$TEMP_CONFIG"
 else
-    log "❌ Error en configuración SSH, restaurando backup..."
+    error "Error en configuración SSH, restaurando backup..."
     sudo cp "$BACKUP_CONFIG" "$SSHD_CONFIG"
     sudo rm -f "$TEMP_CONFIG"
     exit 1
@@ -136,7 +146,7 @@ sudo systemctl restart ssh || sudo service ssh restart
 if sudo systemctl is-active ssh >/dev/null 2>&1; then
     log "✅ SSH está activo y funcionando."
 else
-    log "⚠️ SSH puede no estar funcionando correctamente."
+    warn "SSH puede no estar funcionando correctamente."
 fi
 
 # === RESUMEN FINAL ===

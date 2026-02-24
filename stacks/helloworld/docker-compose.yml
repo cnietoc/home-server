@@ -1,0 +1,31 @@
+name: ${STACK_PREFIX}
+
+networks:
+  hms-network:
+    external: true
+
+x-hms:
+  description: "Servicio de ejemplo Hello World"
+
+services:
+
+  hello-world:
+    image: nginx:alpine
+    container_name: ${STACK_PREFIX}-hello-world
+    restart: unless-stopped
+    networks:
+      - hms-network
+    volumes:
+      - ${STACK_DIR}/html:/usr/share/nginx/html:ro
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    labels:
+      traefik.enable: true
+      traefik.docker.network: "hms-network"
+      traefik.http.routers.test.rule: "Host(`test.${DOMAIN}`)"
+      traefik.http.routers.test.tls: "true"
+      traefik.http.routers.test.tls.certresolver: "cloudflare"
+      traefik.http.services.test.loadbalancer.server.port: "80"
+      hms.description: "👋 Página de bienvenida Hello World"

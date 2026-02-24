@@ -1,0 +1,76 @@
+[global]
+host_root = "__REQUIRED__"
+puid = "__REQUIRED__"
+pgid = "__REQUIRED__"
+tz = "__REQUIRED__"
+domain = "__REQUIRED__"
+log_level = "info"
+
+[global.backups]
+max_backups = 5
+
+[infra.cloudflare]
+email = "__REQUIRED__"
+dns_api_token = "__REQUIRED__"
+
+[infra.auth]
+google_client_id = "__REQUIRED__"
+google_client_secret = "__REQUIRED__"
+oauth_whitelist = "__REQUIRED__"
+
+[infra.watchtower]
+schedule = '0 0 */12 * * *'
+notifications = "shoutrrr"
+notification_url = "__REQUIRED__"
+notifications_level = "info"
+log_level = "info"
+
+[jobs.update-dns]
+description = "Actualizar DNS en Cloudflare"
+plugin = "system:update-dns"
+args = []
+triggers = [
+    { type = "startup", delay = "10s" },
+    { type = "interval", interval = "30m" },
+    # { type = "cron", cron = "*/15 * * * *" }
+]
+
+[jobs.backup-daily]
+description = "Backup diario de todos los stacks e infra"
+plugin = "system:backup"
+enabled = true
+args = []
+triggers = [
+    { type = "startup", delay = "1m" },  # Ejecutar 1 minuto después del inicio
+    { type = "cron", cron = "0 3 * * *" }  # 03:00 cada día
+]
+
+[media]
+enable_intel_qsv = false
+enable_nvidia = false
+enable_vaapi = false
+
+[media.backups]
+exclude = [
+    "/library",
+    "/downloads",
+    "/recordings",
+    "/config/tdarr/server/Tdarr/Samples/",
+    "/config/tdarr/server/Tdarr/DB2/JobReports/",
+    "/config/tdarr/server/Tdarr/Backups/",
+    "/config/qbittorrent/data/BT_backup/",
+    "/config/prowlarr/Backups/",
+    "/config/radarr/Backups/",
+    "/config/sonarr/logs/",
+    "/config/sonarr/Backups",
+    "/config/jackett/*.txt",
+    "/config/jellyfin/log/",
+    "/config/jellyfin/temp/"
+]
+
+[home.backups]
+enabled = false
+
+[necesse]
+motd = "Welcome to my Neccesse server!"
+password = "__REQUIRED__"
