@@ -59,7 +59,7 @@ google_client_secret = "tu-client-secret"
 oauth_whitelist = "tu-email@gmail.com"
 ```
 
-> **💡 Ver guía completa**: [Cómo obtener tokens de Cloudflare y OAuth](docs/installation.md#-configuración-de-infraestructura-obligatoria)
+> **💡 Ver guía completa**: [Cómo obtener tokens de Cloudflare y OAuth](docs/installation.md#-guías-para-obtener-credenciales)
 
 ```bash
 # 4. Iniciar HMS (esto levanta automáticamente infra y otros stacks habilitados)
@@ -101,8 +101,8 @@ hms stop
 
 - **[Guía de Instalación](docs/installation.md)** - Instalación detallada y configuración inicial
 - **[Referencia de Comandos CLI](docs/cli-reference.md)** - Todos los comandos disponibles con ejemplos
-- **[Documentación de Stacks](docs/stacks/)** - Guías individuales para cada stack disponible
-- **[Guía de Desarrollo](docs/development/)** - Crear nuevos stacks y plugins
+  - **[Documentación de Stacks](docs/stacks/README.md)** - Guías individuales para cada stack disponible
+- **[Guía de Desarrollo](docs/development/setup.md)** - Crear nuevos stacks y plugins
 
 ## 📦 Stacks Disponibles
 
