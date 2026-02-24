@@ -172,8 +172,6 @@ services:
       - ${STACK_DATA}/library:/media/library                    # RW - procesa archivos de medios
       - ${STACK_DATA}/downloads:/media/downloads              # RW - procesa descargas nuevas
       - ${STACK_DATA}/config/tdarr/temp:/temp
-    ports:
-      - '8266:8266'    # Puerto interno (opcional, para acceso directo de nodos sin proxy)
     environment:
       - TZ=${TZ}
       - PUID=${PUID}

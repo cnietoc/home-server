@@ -29,8 +29,6 @@ class CLIDispatcher:
         Initialize dispatcher.
         """
         self.hms_root = Path(__file__).parent.parent
-        self.verbose = False
-        self.dry_run = False
         self._stack_manager = stack_metadata
         self.plugin_loader = get_plugin_loader()
         self._stack_manager.list_stacks()
@@ -63,20 +61,11 @@ class CLIDispatcher:
         Returns:
             Tuple of (remaining_args, flags_dict)
         """
-        flags = {
-            'verbose': False,
-            'dry_run': False
-        }
+        flags = {}
         remaining = []
 
         for arg in args:
-            if arg == '--verbose' or arg == '-v':
-                flags['verbose'] = True
-                self.verbose = True
-            elif arg == '--dry-run':
-                flags['dry_run'] = True
-                self.dry_run = True
-            elif arg in ['-h', '--help']:
+            if arg in ['-h', '--help']:
                 flags['help'] = True
                 remaining.append(arg)
             else:
@@ -126,8 +115,7 @@ class CLIDispatcher:
             spec.loader.exec_module(module)
             return getattr(module, 'COMMAND_ORDER', None)
         except Exception as e:
-            if self.verbose:
-                logger.debug(f"Could not load order from {module_path}: {e}")
+            logger.debug(f"Could not load order from {module_path}: {e}")
             return None
 
     def dispatch(self, args: List[str]) -> int:
@@ -171,9 +159,8 @@ class CLIDispatcher:
             logger.info("⚠️  Interrupted by user")
             return 130
         except Exception as e:
-            if self.verbose:
-                import traceback
-                traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             logger.error(f"Error: {e}")
             return 1
 
@@ -245,8 +232,6 @@ class CLIDispatcher:
                 logger.error(f"Failed to load plugin for command: {command}")
                 return 1
             plugin_args = args[1:]
-            if self.verbose:
-                logger.debug(f"Executing {command}...")
             return plugin.run(plugin_args)
 
         subcommands = plugin_entry
@@ -270,8 +255,6 @@ class CLIDispatcher:
             logger.error(f"Failed to load plugin for: {command} {subcommand}")
             return 1
 
-        if self.verbose:
-            logger.debug(f"Executing {command} {subcommand}...")
 
         return plugin.run(plugin_args)
 
@@ -390,10 +373,7 @@ GLOBAL COMMANDS:
                 print(f"    {subcommand_name:<12}  {description}")
 
         print(f"""
-
 OPTIONS:
-  --verbose, -v   Verbose output
-  --dry-run       Simulate without making changes
   -h, --help      Show this help
 
 EXAMPLES:
@@ -429,5 +409,4 @@ EXAMPLES:
         print(f"""
   {sample_global}                   # Run a global command
   hms --help                          # Show this help
-  hms {first_stack} {first_action} --verbose          # Verbose output
 """)
