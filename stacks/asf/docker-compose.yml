@@ -10,7 +10,7 @@ x-hms:
 services:
   asf:
     image: justarchi/archisteamfarm:latest
-    container_name: ${STACK_PREFIX}-asf
+    container_name: ${STACK_PREFIX}
     restart: unless-stopped
     networks:
       - hms-network
