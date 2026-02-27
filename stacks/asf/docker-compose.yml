@@ -24,6 +24,8 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+    ports:
+      - "1242:1242"
     labels:
       # Traefik routing
       traefik.enable: "true"
