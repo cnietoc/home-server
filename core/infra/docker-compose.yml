@@ -93,7 +93,6 @@ services:
       - "traefik.http.routers.tinyauth.tls=true"
       - "traefik.http.routers.tinyauth.tls.certresolver=cloudflare"
       - "traefik.http.middlewares.tinyauth.forwardauth.address=http://tinyauth:3000/api/auth/traefik"
-      - "traefik.http.middlewares.tinyauth.forwardauth.authResponseHeaders=X-Forwarded-User"
       - "traefik.http.middlewares.tinyauth.forwardauth.maxResponseBodySize=1048576"
       - "hms.description=🔐 Panel de Autenticación"
 

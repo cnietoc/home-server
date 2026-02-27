@@ -27,6 +27,7 @@ services:
     labels:
       # Traefik routing
       traefik.enable: "true"
+      traefik.docker.network: "hms-network"
       traefik.http.routers.asf.rule: "Host(`asf.${DOMAIN}`)"
       traefik.http.routers.asf.tls: "true"
       traefik.http.routers.asf.tls.certresolver: "cloudflare"
