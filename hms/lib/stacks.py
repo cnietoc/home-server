@@ -284,6 +284,7 @@ class StackMetadata:
             "STACK_PREFIX": f"hms-{stack_name}",
             "STACK_DATA": get_host_data_dir(stack_name),
             "STACK_DIR": get_host_stack_dir(stack_name),
+            "HMS_STACK_DATA": get_data_root() / stack_name
         }
 
         # 2. Variables globales desde config.toml (aplanadas)
