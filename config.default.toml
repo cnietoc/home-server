@@ -74,3 +74,9 @@ enabled = false
 [necesse]
 motd = "Welcome to my Neccesse server!"
 password = "__REQUIRED__"
+
+[corekeeper]
+world_name = "Home Server CoreKeeper Server"
+game_id = ""
+password = "__REQUIRED__"
+discord_webhook_url = ""

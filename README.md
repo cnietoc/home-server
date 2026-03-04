@@ -110,6 +110,7 @@ hms stop
 |-------|-------------|
 | **media** | Gestión multimedia (Jellyfin, Radarr, Sonarr, etc.) |
 | **necesse** | Servidor de juego Necesse |
+| **corekeeper** | Servidor de juego Core Keeper |
 | **home** | Dashboard de servicios HMS |
 | **steam** | 🚧 ArchiSteamFarm (en construcción) |
 | **helloworld** | Stack de ejemplo para desarrollo |

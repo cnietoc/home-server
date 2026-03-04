@@ -1,0 +1,25 @@
+name: ${STACK_PREFIX}
+
+x-hms:
+  description: "Servidor de juego Core Keeper"
+
+services:
+  corekeeper:
+    container_name: ${STACK_PREFIX}
+    image: escaping/core-keeper-dedicated:latest
+    restart: unless-stopped
+    stop_grace_period: 2m
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - WORLD_NAME=${WORLD_NAME}
+      - GAME_ID=${GAME_ID}
+      - SERVER_PASSWORD=${PASSWORD}
+      - ACTIVATE_ALL_CONTENT=true
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    volumes:
+      - ${STACK_DATA}/server-files:/home/steam/core-keeper-dedicated
+      - ${STACK_DATA}/server-data:/home/steam/core-keeper-data
+    labels:
+      - "hms.description=🎮 Servidor de juego Core Keeper"
