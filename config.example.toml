@@ -19,8 +19,6 @@ notification_url = "__REQUIRED__"
 
 [necesse]
 password = "__REQUIRED__"
-game_id = ""
-discord_webhook_url = ""
 
 [corekeeper]
 password = "__REQUIRED__"
