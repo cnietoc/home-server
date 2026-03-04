@@ -80,3 +80,8 @@ world_name = "Home Server CoreKeeper Server"
 game_id = ""
 password = "__REQUIRED__"
 discord_webhook_url = ""
+
+[corekeeper.backups]
+exclude = [
+    "/server-files/"
+]
