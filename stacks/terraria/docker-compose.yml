@@ -13,6 +13,8 @@ services:
       - "7777:7777/tcp"
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - TSHOCK_WORLD=${WORLD_NAME}
       - TSHOCK_WORLDSIZE=${WORLD_SIZE}
       - TSHOCK_DIFFICULTY=${DIFFICULTY}
