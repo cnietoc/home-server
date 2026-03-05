@@ -25,6 +25,8 @@ services:
       - SECURE=${SECURE}
       - NPCSTREAM=${NPCSTREAM}
     volumes:
-      - ${STACK_DATA}:/home/tml/.local/share/Terraria/tModLoader
+      - ${STACK_DATA}/Worlds:/home/tml/.local/share/Terraria/tModLoader/Worlds
+      - ${STACK_DATA}/Mods:/home/tml/.local/share/Terraria/tModLoader/Mods
+      - ${STACK_DATA}/ModConfigs:/home/tml/.local/share/Terraria/TModLoader/ModConfigs
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tModLoader (soporte para mods)"
