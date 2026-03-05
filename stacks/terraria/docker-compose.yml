@@ -1,0 +1,31 @@
+name: ${STACK_PREFIX}
+
+x-hms:
+  description: "Servidor de juego Terraria con tShock (Oficial)"
+
+services:
+  terraria:
+    container_name: ${STACK_PREFIX}
+    image: ghcr.io/pryaxis/tshock:nuget-latest
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    ports:
+      - "7777:7777/tcp"
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TSHOCK_WORLD=${WORLD_NAME}
+      - TSHOCK_WORLDSIZE=${WORLD_SIZE}
+      - TSHOCK_DIFFICULTY=${DIFFICULTY}
+      - TSHOCK_MOTD=${MOTD}
+      - TSHOCK_SECURE=${SECURE}
+      - TSHOCK_LANGUAGE=${LANGUAGE}
+      - TSHOCK_MAXPLAYERS=${MAX_PLAYERS}
+    volumes:
+      - ${STACK_DATA}/worlds:/worlds
+      - ${STACK_DATA}/config:/tshock
+      - ${STACK_DATA}/plugins:/plugins
+    labels:
+      - "hms.description=🎮 Servidor de juego Terraria con tShock"
