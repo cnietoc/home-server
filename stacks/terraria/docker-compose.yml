@@ -8,12 +8,11 @@ services:
     container_name: ${STACK_PREFIX}
     image: ghcr.io/pryaxis/tshock:nuget-release
     restart: unless-stopped
+    user: ${PUID}:${PGID}
     ports:
       - "7777:7777/tcp"
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
       - TSHOCK_WORLD=${WORLD_NAME}
       - TSHOCK_WORLDSIZE=${WORLD_SIZE}
       - TSHOCK_DIFFICULTY=${DIFFICULTY}
