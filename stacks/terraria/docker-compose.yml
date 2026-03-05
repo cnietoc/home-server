@@ -13,7 +13,6 @@ services:
     environment:
       - TZ=${TZ}
       - TSHOCK_WORLD=${WORLD_NAME}
-      - TSHOCK_WORLDSIZE=${WORLD_SIZE}
       - TSHOCK_DIFFICULTY=${DIFFICULTY}
       - TSHOCK_MOTD=${MOTD}
       - TSHOCK_SECURE=${SECURE}
@@ -24,6 +23,12 @@ services:
       - ${STACK_DATA}/worlds:/worlds
       - ${STACK_DATA}/config:/tshock
       - ${STACK_DATA}/plugins:/plugins
-    command: ["-autocreate","1"]
+    command:
+      - "-world"
+      - "/worlds/my_world.wld"
+      - "-autocreate"
+      - ${WORLD_SIZE}
+      - "-motd"
+      - "${MOTD}"
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tShock"

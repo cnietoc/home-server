@@ -94,5 +94,4 @@ motd = "Welcome to my Terraria server!"
 password = "__REQUIRED__"
 max_players = "10"
 secure = "1"
-language = "en"
-
+language = "en_US"
