@@ -8,8 +8,6 @@ services:
     container_name: ${STACK_PREFIX}
     image: ghcr.io/pryaxis/tshock:nuget-release
     restart: unless-stopped
-    stdin_open: true
-    tty: true
     ports:
       - "7777:7777/tcp"
     environment:
