@@ -1,40 +1,31 @@
 name: ${STACK_PREFIX}
 
 x-hms:
-  description: "Servidor de juego Terraria con tShock (Oficial)"
+  description: "Servidor de juego Terraria con tModLoader"
 
 services:
   terraria:
     container_name: ${STACK_PREFIX}
-    image: ghcr.io/pryaxis/tshock:nuget-release
+    image: hexlo/terraria-tmodloader-server:latest
     restart: unless-stopped
     ports:
       - "7777:7777/tcp"
     environment:
       - TZ=${TZ}
-      - TSHOCK_WORLD=${WORLD_NAME}
-      - TSHOCK_DIFFICULTY=${DIFFICULTY}
-      - TSHOCK_MOTD=${MOTD}
-      - TSHOCK_SECURE=${SECURE}
-      - TSHOCK_LANGUAGE=${LANGUAGE}
-      - TSHOCK_MAXPLAYERS=${MAX_PLAYERS}
-      - TSHOCK_AUTOCREATE=1
+      - UID=${PUID}
+      - GID=${PGID}
+      - WORLD_NAME=${WORLD_NAME}
+      - AUTOCREATE=${WORLD_SIZE}
+      - DIFFICULTY=${DIFFICULTY}
+      - MOTD=${MOTD}
+      - WORLD="/home/tml/.local/share/Terraria/tModLoader/Worlds/world.wld"
+      - LANGUAGE=${LANGUAGE}
+      - MAXPLAYERS=${MAX_PLAYERS}
+      - PASSWORD=${PASSWORD}
+      - SECURE=${SECURE}
+      - NPCSTREAM=${NPCSTREAM}
+      -
     volumes:
-      - ${STACK_DATA}/worlds:/worlds
-      - ${STACK_DATA}/config:/tshock
-      - ${STACK_DATA}/plugins:/plugins
-    command:
-      - "-world"
-      - "/worlds/my_world.wld"
-      - "-worldname"
-      - ${WORLD_NAME}
-      - "-autocreate"
-      - ${WORLD_SIZE}
-      - "-motd"
-      - ${MOTD}
-      - "-lang"
-      - ${LANGUAGE}
-      - "-password"
-      - ${PASSWORD}
+      - ${STACK_DATA}:/home/tml/.local/share/Terraria/tModLoader
     labels:
-      - "hms.description=🎮 Servidor de juego Terraria con tShock"
+      - "hms.description=🎮 Servidor de juego Terraria con tModLoader (soporte para mods)"

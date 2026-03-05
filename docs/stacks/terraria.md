@@ -1,32 +1,35 @@
 # Stack: Terraria (Servidor de Juego)
 
-Servidor multijugador para el juego Terraria con **tShock oficial** (modificación mantenida por Pryaxis) permitiendo persistencia de mundos y configuración avanzada.
+Servidor multijugador para el juego Terraria con **tModLoader** permitiendo persistencia de mundos, soporte para mods y configuración avanzada sin ejecutar como root.
 
 ## 📋 Overview
 
 | Propiedad | Valor |
 |-----------|-------|
 | **Estado** | ✅ Estable |
-| **Servicios** | 1 servicio (Servidor Terraria con tShock Oficial) |
+| **Servicios** | 1 servicio (Servidor Terraria con tModLoader) |
 | **Puertos Expuestos** | 7777 (TCP - juego) |
-| **Imagen** | `ghcr.io/pryaxis/tshock:latest` (Oficial) |
-| **Almacenamiento** | ~500MB-2GB (mundos, configuración, logs) |
+| **Imagen** | `hexlo/terraria-tmodloader-server:latest` |
+| **Almacenamiento** | ~500MB-2GB (mundos, configuración, mods, logs) |
+| **Seguridad** | ✅ No ejecuta como root |
 
 ## 🎮 Descripción
 
-Stack que proporciona un servidor multijugador para el juego **Terraria** con **tShock**, la modificación oficial mantenida por **Pryaxis**. tShock añade comandos administrativos, plugins, protección de regiones y muchas más características avanzadas.
+Stack que proporciona un servidor multijugador para el juego **Terraria** con **tModLoader**, el loader de mods oficial para Terraria. tModLoader permite cargar mods personalizados, jugar con contenido extendido y crear experiencias de juego únicas.
 
-Los jugadores pueden conectarse al servidor para jugar en mundos persistentes compartidos con toda la funcionalidad extendida de tShock.
+Este stack utiliza la imagen `hexlo/terraria-tmodloader-server` que ejecuta el servidor **sin permisos de root**, mejorando la seguridad del sistema. Soporta configuración mediante variables de entorno y permite cargar mods fácilmente.
+
+Los jugadores pueden conectarse al servidor para jugar en mundos persistentes compartidos con todos los mods instalados sincronizados automáticamente.
 
 ## 🔧 Servicios Incluidos
 
-### 1. Servidor Terraria con tShock - Juego Multijugador
-Servidor de juego con soporte para múltiples jugadores simultáneos y extensiones administrativas
+### 1. Servidor Terraria con tModLoader - Juego Multijugador
+Servidor de juego con soporte para múltiples jugadores simultáneos y carga de mods
 
 - **Dirección**: `servidor.local:7777` o `IP-SERVIDOR:7777`
 - **Puerto**: 7777 (TCP)
-- **Protegido**: ✅ Sí (contraseña recomendada)
-- **Función**: Servidor multijugador persistente, gestión de mundos, coordinación de jugadores, plugins de tShock
+- **Protegido**: ✅ Sí (contraseña opcional)
+- **Función**: Servidor multijugador persistente, gestión de mundos, soporte de mods, coordinación de jugadores
 
 ## 📋 Configuración Requerida
 
@@ -36,20 +39,19 @@ Servidor de juego con soporte para múltiples jugadores simultáneos y extension
 
 ```toml
 [terraria]
-password = "tu-contraseña"                 # Contraseña del servidor
+world_name = "My Terraria World"           # Nombre del mundo
 ```
 
 ### 🔧 Configuración Opcional
 
 ```toml
 [terraria]
-world_name = "Terraria World"              # Nombre del mundo
-world_size = "1"                           # Tamaño: 0=pequeño, 1=medio, 2=grande
-difficulty = "0"                           # Dificultad: 0=normal, 1=experto, 2=maestro
+password = ""                              # Contraseña del servidor (vacío = sin contraseña)
+world_size = "2"                           # Tamaño: 1=pequeño, 2=medio, 3=grande
+difficulty = "normal"                      # Dificultad: normal, expert, master, journey
 motd = "Welcome to my Terraria server!"    # Mensaje al conectar
-max_players = "255"                        # Máximo de jugadores simultáneos
-secure = "1"                               # Activar modo seguro (1=sí, 0=no)
-language = "en"                            # Idioma del servidor (en, de, fr, es, etc)
+max_players = "8"                          # Máximo de jugadores simultáneos
+language = "en-US"                         # Idioma del servidor (en-US, es-ES, etc)
 ```
 
 ## 🗂️ Estructura de Datos
@@ -57,9 +59,9 @@ language = "en"                            # Idioma del servidor (en, de, fr, es
 ```
 data/
 └── terraria/
-    ├── worlds/              # Mundos persistentes de Terraria
-    ├── config/              # Configuración de tShock y plugins
-    ├── plugins/             # Plugins de tShock (.dll)
+    ├── worlds/              # Mundos persistentes de Terraria (.wld y .twld)
+    ├── config/              # Configuración de tModLoader
+    ├── plugins/             # Mods de tModLoader (.tmod)
     └── logs/                # Logs del servidor
 ```
 
@@ -69,26 +71,26 @@ El stack utiliza las siguientes variables de entorno desde `config.toml`:
 
 - `STACK_PREFIX`: Nombre del contenedor
 - `TZ`: Zona horaria
-- `TSHOCK_WORLD`: Nombre del mundo (mapea a `WORLD_NAME`)
-- `TSHOCK_WORLDSIZE`: Tamaño del mundo (mapea a `WORLD_SIZE`)
-- `TSHOCK_DIFFICULTY`: Dificultad del juego (mapea a `DIFFICULTY`)
-- `TSHOCK_MOTD`: Mensaje del día (mapea a `MOTD`)
-- `TSHOCK_SECURE`: Modo seguro (mapea a `SECURE`)
-- `TSHOCK_LANGUAGE`: Idioma del servidor (mapea a `LANGUAGE`)
-- `TSHOCK_MAXPLAYERS`: Máximo de jugadores (mapea a `MAX_PLAYERS`)
+- `WORLD_NAME`: Nombre del mundo
+- `WORLD_SIZE`: Tamaño del mundo (1=pequeño, 2=medio, 3=grande)
+- `DIFFICULTY`: Dificultad del juego (normal, expert, master, journey)
+- `MOTD`: Mensaje del día
+- `LANGUAGE`: Idioma del servidor (en-US, es-ES, etc)
+- `MAX_PLAYERS`: Máximo de jugadores
+- `PASSWORD`: Contraseña del servidor (opcional)
 
 ## 📝 Notas de Configuración
 
 ### Tamaños de Mundo
-- **0**: Pequeño (~50MB)
-- **1**: Medio (~150MB) - Recomendado
-- **2**: Grande (~250MB)
+- **1**: Pequeño (~50MB)
+- **2**: Medio (~150MB) - Recomendado
+- **3**: Grande (~250MB)
 
 ### Niveles de Dificultad
-- **0**: Normal
-- **1**: Experto
-- **2**: Maestro
-- **3**: Viaje
+- **normal**: Normal
+- **expert**: Experto
+- **master**: Maestro
+- **journey**: Viaje
 
 ### Puertos
 El servidor utiliza el puerto **7777/TCP** para el tráfico del juego.
@@ -102,67 +104,78 @@ Los jugadores pueden conectarse al servidor utilizando:
 3. Conectar a: `IP-DEL-SERVIDOR:7777`
 4. Introducir la contraseña si es requerida
 
-## 🔧 Plugins de tShock
+## 🔧 Mods de tModLoader
 
-tShock permite extender la funcionalidad del servidor mediante plugins. Los plugins son archivos `.dll` que se cargan automáticamente al iniciar el servidor.
+tModLoader permite extender la funcionalidad del juego mediante mods. Los mods son archivos `.tmod` que se cargan automáticamente al iniciar el servidor.
 
-### Instalación de Plugins
+### Instalación de Mods
 
-1. **Descargar el plugin** (archivo `.dll`)
-2. **Copiar a** `data/terraria/plugins/`
-3. **Reiniciar el servidor** para que cargue el plugin
+Hay dos formas de instalar mods en el servidor:
 
-### Estructura de la Carpeta de Plugins
+#### Método 1: Desde el Steam Workshop (Recomendado)
+1. **Descarga los mods** en tu cliente de Terraria con tModLoader
+2. **Copia los archivos `.tmod`** desde tu carpeta local:
+   - Windows: `%USERPROFILE%\Documents\My Games\Terraria\tModLoader\Mods\`
+   - Linux: `~/.local/share/Terraria/tModLoader/Mods/`
+   - Mac: `~/Library/Application Support/Terraria/tModLoader/Mods/`
+3. **Pega los archivos** en `data/terraria/plugins/`
+4. **Reinicia el servidor** para que cargue los mods
+
+#### Método 2: Descarga Manual
+1. **Descarga el mod** (archivo `.tmod`) desde [tModLoader Mod Browser](https://steamcommunity.com/workshop/browse/?appid=1281930)
+2. **Copia a** `data/terraria/plugins/`
+3. **Reinicia el servidor** para que cargue el mod
+
+### Estructura de la Carpeta de Mods
 
 ```
 data/terraria/plugins/
-├── Essentials.dll
-├── ChatFilter.dll
-├── AntiCheat.dll
-└── OtherPlugin.dll
+├── CalamityMod.tmod
+├── ThoriumMod.tmod
+├── MagicStorage.tmod
+└── RecipeBrowser.tmod
 ```
 
-### Plugins Recomendados
+### Mods Recomendados
 
-| Plugin | Descripción | Función |
-|--------|-------------|---------|
-| **Essentials** | Comandos extendidos | Utilidades y comandos administrativos |
-| **ChatFilter** | Filtrado de chat | Filtrar palabras y mensajes spam |
-| **AntiCheat** | Detección de trucos | Prevenir hacks y exploits |
-| **WorldEdit** | Editor de mundo | Herramientas de construcción avanzada |
-| **Respawn** | Control de respawns | Personalizar mecánicas de respawn |
+| Mod | Descripción | Función |
+|-----|-------------|---------|
+| **Calamity Mod** | Contenido masivo | Añade +2000 nuevos items, bosses y mecánicas |
+| **Thorium Mod** | Expansión equilibrada | Nuevas clases, items y bosses |
+| **Magic Storage** | Almacenamiento | Sistema de almacenamiento avanzado |
+| **Recipe Browser** | Explorador de recetas | Busca crafting y items fácilmente |
+| **Boss Checklist** | Lista de bosses | Rastrea progreso de bosses y eventos |
 
-### Verificar Plugins Cargados
+### Compatibilidad de Mods
 
-Para ver los plugins activos en tu servidor:
+⚠️ **Importante**: Todos los jugadores deben tener instalados **exactamente los mismos mods** que el servidor para poder conectarse.
 
-1. Conecta al servidor como administrador en-game
-2. Ejecuta el comando:
-```
-/plugins
-```
+### Verificar Mods Cargados
 
-Esto listará todos los plugins que están cargados y activos.
+Los mods cargados se muestran en los logs del servidor en `data/terraria/logs/`.
 
 ### Solución de Problemas
 
-- **El plugin no se carga**: Asegúrate que está en `data/terraria/plugins/` y reinicia el servidor
-- **El servidor no inicia**: Revisa los logs en `data/terraria/logs/` para ver errores de compatibilidad
-- **Comando no funciona**: Verifica que tienes los permisos necesarios con `/admin`
+- **El mod no se carga**: Asegúrate que el archivo `.tmod` está en `data/terraria/plugins/` y reinicia el servidor
+- **El servidor no inicia**: Revisa los logs en `data/terraria/logs/` para ver errores de compatibilidad entre mods
+- **No puedo conectarme**: Verifica que tienes instalados exactamente los mismos mods que el servidor
+- **Conflicto entre mods**: Algunos mods son incompatibles entre sí, revisa la documentación de cada mod
 
 Por defecto, los mundos y configuración del servidor se guardan en `data/terraria/`:
 - Los mundos se encuentran en `worlds/`
-- La configuración de tShock en `config/`
+- La configuración de tModLoader en `config/`
+- Los mods instalados en `plugins/`
 
 Se recomienda hacer backup regularmente de la carpeta `data/terraria/`.
 
 ## 📚 Enlaces Útiles
 
 - [Documentación oficial de Terraria](https://www.terraria.org/)
-- [tShock GitHub Oficial](https://github.com/Pryaxis/TShock)
-- [tShock Wiki](https://github.com/Pryaxis/TShock/wiki)
-- [tShock Docker Documentation](https://github.com/Pryaxis/TShock/wiki/docker)
-- [Docker Image: ghcr.io/pryaxis/tshock](https://ghcr.io/pryaxis/tshock)
+- [tModLoader en Steam](https://store.steampowered.com/app/1281930/tModLoader/)
+- [tModLoader GitHub Oficial](https://github.com/tModLoader/tModLoader)
+- [tModLoader Wiki](https://github.com/tModLoader/tModLoader/wiki)
+- [Steam Workshop - Mods de tModLoader](https://steamcommunity.com/workshop/browse/?appid=1281930)
+- [Docker Image: hexlo/terraria-tmodloader-server](https://github.com/hexlo/terraria-tmodloader-server)
 
 
 
