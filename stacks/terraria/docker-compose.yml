@@ -12,8 +12,6 @@ services:
       - "7777:7777/tcp"
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
       - TSHOCK_WORLD=${WORLD_NAME}
       - TSHOCK_WORLDSIZE=${WORLD_SIZE}
       - TSHOCK_DIFFICULTY=${DIFFICULTY}
@@ -27,6 +25,6 @@ services:
       - ${STACK_DATA}/config:/tshock
       - ${STACK_DATA}/plugins:/plugins
     command:
-      - -world /worlds/my_world.wld
+      - -world /worlds/my_world.wld -autocreate=1
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tShock"
