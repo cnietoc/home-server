@@ -24,7 +24,6 @@ services:
       - PASSWORD=${PASSWORD}
       - SECURE=${SECURE}
       - NPCSTREAM=${NPCSTREAM}
-      -
     volumes:
       - ${STACK_DATA}:/home/tml/.local/share/Terraria/tModLoader
     labels:
