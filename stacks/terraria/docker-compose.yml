@@ -25,6 +25,6 @@ services:
       - ${STACK_DATA}/config:/tshock
       - ${STACK_DATA}/plugins:/plugins
     command:
-      - -world /worlds/my_world.wld -autocreate=1
+      - -world /worlds/my_world.wld -autocreate=1 .--asdfasdfasdf
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tShock"
