@@ -24,6 +24,8 @@ services:
       - ${STACK_DATA}/config:/tshock
       - ${STACK_DATA}/plugins:/plugins
     command:
+      - "-world"
+      - "/worlds/my_world.wld"
       - "-worldname"
       - ${WORLD_NAME}
       - "-autocreate"
