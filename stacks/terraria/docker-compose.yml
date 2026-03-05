@@ -6,7 +6,7 @@ x-hms:
 services:
   terraria:
     container_name: ${STACK_PREFIX}
-    image: ghcr.io/pryaxis/tshock:nuget-latest
+    image: ghcr.io/pryaxis/tshock:nuget-release
     restart: unless-stopped
     stdin_open: true
     tty: true
