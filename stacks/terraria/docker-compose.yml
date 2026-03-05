@@ -21,6 +21,7 @@ services:
       - TSHOCK_SECURE=${SECURE}
       - TSHOCK_LANGUAGE=${LANGUAGE}
       - TSHOCK_MAXPLAYERS=${MAX_PLAYERS}
+      - TSHOCK_AUTOCREATE=1
     volumes:
       - ${STACK_DATA}/worlds:/worlds
       - ${STACK_DATA}/config:/tshock
