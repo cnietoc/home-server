@@ -85,3 +85,15 @@ discord_webhook_url = ""
 exclude = [
     "/server-files/"
 ]
+
+[terraria]
+world_name = "World"
+world_size = "2"
+difficulty = "0"
+motd = "Welcome to my Terraria server!"
+password = "__REQUIRED__"
+max_players = "16"
+secure = "1"
+npcstream = "1"
+language = "en-US"
+modpack = "Default"

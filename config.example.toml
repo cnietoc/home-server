@@ -22,3 +22,7 @@ password = "__REQUIRED__"
 
 [corekeeper]
 password = "__REQUIRED__"
+
+[terraria]
+password = "__REQUIRED__"
+

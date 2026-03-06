@@ -1,0 +1,32 @@
+name: ${STACK_PREFIX}
+
+x-hms:
+  description: "Servidor de juego Terraria con tModLoader"
+
+services:
+  terraria:
+    container_name: ${STACK_PREFIX}
+    image: passivelemon/terraria-docker:tmodloader-latest
+    restart: unless-stopped
+    stop_grace_period: 2m
+    ports:
+      - "7777:7777/tcp"
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - WORLDNAME=${WORLD_NAME}
+      - AUTOCREATE=${WORLD_SIZE}
+      - DIFFICULTY=${DIFFICULTY}
+      - MOTD=${MOTD}
+      - LANGUAGE=${LANGUAGE}
+      - MAXPLAYERS=${MAX_PLAYERS}
+      - PASSWORD=${PASSWORD}
+      - SECURE=${SECURE}
+      - NPCSTREAM=${NPCSTREAM}
+      - MODPACK=${MODPACK}
+    volumes:
+      - ${STACK_DATA}:/opt/terraria/config
+    labels:
+      - "hms.description=🎮 Servidor de juego Terraria con tModLoader (soporte para mods)"
+
