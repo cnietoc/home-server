@@ -24,7 +24,6 @@ services:
       - PASSWORD=${PASSWORD}
       - SECURE=${SECURE}
       - NPCSTREAM=${NPCSTREAM}
-      - MODPACK=${MODPACK}
     volumes:
       - ${STACK_DATA}:/opt/terraria/config
     labels:
