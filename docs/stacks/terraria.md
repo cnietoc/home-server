@@ -47,6 +47,7 @@ Servidor de juego con soporte para múltiples jugadores simultáneos y carga de 
 ```toml
 [terraria]
 password = "mi-contraseña-segura"                 # Contraseña del servidor (vacío = sin contraseña)
+modpack = ""                                      # Nombre del modpack en ModPacks/
 ```
 
 ### 🔧 Configuración Opcional
@@ -61,7 +62,7 @@ max_players = "16"                         # Máximo de jugadores simultáneos
 secure = "1"                               # Protección anti-cheats (1=activado, 0=desactivado)
 npcstream = "15"                           # Ayuda con saltos de entidades (0-60) - 15 recomendado
 language = "en-US"                         # Idioma del servidor (ej: en-US, es-ES, fr-FR)
-modpack = ""                               # Nombre del modpack en ModPacks/ (vacío = sin modpack)
+
 ```
 
 ## 📝 Notas de Configuración

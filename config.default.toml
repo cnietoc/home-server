@@ -96,4 +96,4 @@ max_players = "16"
 secure = "1"
 npcstream = "1"
 language = "en-US"
-modpack = ""  # Nombre del modpack en data/terraria/ModPacks/ (opcional)
+modpack = "Default"

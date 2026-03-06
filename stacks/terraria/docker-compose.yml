@@ -24,14 +24,9 @@ services:
       - PASSWORD=${PASSWORD}
       - SECURE=${SECURE}
       - NPCSTREAM=${NPCSTREAM}
-      - MODPACK=Default
+      - MODPACK=${MODPACK}
     volumes:
       - ${STACK_DATA}:/opt/terraria/config
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tModLoader (soporte para mods)"
-    healthcheck:
-      test: "nc -vz 127.0.0.1 7777 || exit 1"
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+
