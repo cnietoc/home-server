@@ -87,6 +87,7 @@ exclude = [
 ]
 
 [terraria]
+modpack = "Default"
 world_name = "World"
 world_size = "2"
 difficulty = "0"
@@ -96,4 +97,3 @@ max_players = "16"
 secure = "1"
 npcstream = "1"
 language = "en-US"
-modpack = "Default"
