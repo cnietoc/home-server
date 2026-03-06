@@ -1,29 +1,36 @@
 # Stack: Terraria (Servidor de Juego)
 
-Servidor multijugador para el juego Terraria con **tModLoader** permitiendo persistencia de mundos, soporte para mods y configuración avanzada sin ejecutar como root.
+Servidor multijugador para el juego Terraria con **tModLoader** permitiendo persistencia de mundos, soporte para mods y
+configuración avanzada sin ejecutar como root.
 
 ## 📋 Overview
 
-| Propiedad | Valor |
-|-----------|-------|
-| **Estado** | ✅ Estable |
-| **Servicios** | 1 servicio (Servidor Terraria con tModLoader) |
-| **Puertos Expuestos** | 7777 (TCP - juego) |
-| **Imagen** | `hexlo/terraria-tmodloader-server:latest` |
-| **Almacenamiento** | ~500MB-2GB (mundos, configuración, mods, logs) |
-| **Seguridad** | ✅ No ejecuta como root |
+| Propiedad             | Valor                                            |
+|-----------------------|--------------------------------------------------|
+| **Estado**            | ✅ Estable                                        |
+| **Servicios**         | 1 servicio (Servidor Terraria con tModLoader)    |
+| **Puertos Expuestos** | 7777 (TCP - juego)                               |
+| **Imagen**            | `passivelemon/terraria-docker:tmodloader-latest` |
+| **Almacenamiento**    | ~500MB-2GB (mundos, configuración, mods, logs)   |
+| **Seguridad**         | ✅ No ejecuta como root                           |
 
 ## 🎮 Descripción
 
-Stack que proporciona un servidor multijugador para el juego **Terraria** con **tModLoader**, el loader de mods oficial para Terraria. tModLoader permite cargar mods personalizados, jugar con contenido extendido y crear experiencias de juego únicas.
+Stack que proporciona un servidor multijugador para el juego **Terraria** con **tModLoader**, el loader de mods oficial
+para Terraria. tModLoader permite cargar mods personalizados, jugar con contenido extendido y crear experiencias de
+juego únicas.
 
-Este stack utiliza la imagen `hexlo/terraria-tmodloader-server` que ejecuta el servidor **sin permisos de root**, mejorando la seguridad del sistema. Soporta configuración mediante variables de entorno y permite cargar mods fácilmente.
+Este stack utiliza la imagen `passivelemon/terraria-docker` que ejecuta el servidor **sin permisos de root**,
+mejorando la seguridad del sistema. Soporta configuración mediante variables de entorno y permite cargar mods
+fácilmente.
 
-Los jugadores pueden conectarse al servidor para jugar en mundos persistentes compartidos con todos los mods instalados sincronizados automáticamente.
+Los jugadores pueden conectarse al servidor para jugar en mundos persistentes compartidos con todos los mods instalados
+sincronizados automáticamente.
 
 ## 🔧 Servicios Incluidos
 
 ### 1. Servidor Terraria con tModLoader - Juego Multijugador
+
 Servidor de juego con soporte para múltiples jugadores simultáneos y carga de mods
 
 - **Dirección**: `servidor.local:7777` o `IP-SERVIDOR:7777`
@@ -39,60 +46,41 @@ Servidor de juego con soporte para múltiples jugadores simultáneos y carga de 
 
 ```toml
 [terraria]
-world_name = "My Terraria World"           # Nombre del mundo
+password = "mi-contraseña-segura"                 # Contraseña del servidor (vacío = sin contraseña)
 ```
 
 ### 🔧 Configuración Opcional
 
 ```toml
 [terraria]
-password = ""                              # Contraseña del servidor (vacío = sin contraseña)
+world_name = "World"                       # Nombre del mundo (sin extensión)
 world_size = "2"                           # Tamaño: 1=pequeño, 2=medio, 3=grande
-difficulty = "normal"                      # Dificultad: normal, expert, master, journey
+difficulty = "0"                           # Dificultad: 0=normal, 1=expert, 2=master, 3=journey
 motd = "Welcome to my Terraria server!"    # Mensaje al conectar
-max_players = "8"                          # Máximo de jugadores simultáneos
-language = "en-US"                         # Idioma del servidor (en-US, es-ES, etc)
+max_players = "16"                         # Máximo de jugadores simultáneos
+secure = "1"                               # Protección anti-cheats (1=activado, 0=desactivado)
+npcstream = "15"                           # Ayuda con saltos de entidades (0-60) - 15 recomendado
+language = "en-US"                         # Idioma del servidor (ej: en-US, es-ES, fr-FR)
+modpack = ""                               # Nombre del modpack en ModPacks/ (vacío = sin modpack)
 ```
-
-## 🗂️ Estructura de Datos
-
-```
-data/
-└── terraria/
-    ├── worlds/              # Mundos persistentes de Terraria (.wld y .twld)
-    ├── config/              # Configuración de tModLoader
-    ├── plugins/             # Mods de tModLoader (.tmod)
-    └── logs/                # Logs del servidor
-```
-
-## 🔐 Variables de Entorno Disponibles
-
-El stack utiliza las siguientes variables de entorno desde `config.toml`:
-
-- `STACK_PREFIX`: Nombre del contenedor
-- `TZ`: Zona horaria
-- `WORLD_NAME`: Nombre del mundo
-- `WORLD_SIZE`: Tamaño del mundo (1=pequeño, 2=medio, 3=grande)
-- `DIFFICULTY`: Dificultad del juego (normal, expert, master, journey)
-- `MOTD`: Mensaje del día
-- `LANGUAGE`: Idioma del servidor (en-US, es-ES, etc)
-- `MAX_PLAYERS`: Máximo de jugadores
-- `PASSWORD`: Contraseña del servidor (opcional)
 
 ## 📝 Notas de Configuración
 
 ### Tamaños de Mundo
+
 - **1**: Pequeño (~50MB)
 - **2**: Medio (~150MB) - Recomendado
 - **3**: Grande (~250MB)
 
 ### Niveles de Dificultad
-- **normal**: Normal
-- **expert**: Experto
-- **master**: Maestro
-- **journey**: Viaje
+
+- **0**: Normal
+- **1**: Experto
+- **2**: Maestro
+- **3**: Viaje (Journey Mode)
 
 ### Puertos
+
 El servidor utiliza el puerto **7777/TCP** para el tráfico del juego.
 
 ## 🔌 Conexión del Cliente
@@ -106,67 +94,80 @@ Los jugadores pueden conectarse al servidor utilizando:
 
 ## 🔧 Mods de tModLoader
 
-tModLoader permite extender la funcionalidad del juego mediante mods. Los mods son archivos `.tmod` que se cargan automáticamente al iniciar el servidor.
+tModLoader permite extender la funcionalidad del juego mediante mods. Esta imagen de Docker soporta la instalación de
+mods mediante modpacks.
 
 ### Instalación de Mods
 
-Hay dos formas de instalar mods en el servidor:
+⚠️ **Importante**: No incluyas mods que solo funcionan del lado del cliente (client-side only) en el servidor. Estos
+mods solo afectan al cliente como texturas, shaders, RPC, etc.
 
-#### Método 1: Desde el Steam Workshop (Recomendado)
-1. **Descarga los mods** en tu cliente de Terraria con tModLoader
-2. **Copia los archivos `.tmod`** desde tu carpeta local:
-   - Windows: `%USERPROFILE%\Documents\My Games\Terraria\tModLoader\Mods\`
-   - Linux: `~/.local/share/Terraria/tModLoader/Mods/`
-   - Mac: `~/Library/Application Support/Terraria/tModLoader/Mods/`
-3. **Pega los archivos** en `data/terraria/plugins/`
-4. **Reinicia el servidor** para que cargue los mods
+#### Método: Modpacks (Recomendado)
 
-#### Método 2: Descarga Manual
-1. **Descarga el mod** (archivo `.tmod`) desde [tModLoader Mod Browser](https://steamcommunity.com/workshop/browse/?appid=1281930)
-2. **Copia a** `data/terraria/plugins/`
-3. **Reinicia el servidor** para que cargue el mod
+1. **En tModLoader de tu cliente**, habilita los mods que quieres usar
+2. **Ve a la sección de mod packs**
+3. **"Save Enabled as New Mod Pack"** (Guardar habilitados como nuevo Mod Pack)
+4. **"Open Mod Pack folder"** (Abrir carpeta de Mod Pack)
+5. **Copia la carpeta del modpack** que quieres usar en el servidor
+6. **Pégala en** `data/terraria/ModPacks/`
+7. **Configura la variable** `modpack` en `config.toml` con el nombre del modpack
+8. **Reinicia el servidor**
+
+Asegúrate de que el modpack tenga un archivo `enabled.json` con los mods que quieres, de lo contrario el servidor no
+iniciará.
 
 ### Estructura de la Carpeta de Mods
 
 ```
-data/terraria/plugins/
-├── CalamityMod.tmod
-├── ThoriumMod.tmod
-├── MagicStorage.tmod
-└── RecipeBrowser.tmod
+data/terraria/
+├── ModPacks/
+│   └── MiModpack/
+│       ├── enabled.json
+│       └── Mods/
+│           ├── CalamityMod.tmod
+│           ├── ThoriumMod.tmod
+│           └── MagicStorage.tmod
+└── Worlds/
 ```
 
 ### Mods Recomendados
 
-| Mod | Descripción | Función |
-|-----|-------------|---------|
-| **Calamity Mod** | Contenido masivo | Añade +2000 nuevos items, bosses y mecánicas |
-| **Thorium Mod** | Expansión equilibrada | Nuevas clases, items y bosses |
-| **Magic Storage** | Almacenamiento | Sistema de almacenamiento avanzado |
-| **Recipe Browser** | Explorador de recetas | Busca crafting y items fácilmente |
-| **Boss Checklist** | Lista de bosses | Rastrea progreso de bosses y eventos |
+| Mod                | Descripción           | Función                                      |
+|--------------------|-----------------------|----------------------------------------------|
+| **Calamity Mod**   | Contenido masivo      | Añade +2000 nuevos items, bosses y mecánicas |
+| **Thorium Mod**    | Expansión equilibrada | Nuevas clases, items y bosses                |
+| **Magic Storage**  | Almacenamiento        | Sistema de almacenamiento avanzado           |
+| **Recipe Browser** | Explorador de recetas | Busca crafting y items fácilmente            |
+| **Boss Checklist** | Lista de bosses       | Rastrea progreso de bosses y eventos         |
 
 ### Compatibilidad de Mods
 
-⚠️ **Importante**: Todos los jugadores deben tener instalados **exactamente los mismos mods** que el servidor para poder conectarse.
+⚠️ **Importante**: Todos los jugadores deben tener instalados **exactamente los mismos mods** que el servidor para poder
+conectarse.
 
 ### Verificar Mods Cargados
 
-Los mods cargados se muestran en los logs del servidor en `data/terraria/logs/`.
+Los mods cargados se muestran en los logs del servidor. Puedes verlos con:
+
+```bash
+hms terraria logs
+```
 
 ### Solución de Problemas
 
-- **El mod no se carga**: Asegúrate que el archivo `.tmod` está en `data/terraria/plugins/` y reinicia el servidor
-- **El servidor no inicia**: Revisa los logs en `data/terraria/logs/` para ver errores de compatibilidad entre mods
+- **El servidor no inicia**: Verifica que el modpack tenga un archivo `enabled.json` válido
+- **El mod no se carga**: Revisa los logs del contenedor para ver errores de compatibilidad
 - **No puedo conectarme**: Verifica que tienes instalados exactamente los mismos mods que el servidor
 - **Conflicto entre mods**: Algunos mods son incompatibles entre sí, revisa la documentación de cada mod
 
-Por defecto, los mundos y configuración del servidor se guardan en `data/terraria/`:
-- Los mundos se encuentran en `worlds/`
-- La configuración de tModLoader en `config/`
-- Los mods instalados en `plugins/`
+## 💾 Persistencia de Datos
 
-Se recomienda hacer backup regularmente de la carpeta `data/terraria/`.
+Por defecto, todos los datos del servidor se guardan en `data/terraria/`:
+
+- Los mundos se encuentran en `Worlds/`
+- Los modpacks en `ModPacks/`
+- Los mods descargados en `Mods/`
+- La configuración en `ModConfigs/`
 
 ## 📚 Enlaces Útiles
 
@@ -175,7 +176,9 @@ Se recomienda hacer backup regularmente de la carpeta `data/terraria/`.
 - [tModLoader GitHub Oficial](https://github.com/tModLoader/tModLoader)
 - [tModLoader Wiki](https://github.com/tModLoader/tModLoader/wiki)
 - [Steam Workshop - Mods de tModLoader](https://steamcommunity.com/workshop/browse/?appid=1281930)
-- [Docker Image: hexlo/terraria-tmodloader-server](https://github.com/hexlo/terraria-tmodloader-server)
+- [Docker Image: passivelemon/terraria-docker](https://github.com/PassiveLemon/terraria-docker)
+- [Releases de Terraria](https://github.com/PassiveLemon/terraria-docker/releases/)
+
 
 
 

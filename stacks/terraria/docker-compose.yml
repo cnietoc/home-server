@@ -6,27 +6,31 @@ x-hms:
 services:
   terraria:
     container_name: ${STACK_PREFIX}
-    image: hexlo/terraria-tmodloader-server:latest
+    image: passivelemon/terraria-docker:tmodloader-latest
     restart: unless-stopped
     ports:
       - "7777:7777/tcp"
     environment:
       - TZ=${TZ}
-      - UID=${PUID}
-      - GID=${PGID}
-      - WORLD_NAME=${WORLD_NAME}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - WORLDNAME=${WORLD_NAME}
       - AUTOCREATE=${WORLD_SIZE}
       - DIFFICULTY=${DIFFICULTY}
       - MOTD=${MOTD}
-      - WORLD="/home/tml/.local/share/Terraria/tModLoader/Worlds/world.wld"
       - LANGUAGE=${LANGUAGE}
       - MAXPLAYERS=${MAX_PLAYERS}
       - PASSWORD=${PASSWORD}
       - SECURE=${SECURE}
       - NPCSTREAM=${NPCSTREAM}
+      - MODPACK=${MODPACK}
     volumes:
-      - ${STACK_DATA}/Worlds:/home/tml/.local/share/Terraria/tModLoader/Worlds
-      - ${STACK_DATA}/Mods:/home/tml/.local/share/Terraria/tModLoader/Mods
-      - ${STACK_DATA}/ModConfigs:/home/tml/.local/share/Terraria/TModLoader/ModConfigs
+      - ${STACK_DATA}:/opt/terraria/config
     labels:
       - "hms.description=🎮 Servidor de juego Terraria con tModLoader (soporte para mods)"
+    healthcheck:
+      test: "nc -vz 127.0.0.1 7777 || exit 1"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
