@@ -1,0 +1,26 @@
+name: ${STACK_PREFIX}
+
+x-hms:
+  description: "Servidor de juego V Rising"
+
+services:
+  vrising:
+    container_name: ${STACK_PREFIX}
+    image: trueosiris/vrising
+    restart: unless-stopped
+    stop_grace_period: 2m
+    ports:
+      - "${GAMEPORT}:${GAMEPORT}/udp"
+      - "${QUERYPORT}:${QUERYPORT}/udp"
+    environment:
+      - TZ=${TZ}
+      - SERVERNAME=${SERVER_NAME}
+      - WORLDNAME=${WORLD_NAME}
+      - GAMEPORT=${GAMEPORT}
+      - QUERYPORT=${QUERYPORT}
+      - HOST_SETTINGS_Password=${PASSWORD}
+    volumes:
+      - ${STACK_DATA}/server:/mnt/vrising/server
+      - ${STACK_DATA}/persistentdata:/mnt/vrising/persistentdata
+    labels:
+      - "hms.description=🧛 Servidor de juego V Rising"

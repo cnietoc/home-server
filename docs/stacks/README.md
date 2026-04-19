@@ -15,6 +15,7 @@ Un **stack** es un grupo de servicios Docker relacionados que se despliegan junt
 | **necesse** | ✅ Estable | Servidor juego | Necesse |
 | **corekeeper** | ✅ Estable | Servidor juego | Core Keeper |
 | **terraria** | ✅ Estable | Servidor juego | Terraria con tModLoader |
+| **vrising** | ✅ Estable | Servidor juego | V Rising |
 | **home** | ✅ Estable | Dashboard de servicios | Página de inicio HMS |
 | **steam** | 🚧 Construcción | ArchiSteamFarm | Farmeo de cromos Steam |
 | **helloworld** | 📚 Ejemplo | Demo | Nginx |
