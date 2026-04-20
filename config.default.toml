@@ -9,6 +9,7 @@ notification_url = ""
 
 [global.backups]
 max_backups = 5
+min_interval = "12h"
 
 [infra.cloudflare]
 email = "__REQUIRED__"

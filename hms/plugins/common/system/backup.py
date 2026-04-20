@@ -380,6 +380,26 @@ CONFIGURATION:
 
     # ─── Create ───────────────────────────────────────────────────────────────
 
+    def _min_backup_interval_h(self) -> float:
+        """Minimum hours between backups of the same stack, from config (default 12h)."""
+        from hms.lib.interval import parse_interval
+        backup_config = config_manager.get_global_backup_config()
+        interval_str = backup_config.get("min_interval", "12h")
+        seconds = parse_interval(str(interval_str))
+        return seconds / 3600 if seconds else 12.0
+
+    def _hours_since_last_backup(self, name: str) -> Optional[float]:
+        """Returns hours since the most recent backup for `name`, or None if none exists."""
+        backups = sorted(
+            self.backup_root.glob(f"{name}_*.tar.gz"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if not backups:
+            return None
+        age = datetime.now() - datetime.fromtimestamp(backups[0].stat().st_mtime)
+        return age.total_seconds() / 3600
+
     def _run_create(self, args: List[str]) -> int:
         """Crear nuevos backups."""
         dry_run = False
@@ -424,7 +444,11 @@ CONFIGURATION:
         try:
             if not specific_stack or specific_stack == "hms":
                 logger.info("\n📦 Creando backup de 'hms' (infra + config)...")
-                if dry_run:
+                min_h = self._min_backup_interval_h()
+                hours = self._hours_since_last_backup("hms")
+                if hours is not None and hours < min_h and not force:
+                    logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                elif dry_run:
                     logger.info("   [DRY-RUN] Se crearía: backups/hms_*.tar.gz")
                     logger.info("   [DRY-RUN] Se detendría temporalmente: infra")
                 else:
@@ -451,6 +475,7 @@ CONFIGURATION:
                     else [s for s in stack_metadata.list_stacks() if s != "infra"]
                 )
 
+                min_h = self._min_backup_interval_h()
                 for stack_name in stacks_to_backup:
                     backup_config = config_manager.get_stack_backup_config(stack_name)
                     enabled = backup_config.get("enabled", True)
@@ -459,6 +484,11 @@ CONFIGURATION:
                         continue
 
                     logger.info(f"\n📦 Creando backup de stack '{stack_name}'...")
+
+                    hours = self._hours_since_last_backup(stack_name)
+                    if hours is not None and hours < min_h and not force:
+                        logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                        continue
 
                     if dry_run:
                         logger.info(f"   [DRY-RUN] Se crearía: backups/{stack_name}_*.tar.gz")
