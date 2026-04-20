@@ -55,7 +55,7 @@ CREATE OPTIONS:
   --dry-run           Solo mostrar qué se backuparía sin ejecutar
   --stack STACK       Hacer backup solo de un stack específico (excluyendo hms)
   --hms-only          Solo hacer backup de "hms" (infra + config)
-  --force             Ignorar enabled=false en [stack.backups] (excepto hms)
+  --force             Ignorar enabled=false y min_interval en [stack.backups]
   --no-rotate         No eliminar backups antiguos después de crear los nuevos
   -h, --help          Mostrar esta ayuda
 
