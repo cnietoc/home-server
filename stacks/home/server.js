@@ -37,6 +37,16 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
+app.get('/api/metrics', async (req, res) => {
+    try {
+        const data = await fetchWithTimeout(`${HMS_API_URL}/api/metrics`);
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching metrics:', error.message);
+        res.status(502).json({ error: 'No se pudieron obtener métricas' });
+    }
+});
+
 // Ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

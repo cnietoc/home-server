@@ -7,8 +7,10 @@ Integra el scheduler APScheduler en el ciclo de vida de FastAPI.
 import logging
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import os
 
+import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -27,8 +29,10 @@ logger = logging.getLogger(__name__)
 
 # Variables globales para tracking
 _start_time = time.time()
-_cache = {"dashboard": {"ts": 0.0, "data": None}}
+_cache = {"dashboard": {"ts": 0.0, "data": None}, "metrics": {"ts": 0.0, "data": None}}
 _CACHE_TTL_SECONDS = int(os.environ.get("HMS_DASHBOARD_TTL", "10"))
+_CADVISOR_URL = os.environ.get("CADVISOR_URL", "http://hms-infra-cadvisor:8080")
+_STACK_PREFIX = "hms-"
 
 
 def _build_startup_message(jobs: list) -> str:
@@ -279,6 +283,82 @@ async def dashboard() -> JSONResponse:
 
     data = _build_dashboard_data()
     _cache["dashboard"] = {"ts": now, "data": data}
+    return JSONResponse(content=data)
+
+
+def _cadvisor_cpu_percent(stats: list) -> float:
+    if len(stats) < 2:
+        return 0.0
+    s1, s2 = stats[-2], stats[-1]
+    cpu_delta = s2["cpu"]["usage"]["total"] - s1["cpu"]["usage"]["total"]
+    t1 = datetime.fromisoformat(s1["timestamp"].replace("Z", "+00:00"))
+    t2 = datetime.fromisoformat(s2["timestamp"].replace("Z", "+00:00"))
+    time_ns = (t2 - t1).total_seconds() * 1e9
+    if time_ns <= 0:
+        return 0.0
+    return round((cpu_delta / time_ns) * 100, 1)
+
+
+def _cadvisor_memory_mb(stats: list) -> float:
+    if not stats:
+        return 0.0
+    return round(stats[-1]["memory"]["usage"] / (1024 * 1024), 1)
+
+
+def _cadvisor_network_bytes(stats: list) -> dict:
+    if len(stats) < 2:
+        return {"rx": 0, "tx": 0}
+    n1 = stats[-2].get("network", {})
+    n2 = stats[-1].get("network", {})
+    return {
+        "rx": max(0, n2.get("rx_bytes", 0) - n1.get("rx_bytes", 0)),
+        "tx": max(0, n2.get("tx_bytes", 0) - n1.get("tx_bytes", 0)),
+    }
+
+
+async def _fetch_cadvisor_metrics() -> dict:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        resp = await client.get(f"{_CADVISOR_URL}/api/v1.3/containers/docker")
+        resp.raise_for_status()
+        containers = resp.json()
+
+    result: dict = {}
+    for container_info in containers.values():
+        labels = container_info.get("spec", {}).get("labels", {})
+        project = labels.get("com.docker.compose.project", "")
+        if not project.startswith(_STACK_PREFIX):
+            continue
+
+        stack_name = project[len(_STACK_PREFIX):]
+        stats = container_info.get("stats", [])
+
+        if stack_name not in result:
+            result[stack_name] = {"cpu_percent": 0.0, "memory_mb": 0.0, "net_rx": 0, "net_tx": 0}
+
+        entry = result[stack_name]
+        entry["cpu_percent"] = round(entry["cpu_percent"] + _cadvisor_cpu_percent(stats), 1)
+        entry["memory_mb"] = round(entry["memory_mb"] + _cadvisor_memory_mb(stats), 1)
+        net = _cadvisor_network_bytes(stats)
+        entry["net_rx"] += net["rx"]
+        entry["net_tx"] += net["tx"]
+
+    return result
+
+
+@app.get("/api/metrics")
+async def metrics() -> JSONResponse:
+    cached = _cache["metrics"]
+    now = time.time()
+    if cached["data"] and (now - cached["ts"]) < _CACHE_TTL_SECONDS:
+        return JSONResponse(content=cached["data"])
+
+    try:
+        data = await _fetch_cadvisor_metrics()
+    except Exception as e:
+        logger.warning(f"cAdvisor no disponible: {e}")
+        return JSONResponse(status_code=503, content={"error": "cAdvisor no disponible"})
+
+    _cache["metrics"] = {"ts": now, "data": data}
     return JSONResponse(content=data)
 
 

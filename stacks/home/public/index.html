@@ -298,6 +298,35 @@
         .spinning {
             animation: spin 1s linear infinite;
         }
+
+        .stack-metrics {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.6rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-label {
+            opacity: 0.65;
+        }
+
+        .metric-value {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -330,6 +359,25 @@
     </button>
 
     <script>
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B/s';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB/s';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB/s';
+        }
+
+        function renderStackMetrics(stackName, metrics) {
+            if (!metrics || !metrics[stackName]) return '';
+            const m = metrics[stackName];
+            return `
+                <div class="stack-metrics">
+                    <span class="metric-pill"><span class="metric-label">CPU</span><span class="metric-value">${m.cpu_percent}%</span></span>
+                    <span class="metric-pill"><span class="metric-label">RAM</span><span class="metric-value">${m.memory_mb} MB</span></span>
+                    <span class="metric-pill"><span class="metric-label">↓</span><span class="metric-value">${formatBytes(m.net_rx)}</span></span>
+                    <span class="metric-pill"><span class="metric-label">↑</span><span class="metric-value">${formatBytes(m.net_tx)}</span></span>
+                </div>
+            `;
+        }
+
         // Función para formatear fechas
         function formatDate(dateString) {
             const date = typeof dateString === 'number'
@@ -404,7 +452,7 @@
             `;
         }
 
-        function renderStacks(stacks) {
+        function renderStacks(stacks, metrics) {
             const container = document.getElementById('stacksContainer');
 
             if (!stacks || stacks.length === 0) {
@@ -431,6 +479,7 @@
                                 </span>
                             </div>
                         </div>
+                        ${renderStackMetrics(stack.name, metrics)}
                         <div class="services-container">
                             ${services.length ? services.map(service => {
                                 const serviceStatus = getStatusBadge(service.state);
@@ -467,16 +516,19 @@
             refreshIcon.classList.add('spinning');
 
             try {
-                const response = await fetch('/api/dashboard');
-                const data = await response.json();
+                const [dashRes, metricsRes] = await Promise.all([
+                    fetch('/api/dashboard'),
+                    fetch('/api/metrics').catch(() => null),
+                ]);
 
-                // Actualizar timestamp
+                const data = await dashRes.json();
+                const metrics = metricsRes && metricsRes.ok ? await metricsRes.json() : null;
+
                 document.getElementById('lastUpdated').textContent =
                     `Última actualización: ${formatDate(data.generated_at)}`;
 
-                // Renderizar componentes
                 renderSystemInfo(data.system);
-                renderStacks(data.stacks);
+                renderStacks(data.stacks, metrics);
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
