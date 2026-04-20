@@ -1,0 +1,14 @@
+#compdef hms
+
+_hms() {
+    local completions
+    completions=$(hms --complete "$CURRENT" "${words[@]}" 2>/dev/null)
+
+    if [[ -n "$completions" ]]; then
+        local -a items
+        items=(${(f)completions})
+        _describe 'hms' items
+    fi
+}
+
+_hms

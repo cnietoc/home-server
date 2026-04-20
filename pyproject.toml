@@ -7,6 +7,9 @@ version = "0.1.0"
 description = "Home Server Management System"
 authors = [{name = "Apocaly (cnietoc)"}]
 requires-python = ">=3.11"
+
+[project.scripts]
+hms = "hms.__main__:main"
 dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
