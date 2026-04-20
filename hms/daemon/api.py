@@ -31,6 +31,22 @@ _cache = {"dashboard": {"ts": 0.0, "data": None}}
 _CACHE_TTL_SECONDS = int(os.environ.get("HMS_DASHBOARD_TTL", "10"))
 
 
+def _build_startup_message(jobs: list) -> str:
+    lines = []
+
+    domain = config_manager.get_config_value("global.domain", "")
+    if domain:
+        lines.append(f"🌐 {domain}")
+
+    enabled = [s for s in stack_metadata.list_stacks() if config_manager.is_stack_enabled(s)]
+    if enabled:
+        lines.append(f"📦 Stacks ({len(enabled)}): {' · '.join(enabled)}")
+
+    lines.append(f"📋 {len(jobs)} job(s) activos")
+
+    return "\n".join(lines)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -47,13 +63,14 @@ async def lifespan(app: FastAPI):
     for job in jobs:
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
-    notify("🚀 HMS arrancó", f"{len(jobs)} job(s) activos")
+    notify("🚀 HMS arrancó", _build_startup_message(jobs))
 
     yield
 
     # Shutdown
     logger.info("🛑 Deteniendo scheduler...")
-    notify("🛑 HMS se detuvo", "El daemon se ha apagado")
+    uptime = _format_uptime(int(time.time() - _start_time))
+    notify("🛑 HMS se detuvo", f"⏱️ Uptime: {uptime}")
     stop_scheduler()
     logger.info("✅ Scheduler detenido")
 
