@@ -339,8 +339,8 @@
     }
 
     function sparkline(values, color) {
-        if (values.length < 2) return `<svg width="80" height="22"></svg>`;
-        const w = 80, h = 22;
+        if (values.length < 2) return `<svg width="120" height="28"></svg>`;
+        const w = 120, h = 28;
         const max = Math.max(...values, 0.001);
         const points = values.map((v, i) => {
             const x = (i / (values.length - 1)) * w;
