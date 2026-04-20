@@ -152,7 +152,24 @@ oauth_whitelist = "tu-email@gmail.com"
 notification_url = "discord://webhook-token@webhook-id"
 ```
 
-#### 3. Configuración Opcional (Ya tiene valores por defecto) 🔧
+#### 3. Notificaciones del Daemon HMS (Opcional) 🔔
+
+El daemon HMS puede enviarte notificaciones (arranque, parada, jobs fallidos) a través de cualquier servicio soportado por [Apprise](https://github.com/caronc/apprise):
+
+```toml
+[global]
+# Telegram: obtén BOT_TOKEN con @BotFather y CHAT_ID con /getUpdates
+notification_url = "tgram://BOT_TOKEN/CHAT_ID"
+
+# Discord webhook
+# notification_url = "discord://TOKEN@WEBHOOK_ID"
+```
+
+Si `notification_url` está vacío o no definido, las notificaciones están desactivadas.
+
+> **Nota**: Esta es la URL de notificaciones del **daemon HMS** (backups, errores de jobs). La URL de `[infra.watchtower]` es independiente y controla las notificaciones de actualizaciones de contenedores Docker.
+
+#### 4. Configuración Opcional (Ya tiene valores por defecto) 🔧
 
 El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Backups automáticos diarios (3 AM)

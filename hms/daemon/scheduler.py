@@ -15,6 +15,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from hms.lib.config import config_manager
 from hms.lib.interval import parse_interval, format_interval
+from hms.lib.notify import send as notify
 from hms.lib.plugin_loader import get_plugin_loader
 
 logger = logging.getLogger(__name__)
@@ -116,12 +117,14 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
 
         if result != 0:
             logger.warning(f"⚠️  Job {job_id} falló ({plugin_spec}) en {format_interval(int(duration))}")
+            notify("❌ HMS: job fallido", f"{job_id}\nPlugin: {plugin_spec}")
         else:
             logger.info(f"✅ Job {job_id} ok ({plugin_spec}) en {format_interval(int(duration))}")
         return result
     except Exception as e:
         duration = time.time() - start
         logger.error(f"❌ Error ejecutando job {job_id} ({plugin_spec}): {e}")
+        notify("❌ HMS: job fallido", f"{job_id}\nError: {e}")
         return 1
 
 

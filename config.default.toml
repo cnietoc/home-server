@@ -5,6 +5,7 @@ pgid = "__REQUIRED__"
 tz = "__REQUIRED__"
 domain = "__REQUIRED__"
 log_level = "info"
+notification_url = ""
 
 [global.backups]
 max_backups = 5

@@ -4,6 +4,10 @@ puid = "__REQUIRED__"
 pgid = "__REQUIRED__"
 tz = "__REQUIRED__"
 domain = "__REQUIRED__"
+# Opcional: URL de notificaciones Apprise (Telegram, Discord, Slack, etc.)
+# Telegram: tgram://BOT_TOKEN/CHAT_ID
+# Discord:  discord://TOKEN@WEBHOOK_ID
+notification_url = ""
 
 [infra.cloudflare]
 email = "__REQUIRED__"

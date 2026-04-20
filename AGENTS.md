@@ -85,3 +85,11 @@ Documentation lives in `docs/`. When adding or significantly changing a stack, k
 
 - `docs/stacks/README.md` — add a row to the stacks table
 - `docs/stacks/<name>.md` — create/update the stack-specific guide (follow the pattern of existing game server docs like `corekeeper.md` or `terraria.md`)
+
+## Adding a New Config Option
+
+When adding a new config field, always update all three places:
+
+1. `config.default.toml` — add the field with a sensible default or empty string (never `__REQUIRED__` unless truly mandatory)
+2. `config.example.toml` — add the field with a placeholder and a short comment explaining the format
+3. `docs/installation.md` — document it in the relevant section (mandatory vs optional)

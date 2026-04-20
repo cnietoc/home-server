@@ -19,6 +19,7 @@ from hms.daemon.scheduler import (
     stop_scheduler,
 )
 from hms.lib.docker import docker_manager
+from hms.lib.notify import send as notify
 from hms.lib.stacks import stack_metadata
 from hms.lib.config import config_manager
 
@@ -46,10 +47,13 @@ async def lifespan(app: FastAPI):
     for job in jobs:
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
+    notify("🚀 HMS arrancó", f"{len(jobs)} job(s) activos")
+
     yield
 
     # Shutdown
     logger.info("🛑 Deteniendo scheduler...")
+    notify("🛑 HMS se detuvo", "El daemon se ha apagado")
     stop_scheduler()
     logger.info("✅ Scheduler detenido")
 
