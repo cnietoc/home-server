@@ -67,7 +67,7 @@ oauth_whitelist = "tu-email@gmail.com"
 hms start
 
 # 5. Levantar otros stacks manualmente si es necesario (ej: media)
-hms media up
+hms up media
 ```
 
 ### Primeros Comandos
@@ -80,19 +80,19 @@ hms start
 hms list
 
 # Ver logs de infra (sistema)
-hms infra logs
+hms logs infra
 
 # Levantar un stack adicional (ej: media)
-hms media up
+hms up media
 
 # Ver logs de un stack
-hms media logs
+hms logs media
 
 # Ver información de un stack
-hms media info
+hms info media
 
 # Detener un stack
-hms media down
+hms down media
 
 # Detener HMS (detiene todos los stacks)
 hms stop

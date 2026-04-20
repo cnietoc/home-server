@@ -151,7 +151,7 @@ conectarse.
 Los mods cargados se muestran en los logs del servidor. Puedes verlos con:
 
 ```bash
-hms terraria logs
+hms logs terraria
 ```
 
 ### Solución de Problemas

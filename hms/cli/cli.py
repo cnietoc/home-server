@@ -73,28 +73,15 @@ class CLIDispatcher:
 
         return remaining, flags
 
-    def is_stack_action(self, arg: str) -> bool:
-        """
-        Determine if argument is a stack name/list or an action.
-
-        Args:
-            arg: Argument to check
-            available_stacks: List of known stacks
-
-        Returns:
-            True if it's a stack name/list, False otherwise
-        """
+    def is_stack_name(self, arg: str) -> bool:
+        """Return True if arg is a known stack name or comma-separated list of stack names."""
         available_stacks = self.discover_stacks()
-        # Check if it's a single stack
         if arg in available_stacks:
             return True
-
-        # Check if it's comma-separated stacks
         if "," in arg:
             parts = [p.strip() for p in arg.split(",")]
             if all(p in available_stacks for p in parts):
                 return True
-
         return False
 
     def _sort_with_order(self, names: List[str], order: Optional[List[str]]) -> List[str]:
@@ -140,20 +127,20 @@ class CLIDispatcher:
             global_plugins = self.discover_global_plugins()
             global_order = self._get_global_command_order()
 
-            # Determine if it's a stack command or global command
             first_arg = args[0]
 
-            # Check if first arg is a stack or stack list
-            if self.is_stack_action(first_arg):
+            if first_arg in stack_plugins:
                 return self._handle_stack_command(args, stack_plugins)
-
-            # Check if it's a known stack action (without stack specified = all stacks)
-            elif first_arg in stack_plugins:
-                return self._handle_stack_command(args, stack_plugins)
-
-            # Otherwise, treat as global command
-            else:
+            elif first_arg in global_plugins:
                 return self._handle_global_command(args, global_plugins, global_order)
+            else:
+                stack_order = self._get_stack_action_order()
+                ordered_actions = self._sort_with_order(list(stack_plugins.keys()), stack_order)
+                ordered_commands = self._sort_with_order(list(global_plugins.keys()), global_order)
+                logger.error(f"Unknown command: {first_arg}")
+                logger.info(f"Stack actions:    {', '.join(ordered_actions)}")
+                logger.info(f"Global commands:  {', '.join(ordered_commands)}")
+                return 1
 
         except KeyboardInterrupt:
             logger.info("⚠️  Interrupted by user")
@@ -165,28 +152,17 @@ class CLIDispatcher:
             return 1
 
     def _handle_stack_command(self, args: List[str], stack_plugins: dict) -> int:
-        """Handle stack-specific command."""
-        # Parse: [stacks] <action> [args]
-        stack_names = []
-        action = None
-        plugin_args = []
+        """Handle stack-specific command. Syntax: hms <action> [stack[,stack]] [args]"""
+        action = args[0]
+        rest = args[1:]
 
-        first_arg = args[0]
-
-        if self.is_stack_action(first_arg):
-            # First arg is stack(s)
-            stack_names = [s.strip() for s in first_arg.split(",")]
-            if len(args) > 1:
-                action = args[1]
-                plugin_args = args[2:]
-            else:
-                logger.error("No action specified")
-                return 1
+        # Optional second arg: stack name(s)
+        if rest and self.is_stack_name(rest[0]):
+            stack_names = [s.strip() for s in rest[0].split(",")]
+            plugin_args = rest[1:]
         else:
-            # First arg is action (apply to all enabled stacks)
-            stack_names = []  # Empty = all enabled
-            action = args[0]
-            plugin_args = args[1:]
+            stack_names = []  # Empty = all enabled stacks
+            plugin_args = rest
 
         # Validate action exists
         if action not in stack_plugins:
@@ -340,7 +316,7 @@ HMS (Home Server Management System)
 Version 0.1.0
 
 USAGE:
-  hms [OPTIONS] [STACKS] <ACTION> [ARGS]
+  hms [OPTIONS] <ACTION> [STACK[,STACK]] [ARGS]
   hms [OPTIONS] <COMMAND> [SUBCOMMAND] [ARGS]
 
 STACK ACTIONS:
@@ -398,10 +374,10 @@ EXAMPLES:
                 sample_global = f"hms {first_command} {sample_subcommand}"
 
         if available_stacks:
-            print(f"  hms {first_stack} {first_action}                     # {first_action.capitalize()} {first_stack}")
+            print(f"  hms {first_action} {first_stack}                     # {first_action.capitalize()} {first_stack}")
             if len(available_stacks) > 1:
                 second_stack = available_stacks[1]
-                print(f"  hms {first_stack},{second_stack} {first_action}               # {first_action.capitalize()} multiple stacks")
+                print(f"  hms {first_action} {first_stack},{second_stack}               # {first_action.capitalize()} multiple stacks")
             print(f"  hms {first_action}                              # {first_action.capitalize()} all stacks")
         else:
             print("  (no stacks available)")

@@ -48,10 +48,10 @@ stacks/helloworld/html/             # Contenido estático
 
 ```bash
 # 1. Validar configuración
-hms helloworld validate
+hms validate helloworld
 
 # 2. Levantar el stack
-hms helloworld up
+hms up helloworld
 
 # 3. Esperar a que Traefik lo exponga (5-10 segundos)
 sleep 5
@@ -60,5 +60,5 @@ sleep 5
 # https://test.ejemplo.com
 
 # 5. Ver logs
-hms helloworld logs -f
+hms logs helloworld -f
 ```

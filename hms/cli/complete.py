@@ -17,28 +17,27 @@ def get_completions(words: List[str], current_index: int) -> List[str]:
     # Words already confirmed before the current position (excludes "hms")
     typed = words[1:current_index - 1]
 
+    stack_actions = plugin_loader.discover_stacks()
+    global_plugins = plugin_loader.discover_globals()
+
     if not typed:
-        stacks = stack_metadata.list_stacks()
-        stack_actions = list(plugin_loader.discover_stacks().keys())
-        global_cmds = list(plugin_loader.discover_globals().keys())
-        return stacks + stack_actions + global_cmds
+        # Position 1: actions + global commands
+        return list(stack_actions.keys()) + list(global_plugins.keys())
 
     first = typed[0]
-    stacks = stack_metadata.list_stacks()
 
-    is_stack = first in stacks or (
-        "," in first and all(s.strip() in stacks for s in first.split(","))
-    )
-
-    if is_stack:
+    if first in stack_actions:
         if len(typed) == 1:
-            return list(plugin_loader.discover_stacks().keys())
+            all_stacks = stack_metadata.list_stacks()
+            # Support comma-separated multi-stack completion (hms up home,<TAB>)
+            current_word = words[current_index - 1] if current_index <= len(words) else ""
+            if "," in current_word:
+                prefix = current_word.rsplit(",", 1)[0]
+                already = {s.strip() for s in prefix.split(",")}
+                return [f"{prefix},{s}" for s in all_stacks if s not in already]
+            return all_stacks
         return []
 
-    if first in plugin_loader.discover_stacks():
-        return []
-
-    global_plugins = plugin_loader.discover_globals()
     if first in global_plugins:
         entry = global_plugins[first]
         if isinstance(entry, dict) and len(typed) == 1:

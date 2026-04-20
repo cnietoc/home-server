@@ -109,8 +109,8 @@ hms system update-dns --domain midominio.com  # Dominio específico
 Levantar stack(s)
 
 ```bash
-hms infra up
-hms infra,media up
+hms up infra
+hms up infra,media
 hms up                 # Levantar solo stacks habilitados
 ```
 
@@ -118,8 +118,8 @@ hms up                 # Levantar solo stacks habilitados
 Detener stack(s)
 
 ```bash
-hms infra down
-hms media,necesse down
+hms down infra
+hms down media,necesse
 hms down               # Detener todos los stacks
 ```
 
@@ -127,7 +127,7 @@ hms down               # Detener todos los stacks
 Reiniciar stack(s)
 
 ```bash
-hms infra restart
+hms restart infra
 hms restart            # Reiniciar solo stacks habilitados
 ```
 
@@ -135,7 +135,7 @@ hms restart            # Reiniciar solo stacks habilitados
 Información del stack
 
 ```bash
-hms infra info
+hms info infra
 hms info               # Info de todos los stacks habilitados
 ```
 
@@ -143,7 +143,7 @@ hms info               # Info de todos los stacks habilitados
 Validar configuración
 
 ```bash
-hms infra validate
+hms validate infra
 hms validate           # Validar todos los stacks habilitados
 ```
 
@@ -151,13 +151,13 @@ hms validate           # Validar todos los stacks habilitados
 Ver logs del stack
 
 ```bash
-hms infra logs
-hms infra logs -f
-hms infra logs -f --tail 100
-hms infra logs traefik -f
-hms infra logs --timestamps
-hms infra logs --since 10m
-hms infra logs --until 2h
+hms logs infra
+hms logs infra -f
+hms logs infra -f --tail 100
+hms logs infra traefik -f
+hms logs infra --timestamps
+hms logs infra --since 10m
+hms logs infra --until 2h
 ```
 
 ## 🔌 Ejemplos
@@ -168,25 +168,25 @@ hms infra logs --until 2h
 hms install
 hms start
 hms list
-hms infra up
-hms infra info
-hms infra logs -f
+hms up infra
+hms info infra
+hms logs infra -f
 ```
 
 ### Gestión de Stacks
 
 ```bash
 # Levantar múltiples stacks
-hms infra up
-hms media up
-hms necesse up
+hms up infra
+hms up media
+hms up necesse
 
 # Reiniciar un stack
-hms infra restart
+hms restart infra
 
 # Ver estado
-hms infra info
-hms media info
+hms info infra
+hms info media
 ```
 
 ### Backups
@@ -208,10 +208,10 @@ hms system backup restore --file hms_20240219-143000.tar.gz
 ### Troubleshooting
 
 ```bash
-hms infra logs
-hms infra logs -f
-hms infra validate
-hms infra restart
+hms logs infra
+hms logs infra -f
+hms validate infra
+hms restart infra
 ```
 
 ### Actualización del Sistema

@@ -118,9 +118,9 @@ data/media/
 ```bash
 # 1. Configurar en config.toml
 # 2. Validar
-hms media validate
+hms validate media
 # 3. Levantar
-hms media up
+hms up media
 # 4. Esperar (puede tomar 1-2 minutos)
 sleep 60
 # 5. Acceder a Jellyfin

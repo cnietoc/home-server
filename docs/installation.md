@@ -253,7 +253,7 @@ hms infra info
 # Los servicios deben mostrar estado "Up" o "running"
 
 # Verificar logs si hay algún problema
-hms infra logs -f
+hms logs infra -f
 ```
 
 **Servicios incluidos en infra:**
@@ -270,13 +270,13 @@ Una vez que infra está ejecutándose correctamente, puedes levantar otros stack
 hms list
 
 # Levantar stack de media (Jellyfin, Radarr, Sonarr, etc.)
-hms media up
+hms up media
 
 # Levantar stack de Necesse (servidor de juego)
-hms necesse up
+hms up necesse
 
 # Levantar stack home (dashboard HMS)
-hms home up
+hms up home
 ```
 
 ### Paso 7: Acceder a los Servicios

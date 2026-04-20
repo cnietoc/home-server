@@ -79,7 +79,7 @@ El servidor genera un Game ID único automáticamente. Para verlo:
 
 ```bash
 # Revisa los logs
-hms corekeeper logs
+hms logs corekeeper
 ```
 
 ## 📚 Recursos Adicionales

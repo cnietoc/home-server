@@ -215,11 +215,11 @@ enabled = true
 ### Paso 5: Probar
 
 ```bash
-hms mystack validate
-hms mystack up
-hms mystack info
-hms mystack logs -f
-hms mystack down
+hms validate mystack
+hms up mystack
+hms info mystack
+hms logs mystack -f
+hms down mystack
 ```
 
 ## 🧩 Sistema de Plugins Profundo
@@ -269,10 +269,10 @@ class GlobalPlugin(BasePlugin):
 
 ```bash
 # Modo verbose
-hms infra up
+hms up infra
 
 # Logs detallados
-hms infra logs -f --level debug
+hms logs infra -f --level debug
 
 # Ver configuración parseada
 hms config --json
