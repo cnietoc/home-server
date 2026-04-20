@@ -5,7 +5,8 @@ Guía completa de todos los comandos disponibles en HMS.
 ## 📋 Estructura General de Comandos
 
 ```
-hms [stack...] <comando> [argumentos]
+hms <acción> [stack[,stack]] [argumentos]   # Comando de stack
+hms <comando> [subcomando] [argumentos]     # Comando global
 ```
 
 ### Flags Globales
@@ -45,11 +46,11 @@ Detener HMS y todos los stacks
 hms stop
 ```
 
-### update
-Actualizar HMS desde el repositorio
+### self-update
+Actualizar HMS desde el repositorio (git pull + rebuild del contenedor)
 
 ```bash
-hms update
+hms self-update
 ```
 
 ### list
@@ -91,6 +92,13 @@ Recargar jobs del scheduler
 hms system reload-jobs
 ```
 
+#### system update-stacks
+Actualizar imágenes Docker de todos los stacks habilitados (excepto infra)
+
+```bash
+hms system update-stacks
+```
+
 #### system update-dns
 Actualizar registros DNS en Cloudflare
 
@@ -104,6 +112,18 @@ hms system update-dns --domain midominio.com  # Dominio específico
 ```
 
 ## 🔲 Comandos de Stack
+
+### update
+Descargar las últimas imágenes de un stack y recrear sus containers
+
+```bash
+hms update media
+hms update infra
+hms update media,necesse   # Múltiples stacks
+hms update                 # Todos los stacks habilitados
+```
+
+Si el stack está parado, descarga las imágenes pero no lo levanta.
 
 ### up
 Levantar stack(s)
@@ -217,8 +237,15 @@ hms restart infra
 ### Actualización del Sistema
 
 ```bash
-# Actualizar HMS
-hms update
+# Actualizar imágenes Docker de un stack
+hms update media
+hms update infra
+
+# Actualizar todos los stacks (excepto infra)
+hms system update-stacks
+
+# Actualizar HMS desde el repositorio
+hms self-update
 
 # Actualizar DNS de Cloudflare
 hms system update-dns

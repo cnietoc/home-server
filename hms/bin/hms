@@ -60,10 +60,10 @@ elif [ "$COMMAND" = "install" ]; then
   # Execute install command (sets up symlink and config)
   shift
   exec "$COMMANDS_DIR/install" "$@"
-elif [ "$COMMAND" = "update" ]; then
-  # Execute update command (pulls repo and restarts HMS)
+elif [ "$COMMAND" = "self-update" ]; then
+  # Execute self-update command (pulls repo and restarts HMS)
   shift
-  exec "$COMMANDS_DIR/update" "$@"
+  exec "$COMMANDS_DIR/self-update" "$@"
 elif [ "$COMMAND" = "uninstall" ]; then
   # Execute uninstall command (removes symlink and stops HMS)
   shift

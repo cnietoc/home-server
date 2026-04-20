@@ -446,6 +446,61 @@ class DockerComposeManager:
             logger.error(f"Error bringing down stack '{stack_name}': {e}")
             return 1
 
+    def _get_stack_image_ids(self, stack_name: str, env: dict) -> dict:
+        """Obtiene {imagen: id} de las imágenes definidas en el compose del stack."""
+        _, images_output = self._exec(
+            ["docker", "compose", "config", "--images"],
+            stack_name,
+            env,
+            hidden=True
+        )
+        ids = {}
+        for image in (line.strip() for line in images_output.splitlines() if line.strip()):
+            _, inspect_output = self._exec(
+                ["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                stack_name,
+                env,
+                hidden=True
+            )
+            ids[image] = inspect_output.strip()
+        return ids
+
+    def stack_pull(self, stack_name: str) -> tuple[int, bool]:
+        """
+        Descarga las últimas imágenes de un stack con docker compose pull.
+
+        :param stack_name: Nombre del stack
+        :return: (exit_code, has_updates) — has_updates es True si se bajó alguna imagen nueva
+        """
+        compose_file = self._get_compose_file(stack_name)
+        if not compose_file:
+            logger.error(f"No compose file found for stack '{stack_name}'")
+            return 1, False
+
+        try:
+            env = os.environ.copy()
+            env_vars = stack_metadata.get_stack_vars(stack_name)
+            if env_vars:
+                env.update(env_vars)
+
+            ids_before = self._get_stack_image_ids(stack_name, env)
+
+            result, output = self._exec(
+                ["docker", "compose", "pull"],
+                stack_name,
+                env
+            )
+
+            self._format_docker_error(output)
+
+            ids_after = self._get_stack_image_ids(stack_name, env)
+            has_updates = ids_before != ids_after
+            return result, has_updates
+
+        except Exception as e:
+            logger.error(f"Error pulling images for stack '{stack_name}': {e}")
+            return 1, False
+
     def stack_logs(self, stack_name: str, args: list = None) -> int:
         """
         Muestra los logs de un stack usando docker compose logs.

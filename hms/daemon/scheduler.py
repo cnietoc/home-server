@@ -13,10 +13,12 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from hms.core.plugin import StackPlugin
 from hms.lib.config import config_manager
 from hms.lib.interval import parse_interval, format_interval
 from hms.lib.notify import send as notify
 from hms.lib.plugin_loader import get_plugin_loader
+from hms.lib.stacks import stack_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +114,16 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
         if not plugin:
             raise ValueError(f"No se pudo cargar: {plugin_spec}")
 
-        result = plugin.run(args)
+        if isinstance(plugin, StackPlugin):
+            available = stack_metadata.list_stacks()
+            stack_names = [a for a in args if a in available]
+            plugin_args = [a for a in args if a not in available]
+            if stack_names:
+                result = plugin.run_stacks(stack_names, plugin_args)
+            else:
+                result = plugin.run_all_stacks(plugin_args)
+        else:
+            result = plugin.run(args)
         duration = time.time() - start
 
         if result != 0:
