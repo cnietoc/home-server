@@ -446,6 +446,16 @@ class DockerComposeManager:
             logger.error(f"Error bringing down stack '{stack_name}': {e}")
             return 1
 
+    def _get_stack_image_ids(self, stack_name: str, env: dict) -> set:
+        """Obtiene los IDs de las imágenes actuales de un stack."""
+        _, output = self._exec(
+            ["docker", "compose", "images", "-q"],
+            stack_name,
+            env,
+            hidden=True
+        )
+        return set(line.strip() for line in output.splitlines() if line.strip())
+
     def stack_pull(self, stack_name: str) -> tuple[int, bool]:
         """
         Descarga las últimas imágenes de un stack con docker compose pull.
@@ -464,6 +474,8 @@ class DockerComposeManager:
             if env_vars:
                 env.update(env_vars)
 
+            ids_before = self._get_stack_image_ids(stack_name, env)
+
             result, output = self._exec(
                 ["docker", "compose", "pull"],
                 stack_name,
@@ -471,9 +483,9 @@ class DockerComposeManager:
             )
 
             self._format_docker_error(output)
-            # Docker compose pull imprime "Pulled" cuando baja una imagen nueva
-            # y "Image is up to date" cuando no hay cambios
-            has_updates = "Pulled" in output
+
+            ids_after = self._get_stack_image_ids(stack_name, env)
+            has_updates = ids_before != ids_after
             return result, has_updates
 
         except Exception as e:
