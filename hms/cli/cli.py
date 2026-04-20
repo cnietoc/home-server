@@ -131,8 +131,16 @@ class CLIDispatcher:
 
             if first_arg in stack_plugins:
                 return self._handle_stack_command(args, stack_plugins)
-            else:
+            elif first_arg in global_plugins:
                 return self._handle_global_command(args, global_plugins, global_order)
+            else:
+                stack_order = self._get_stack_action_order()
+                ordered_actions = self._sort_with_order(list(stack_plugins.keys()), stack_order)
+                ordered_commands = self._sort_with_order(list(global_plugins.keys()), global_order)
+                logger.error(f"Unknown command: {first_arg}")
+                logger.info(f"Stack actions:    {', '.join(ordered_actions)}")
+                logger.info(f"Global commands:  {', '.join(ordered_commands)}")
+                return 1
 
         except KeyboardInterrupt:
             logger.info("⚠️  Interrupted by user")
