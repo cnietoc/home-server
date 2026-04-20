@@ -20,6 +20,11 @@ google_client_id = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
 oauth_whitelist = "__REQUIRED__"
 
+[infra.backups]
+exclude = [
+    "**.log"
+]
+
 [jobs.update-dns]
 description = "Actualizar DNS en Cloudflare"
 plugin = "system:update-dns"
@@ -36,7 +41,7 @@ plugin = "system:backup"
 enabled = true
 args = []
 triggers = [
-    { type = "startup", delay = "1m" },  # Ejecutar 1 minuto después del inicio
+    { type = "startup", delay = "1m" }, # Ejecutar 1 minuto después del inicio
     { type = "cron", cron = "0 3 * * *" }  # 03:00 cada día
 ]
 
@@ -84,6 +89,11 @@ exclude = [
 [home.backups]
 enabled = false
 
+[asf.backups]
+exclude = [
+    "/logs/"
+]
+
 [necesse]
 motd = "Welcome to my Neccesse server!"
 password = "__REQUIRED__"
@@ -100,14 +110,14 @@ exclude = [
 ]
 
 [vrising]
-server_name   = "Home Server V Rising"
-world_name    = "world1"
-gameport      = "9876"
-queryport     = "9877"
-password      = "__REQUIRED__"
+server_name = "Home Server V Rising"
+world_name = "world1"
+gameport = "9876"
+queryport = "9877"
+password = "__REQUIRED__"
 list_on_steam = "true"
-list_on_eos   = "true"
-game_mode     = "PvE"
+list_on_eos = "true"
+game_mode = "PvE"
 
 [vrising.backups]
 exclude = [

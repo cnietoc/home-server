@@ -133,7 +133,7 @@ CONFIGURATION:
         """
         exclude_args = []
         for pattern in exclude_patterns:
-            clean = pattern.strip().lstrip("/")
+            clean = pattern.strip().strip("/")
             if clean:
                 exclude_args.extend(["--exclude", f"data/{stack_name}/{clean}"])
 
