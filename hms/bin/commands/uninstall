@@ -38,5 +38,14 @@ else
     echo -e "${YELLOW}ℹ️  No existe symlink en $WRAPPER${NC}"
 fi
 
+# Eliminar tab completion
+COMPLETION_FILE="$HOME/.zsh/completions/_hms"
+if [ -f "$COMPLETION_FILE" ]; then
+    rm -f "$COMPLETION_FILE"
+    echo -e "${GREEN}✅ Tab completion eliminado: $COMPLETION_FILE${NC}"
+else
+    echo -e "${YELLOW}ℹ️  No existe completion en $COMPLETION_FILE${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}✅ Desinstalación completada${NC}"
