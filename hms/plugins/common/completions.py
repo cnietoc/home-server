@@ -63,7 +63,27 @@ SETUP (after installing):
             print(self.get_help())
             return 1
 
+    @staticmethod
+    def _in_docker() -> bool:
+        return Path("/.dockerenv").exists()
+
     def _install_zsh(self) -> int:
+        if self._in_docker():
+            print("⚠️  hms is running inside Docker — cannot install to the host filesystem.")
+            print()
+            print("Install manually on the host:")
+            print()
+            print("  mkdir -p ~/.zsh/completions")
+            print("  hms completions print > ~/.zsh/completions/_hms")
+            print()
+            print("Add to ~/.zshrc if not already present:")
+            print()
+            print("  fpath=(~/.zsh/completions $fpath)")
+            print("  autoload -Uz compinit && compinit")
+            print()
+            print("Then restart your shell or run: exec zsh")
+            return 0
+
         target_dir = Path.home() / ".zsh" / "completions"
         target_dir.mkdir(parents=True, exist_ok=True)
         completion_file = target_dir / "_hms"

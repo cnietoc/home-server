@@ -6,6 +6,7 @@
 
 - **Gestión de Stacks**: Desplegar múltiples servicios como unidades coherentes
 - **CLI Intuitiva**: Interfaz de línea de comandos con comandos globales y por stack
+- **Tab Completion**: Autocompletado dinámico para zsh (stacks, acciones y subcomandos)
 - **Configuración Centralizada**: Archivo TOML único para toda la configuración
 - **Sistema de Plugins**: Arquitectura extensible mediante plugins
 - **Pre-deploy Scripts**: Scripts bash y Python para configuración previa al despliegue
@@ -97,6 +98,25 @@ hms media down
 hms stop
 ```
 
+## ⌨️ Tab Completion
+
+HMS incluye autocompletado dinámico para zsh. Los stacks y plugins se descubren en tiempo real, por lo que las nuevas adiciones se autocompletan automáticamente.
+
+```bash
+# Instalar el script de completion en el host
+mkdir -p ~/.zsh/completions
+hms completions print > ~/.zsh/completions/_hms
+```
+
+Añade esto a `~/.zshrc` si no está ya:
+
+```zsh
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+```
+
+Reinicia el shell con `exec zsh` y ya puedes usar `hms <TAB>`.
+
 ## 📚 Documentación
 
 - **[Guía de Instalación](docs/installation.md)** - Instalación detallada y configuración inicial
@@ -129,6 +149,7 @@ home-server/
 ├── stacks/                      # Stacks disponibles (media, necesse, home, steam, etc)
 ├── data/                        # Datos persistentes de los servicios
 ├── logs/                        # Logs del sistema
+├── completions/                 # Scripts de autocompletado para shell
 ├── config.toml                  # Configuración (editable, necesaria)
 ├── config.default.toml          # Configuración por defecto
 ├── install.sh                   # Script de instalación
