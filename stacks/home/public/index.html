@@ -3,573 +3,525 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏠 Home Server Dashboard</title>
+    <title>Home Server</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:       #09090b;
+            --surface:  #111116;
+            --surface2: #18181e;
+            --border:   #1e1e2a;
+            --text:     #e2e2ea;
+            --muted:    #6b6b7e;
+            --accent:   #818cf8;
+            --green:    #34d399;
+            --amber:    #fbbf24;
+            --red:      #f87171;
+            --cyan:     #67e8f9;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            background-image: radial-gradient(rgba(129,140,248,0.06) 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: var(--text);
             min-height: 100vh;
-            padding: 1rem;
+            padding: 2rem 1.5rem;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 960px;
             margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 300;
-        }
-
-        .header .subtitle {
-            font-size: 1rem;
-            opacity: 0.8;
-            margin-bottom: 1rem;
-        }
-
-        .last-updated {
-            font-size: 0.8rem;
-            opacity: 0.6;
-        }
-
-
-        .card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 1.5rem;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .card h2 {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-            font-size: 1.3rem;
-        }
-
-        .card h2 .icon {
-            margin-right: 0.5rem;
-            font-size: 1.5rem;
-        }
-
-        .system-info {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .info-label {
-            font-weight: 500;
-            opacity: 0.9;
-        }
-
-        .info-value {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.25rem 0.5rem;
-            border-radius: 5px;
-            font-size: 0.9rem;
-        }
-
-        .services-container {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 2.5rem;
         }
 
-        .service-item {
+        /* ── Header ── */
+        header {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .service-item:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateX(5px);
-        }
-
-        .info-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.5rem;
-            margin-bottom: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .service-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .service-name {
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 0.2rem;
-        }
-
-        .service-url {
-            font-size: 0.7rem;
-            opacity: 0.7;
-            font-family: 'Courier New', monospace;
-            word-break: break-all;
-        }
-
-        .stack-block {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .stack-header {
-            display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
             gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .header-title span { color: var(--accent); }
+
+        #lastUpdated {
+            font-size: 0.72rem;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Section ── */
+        .section-label {
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
             margin-bottom: 0.75rem;
         }
 
-        .stack-title {
-            font-size: 1rem;
+        /* ── Stats grid ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.625rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.875rem 1rem;
+        }
+
+        .stat-label {
+            font-size: 0.68rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 0.35rem;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .stat-sub {
+            font-size: 0.68rem;
+            color: var(--muted);
+            margin-top: 0.15rem;
+        }
+
+        .stat-value.warn  { color: var(--amber); }
+        .stat-value.crit  { color: var(--red);   }
+
+        /* ── Stack list ── */
+        .stack-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .stack-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .stack-card.running  { border-left-color: var(--green); }
+        .stack-card.partial  { border-left-color: var(--amber); }
+        .stack-card.stopped  { border-left-color: var(--red);   }
+
+        .stack-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.875rem 1rem;
+            gap: 1rem;
+        }
+
+        .stack-name {
+            font-size: 0.875rem;
             font-weight: 600;
         }
 
-        .stack-desc {
-            font-size: 0.75rem;
-            opacity: 0.8;
-            margin-top: 0.25rem;
+        .stack-desc-text {
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 0.1rem;
         }
 
-        .stack-meta {
+        .stack-right {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            text-align: right;
+            gap: 0.75rem;
+            flex-shrink: 0;
         }
 
-        .stack-counts {
-            font-size: 0.7rem;
-            opacity: 0.8;
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .status-dot.running   { background: var(--green); box-shadow: 0 0 5px var(--green); }
+        .status-dot.partial   { background: var(--amber); box-shadow: 0 0 5px var(--amber); }
+        .status-dot.stopped   { background: var(--red);   }
+        .status-dot.not-found { background: var(--muted); }
+
+        .container-counts {
+            font-size: 0.68rem;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
         }
 
-        .endpoint-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.35rem;
-        }
-
-        .endpoint-link {
-            font-size: 0.7rem;
-            color: #e0e7ff;
-            text-decoration: none;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.15rem 0.4rem;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .endpoint-link:hover {
-            background: rgba(0, 0, 0, 0.35);
-        }
-
-        .visibility-badge {
-            margin-left: 0.5rem;
-            font-size: 0.65rem;
-            padding: 0.15rem 0.4rem;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-        }
-
-        .visibility-public {
-            background: rgba(34, 197, 94, 0.15);
-            color: #22c55e;
-        }
-
-        .visibility-private {
-            background: rgba(249, 115, 22, 0.15);
-            color: #f97316;
-        }
-
-        .status-indicator {
-            padding: 0.25rem 0.75rem;
-            border-radius: 15px;
-            font-size: 0.7rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .status-low {
-            background: rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-
-        .status-medium {
-            background: rgba(249, 115, 22, 0.2);
-            color: #f97316;
-            border: 1px solid rgba(249, 115, 22, 0.3);
-        }
-
-        .status-high {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            opacity: 0.7;
-        }
-
-        .error {
-            text-align: center;
-            padding: 2rem;
-            background: rgba(220, 53, 69, 0.1);
-            border: 1px solid rgba(220, 53, 69, 0.3);
-            border-radius: 15px;
-            color: #dc3545;
-            margin: 2rem 0;
-        }
-
-
+        /* ── Metrics strip ── */
         .stack-metrics {
             display: flex;
-            gap: 0.75rem;
             flex-wrap: wrap;
-            margin-top: 0.6rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 0.4rem;
+            padding: 0 1rem 0.75rem;
         }
 
         .metric-spark-item {
             display: flex;
             align-items: center;
             gap: 0.35rem;
-            font-size: 0.7rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.25rem 0.5rem;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.68rem;
+            background: var(--surface2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            border: 1px solid var(--border);
         }
 
         .metric-label {
-            opacity: 0.65;
+            color: var(--muted);
             min-width: 2rem;
         }
 
         .metric-value {
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
+            font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+            font-weight: 500;
             min-width: 4.5rem;
             text-align: right;
+        }
+
+        /* ── Services ── */
+        .services-list { border-top: 1px solid var(--border); }
+
+        .service-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.55rem 1rem;
+            border-bottom: 1px solid var(--border);
+            gap: 1rem;
+            transition: background 0.15s;
+        }
+        .service-row:last-child { border-bottom: none; }
+        .service-row:hover { background: var(--surface2); }
+
+        .service-left {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            min-width: 0;
+        }
+
+        .service-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .service-dot.running   { background: var(--green); }
+        .service-dot.partial   { background: var(--amber); }
+        .service-dot.stopped   { background: var(--red);   }
+        .service-dot.not-found { background: var(--muted); }
+
+        .service-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .service-desc {
+            font-size: 0.7rem;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .service-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .endpoint-link {
+            font-size: 0.68rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid rgba(129,140,248,0.2);
+            background: rgba(129,140,248,0.06);
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        .endpoint-link:hover { background: rgba(129,140,248,0.14); }
+
+        .visibility-badge {
+            font-size: 0.6rem;
+            padding: 0.1rem 0.35rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+        .visibility-public  { background: rgba(52,211,153,0.1); color: var(--green); }
+        .visibility-private { background: rgba(107,107,126,0.12); color: var(--muted); }
+
+        /* ── Misc ── */
+        .loading  { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+        .error-msg {
+            padding: 1rem; color: var(--red); font-size: 0.8rem;
+            background: rgba(248,113,113,0.06);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 6px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-    <div class="header">
-        <h1>🏠 Home Server</h1>
-        <p class="subtitle">Resumen del sistema y servicios activos</p>
-        <div class="last-updated" id="lastUpdated">Cargando...</div>
-    </div>
+<div class="container">
+    <header>
+        <div class="header-title">Home <span>//</span> Server</div>
+        <div id="lastUpdated">—</div>
+    </header>
 
-        <!-- Estado del Sistema -->
-        <div class="card">
-            <h2><span class="icon">📊</span> Estado del Sistema</h2>
-            <div class="system-info" id="systemInfo">
-                <div class="loading">Cargando información del sistema...</div>
-            </div>
+    <section>
+        <div class="section-label">Sistema</div>
+        <div class="stats-grid" id="systemInfo">
+            <div class="loading">Cargando...</div>
         </div>
+    </section>
 
-        <!-- Stacks y servicios -->
-        <div class="card">
-            <h2><span class="icon">🧩</span> Stacks y servicios</h2>
-            <div class="services-container" id="stacksContainer">
-                <div class="loading">Cargando servicios...</div>
-            </div>
+    <section>
+        <div class="section-label">Stacks</div>
+        <div class="stack-list" id="stacksContainer">
+            <div class="loading">Cargando...</div>
         </div>
-    </div>
+    </section>
+</div>
 
-    <script>
-        const BUFFER_SIZE = 60;
-        const metricsBuffer = {};
+<script>
+    const BUFFER_SIZE = 60;
+    const metricsBuffer = {};
 
-        function formatBytes(bytes) {
-            if (bytes < 1024) return bytes + ' B/s';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB/s';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB/s';
+    function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B/s';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB/s';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB/s';
+    }
+
+    function formatDate(ts) {
+        const date = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+        return date.toLocaleString('es-ES', {
+            day: '2-digit', month: 'short',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+
+    function sparkline(values, color) {
+        if (values.length < 2) return `<svg width="80" height="22"></svg>`;
+        const w = 80, h = 22;
+        const max = Math.max(...values, 0.001);
+        const points = values.map((v, i) => {
+            const x = (i / (values.length - 1)) * w;
+            const y = h - (v / max) * (h - 2) - 1;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        return `<svg width="${w}" height="${h}" style="display:block">` +
+            `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+            `</svg>`;
+    }
+
+    function updateMetricsBuffer(metrics) {
+        for (const [stack, data] of Object.entries(metrics)) {
+            if (!metricsBuffer[stack]) metricsBuffer[stack] = { cpu: [], memory: [], net: [] };
+            const buf = metricsBuffer[stack];
+            buf.cpu.push(data.cpu_percent);
+            buf.memory.push(data.memory_mb);
+            buf.net.push(data.net_rx + data.net_tx);
+            if (buf.cpu.length > BUFFER_SIZE) { buf.cpu.shift(); buf.memory.shift(); buf.net.shift(); }
+        }
+    }
+
+    function renderStackMetrics(stackName) {
+        const buf = metricsBuffer[stackName];
+        if (!buf || buf.cpu.length === 0) return `<div id="stack-metrics-${stackName}" class="stack-metrics"></div>`;
+        const cpu = buf.cpu[buf.cpu.length - 1];
+        const mem = buf.memory[buf.memory.length - 1];
+        const net = buf.net[buf.net.length - 1];
+        return `
+            <div id="stack-metrics-${stackName}" class="stack-metrics">
+                <span class="metric-spark-item">
+                    <span class="metric-label">CPU</span>
+                    ${sparkline(buf.cpu, '#a5b4fc')}
+                    <span class="metric-value">${cpu}%</span>
+                </span>
+                <span class="metric-spark-item">
+                    <span class="metric-label">RAM</span>
+                    ${sparkline(buf.memory, '#6ee7b7')}
+                    <span class="metric-value">${mem} MB</span>
+                </span>
+                <span class="metric-spark-item">
+                    <span class="metric-label">NET</span>
+                    ${sparkline(buf.net, '#67e8f9')}
+                    <span class="metric-value">${formatBytes(net)}</span>
+                </span>
+            </div>
+        `;
+    }
+
+    function refreshMetricsDom() {
+        for (const stackName of Object.keys(metricsBuffer)) {
+            const el = document.getElementById(`stack-metrics-${stackName}`);
+            if (el) el.outerHTML = renderStackMetrics(stackName);
+        }
+    }
+
+    function statusClass(state) {
+        return { running: 'running', partial: 'partial', stopped: 'stopped' }[state] || 'not-found';
+    }
+
+    function renderSystemInfo(system) {
+        const mem = system.memory;
+        const disk = system.disk;
+        const load = system.load;
+        const memClass = mem.status === 'high' ? 'crit' : mem.status === 'medium' ? 'warn' : '';
+        const diskClass = disk.status === 'high' ? 'crit' : disk.status === 'medium' ? 'warn' : '';
+        const loadClass = load.status === 'high' ? 'crit' : load.status === 'medium' ? 'warn' : '';
+
+        document.getElementById('systemInfo').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-label">Uptime</div>
+                <div class="stat-value">${system.uptime}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Carga</div>
+                <div class="stat-value ${loadClass}">${load.value}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Memoria</div>
+                <div class="stat-value ${memClass}">${mem.usage_percent}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disco</div>
+                <div class="stat-value ${diskClass}">${disk.usage_percent}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Stacks</div>
+                <div class="stat-value">${system.totals.stacks}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Contenedores</div>
+                <div class="stat-value">${system.totals.containers.running}</div>
+                <div class="stat-sub">de ${system.totals.containers.total} activos</div>
+            </div>
+        `;
+    }
+
+    function renderStacks(stacks) {
+        const container = document.getElementById('stacksContainer');
+        if (!stacks || stacks.length === 0) {
+            container.innerHTML = '<div class="error-msg">No hay stacks disponibles</div>';
+            return;
         }
 
-        function sparkline(values, color) {
-            if (values.length < 2) return `<svg width="80" height="24"></svg>`;
-            const w = 80, h = 24;
-            const max = Math.max(...values, 0.001);
-            const points = values.map((v, i) => {
-                const x = (i / (values.length - 1)) * w;
-                const y = h - (v / max) * (h - 2) - 1;
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-            }).join(' ');
-            return `<svg width="${w}" height="${h}" style="display:block">` +
-                `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
-                `</svg>`;
-        }
-
-        function updateMetricsBuffer(metrics) {
-            for (const [stack, data] of Object.entries(metrics)) {
-                if (!metricsBuffer[stack]) {
-                    metricsBuffer[stack] = { cpu: [], memory: [], net: [] };
-                }
-                const buf = metricsBuffer[stack];
-                buf.cpu.push(data.cpu_percent);
-                buf.memory.push(data.memory_mb);
-                buf.net.push(data.net_rx + data.net_tx);
-                if (buf.cpu.length > BUFFER_SIZE) { buf.cpu.shift(); buf.memory.shift(); buf.net.shift(); }
-            }
-        }
-
-        function renderStackMetrics(stackName) {
-            const buf = metricsBuffer[stackName];
-            if (!buf || buf.cpu.length === 0) return '<div class="stack-metrics"></div>';
-            const cpu = buf.cpu[buf.cpu.length - 1];
-            const mem = buf.memory[buf.memory.length - 1];
-            const net = buf.net[buf.net.length - 1];
-            const lastData = Object.values(metricsBuffer[stackName]);
+        container.innerHTML = stacks.map(stack => {
+            const sc = statusClass(stack.status);
+            const services = stack.services || [];
             return `
-                <div id="stack-metrics-${stackName}" class="stack-metrics">
-                    <span class="metric-spark-item">
-                        <span class="metric-label">CPU</span>
-                        ${sparkline(buf.cpu, '#a5b4fc')}
-                        <span class="metric-value">${cpu}%</span>
-                    </span>
-                    <span class="metric-spark-item">
-                        <span class="metric-label">RAM</span>
-                        ${sparkline(buf.memory, '#6ee7b7')}
-                        <span class="metric-value">${mem} MB</span>
-                    </span>
-                    <span class="metric-spark-item">
-                        <span class="metric-label">NET</span>
-                        ${sparkline(buf.net, '#67e8f9')}
-                        <span class="metric-value">${formatBytes(net)}</span>
-                    </span>
-                </div>
-            `;
-        }
-
-        function refreshMetricsDom() {
-            for (const stackName of Object.keys(metricsBuffer)) {
-                const el = document.getElementById(`stack-metrics-${stackName}`);
-                if (!el) continue;
-                el.outerHTML = renderStackMetrics(stackName);
-            }
-        }
-
-        // Función para formatear fechas
-        function formatDate(dateString) {
-            const date = typeof dateString === 'number'
-                ? new Date(dateString * 1000)
-                : new Date(dateString);
-            return date.toLocaleString('es-ES', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-        }
-
-        function getStatusBadge(state) {
-            const statusMap = {
-                running: { class: 'status-low', text: '🟢 Activo' },
-                partial: { class: 'status-medium', text: '🟡 Parcial' },
-                stopped: { class: 'status-high', text: '🔴 Parado' },
-                'not-found': { class: 'status-medium', text: '⚪ Sin datos' }
-            };
-            return statusMap[state] || { class: 'status-medium', text: `⚪ ${state}` };
-        }
-
-        // Función para renderizar información del sistema
-        function renderSystemInfo(system) {
-            const container = document.getElementById('systemInfo');
-
-            container.innerHTML = `
-                <div class="info-item">
-                    <span class="info-label">Servidor</span>
-                    <span class="info-value">${system.server_name}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Tiempo Activo</span>
-                    <span class="info-value">${system.uptime}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Memoria</span>
-                    <div class="info-value">
-                        ${system.memory.usage_percent}%
-                        <span class="status-indicator status-${system.memory.status}">${system.memory.status}</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Disco</span>
-                    <div class="info-value">
-                        ${system.disk.usage_percent}% usado
-                        <span class="status-indicator status-${system.disk.status}">${system.disk.status}</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Carga del Sistema</span>
-                    <div class="info-value">
-                        ${system.load.value}
-                        <span class="status-indicator status-${system.load.status}">${system.load.status}</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Stacks</span>
-                    <span class="info-value">${system.totals.stacks}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Contenedores</span>
-                    <span class="info-value">
-                        Activos: ${system.totals.containers.running} |
-                        Parados: ${system.totals.containers.stopped} |
-                        Total: ${system.totals.containers.total}
-                    </span>
-                </div>
-            `;
-        }
-
-        function renderStacks(stacks) {
-            const container = document.getElementById('stacksContainer');
-
-            if (!stacks || stacks.length === 0) {
-                container.innerHTML = '<div class="info-item"><span class="info-label">No hay stacks disponibles</span></div>';
-                return;
-            }
-
-            container.innerHTML = stacks.map(stack => {
-                const status = getStatusBadge(stack.status);
-                const services = stack.services || [];
-                return `
-                    <div class="stack-block">
-                        <div class="stack-header">
-                            <div>
-                                <div class="stack-title">${stack.name}</div>
-                                <div class="stack-desc">${stack.description || ''}</div>
-                            </div>
-                            <div class="stack-meta">
-                                <span class="status-indicator ${status.class}">${status.text}</span>
-                                <span class="stack-counts">
-                                    Activos: ${stack.containers.running} |
-                                    Parados: ${stack.containers.stopped} |
-                                    Total: ${stack.containers.total}
-                                </span>
-                            </div>
+                <div class="stack-card ${sc}">
+                    <div class="stack-head">
+                        <div>
+                            <div class="stack-name">${stack.name}</div>
+                            ${stack.description ? `<div class="stack-desc-text">${stack.description}</div>` : ''}
                         </div>
-                        ${renderStackMetrics(stack.name)}
-                        <div class="services-container">
-                            ${services.length ? services.map(service => {
-                                const serviceStatus = getStatusBadge(service.state);
-                                const visibilityClass = service.public ? 'visibility-public' : 'visibility-private';
-                                const visibilityText = service.public ? 'publico' : 'protegido';
-                                const showVisibility = service.has_endpoint;
+                        <div class="stack-right">
+                            <span class="container-counts">${stack.containers.running}/${stack.containers.total}</span>
+                            <span class="status-dot ${sc}"></span>
+                        </div>
+                    </div>
+                    ${renderStackMetrics(stack.name)}
+                    ${services.length ? `
+                        <div class="services-list">
+                            ${services.map(svc => {
+                                const sc2 = statusClass(svc.state);
+                                const vis = svc.public ? 'public' : 'private';
+                                const visText = svc.public ? 'público' : 'auth';
                                 return `
-                                    <div class="service-item">
-                                        <div class="service-info">
-                                            <div class="service-name">
-                                                ${service.name}
-                                                ${showVisibility ? `<span class="visibility-badge ${visibilityClass}">${visibilityText}</span>` : ''}
-                                            </div>
-                                            <div class="service-url">${service.description || ''}</div>
-                                            <div class="endpoint-list">
-                                                ${(service.endpoints || []).length ? (service.endpoints || []).map(endpoint => `
-                                                    <a class="endpoint-link" href="${endpoint.url}" target="_blank" rel="noreferrer">${endpoint.host}</a>
-                                                `).join('') : '<span class="service-url">Sin endpoint accesible</span>'}
+                                    <div class="service-row">
+                                        <div class="service-left">
+                                            <span class="service-dot ${sc2}"></span>
+                                            <div>
+                                                <div class="service-name">${svc.name}</div>
+                                                ${svc.description ? `<div class="service-desc">${svc.description}</div>` : ''}
                                             </div>
                                         </div>
-                                        <span class="status-indicator ${serviceStatus.class}">${serviceStatus.text}</span>
+                                        <div class="service-right">
+                                            ${(svc.endpoints || []).map(e => `
+                                                <a class="endpoint-link" href="${e.url}" target="_blank" rel="noreferrer">${e.host}</a>
+                                            `).join('')}
+                                            ${svc.has_endpoint ? `<span class="visibility-badge visibility-${vis}">${visText}</span>` : ''}
+                                        </div>
                                     </div>
                                 `;
-                            }).join('') : '<div class="info-item"><span class="info-label">Sin servicios</span></div>'}
+                            }).join('')}
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function loadDashboard() {
+        try {
+            const res = await fetch('/api/dashboard');
+            const data = await res.json();
+            document.getElementById('lastUpdated').textContent = formatDate(data.generated_at);
+            renderSystemInfo(data.system);
+            renderStacks(data.stacks);
+        } catch (e) {
+            console.error('Error loading dashboard:', e);
+            document.getElementById('systemInfo').innerHTML = '<div class="error-msg">Error cargando el sistema</div>';
+            document.getElementById('stacksContainer').innerHTML = '<div class="error-msg">Error cargando stacks</div>';
         }
+    }
 
-        async function loadDashboard() {
-            try {
-                const res = await fetch('/api/dashboard');
-                const data = await res.json();
-                document.getElementById('lastUpdated').textContent =
-                    `Última actualización: ${formatDate(data.generated_at)}`;
-                renderSystemInfo(data.system);
-                renderStacks(data.stacks);
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-                document.getElementById('systemInfo').innerHTML =
-                    '<div class="error">Error cargando información del sistema</div>';
-                document.getElementById('stacksContainer').innerHTML =
-                    '<div class="error">Error cargando servicios</div>';
-            }
+    async function loadMetrics() {
+        try {
+            const res = await fetch('/api/metrics');
+            if (!res.ok) return;
+            updateMetricsBuffer(await res.json());
+            refreshMetricsDom();
+        } catch (e) {
+            console.error('Error loading metrics:', e);
         }
+    }
 
-        async function loadMetrics() {
-            try {
-                const res = await fetch('/api/metrics');
-                if (!res.ok) return;
-                const metrics = await res.json();
-                updateMetricsBuffer(metrics);
-                refreshMetricsDom();
-            } catch (error) {
-                console.error('Error loading metrics:', error);
-            }
-        }
+    loadDashboard();
+    loadMetrics();
 
-        loadDashboard();
-        loadMetrics();
-
-        setInterval(loadDashboard, 60000);
-        setInterval(loadMetrics, 10000);
-    </script>
+    setInterval(loadDashboard, 60000);
+    setInterval(loadMetrics, 10000);
+</script>
 </body>
 </html>
-
