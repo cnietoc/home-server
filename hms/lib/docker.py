@@ -446,15 +446,24 @@ class DockerComposeManager:
             logger.error(f"Error bringing down stack '{stack_name}': {e}")
             return 1
 
-    def _get_stack_image_ids(self, stack_name: str, env: dict) -> set:
-        """Obtiene los IDs de las imágenes actuales de un stack."""
-        _, output = self._exec(
-            ["docker", "compose", "images", "-q"],
+    def _get_stack_image_ids(self, stack_name: str, env: dict) -> dict:
+        """Obtiene {imagen: id} de las imágenes definidas en el compose del stack."""
+        _, images_output = self._exec(
+            ["docker", "compose", "config", "--images"],
             stack_name,
             env,
             hidden=True
         )
-        return set(line.strip() for line in output.splitlines() if line.strip())
+        ids = {}
+        for image in (line.strip() for line in images_output.splitlines() if line.strip()):
+            _, inspect_output = self._exec(
+                ["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                stack_name,
+                env,
+                hidden=True
+            )
+            ids[image] = inspect_output.strip()
+        return ids
 
     def stack_pull(self, stack_name: str) -> tuple[int, bool]:
         """
