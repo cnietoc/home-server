@@ -308,17 +308,29 @@ def _cadvisor_memory_mb(stats: list) -> float:
 def _cadvisor_network_bytes(stats: list) -> dict:
     if len(stats) < 2:
         return {"rx": 0, "tx": 0}
-    n1 = stats[-2].get("network", {})
-    n2 = stats[-1].get("network", {})
-    return {
-        "rx": max(0, n2.get("rx_bytes", 0) - n1.get("rx_bytes", 0)),
-        "tx": max(0, n2.get("tx_bytes", 0) - n1.get("tx_bytes", 0)),
-    }
+
+    def _net_totals(stat: dict) -> tuple[int, int]:
+        net = stat.get("network", {})
+        interfaces = net.get("interfaces", [])
+        if interfaces:
+            rx = sum(i.get("rx_bytes", 0) for i in interfaces)
+            tx = sum(i.get("tx_bytes", 0) for i in interfaces)
+        else:
+            rx = net.get("rx_bytes", 0)
+            tx = net.get("tx_bytes", 0)
+        return rx, tx
+
+    rx1, tx1 = _net_totals(stats[-2])
+    rx2, tx2 = _net_totals(stats[-1])
+    return {"rx": max(0, rx2 - rx1), "tx": max(0, tx2 - tx1)}
 
 
 async def _fetch_cadvisor_metrics() -> dict:
     async with httpx.AsyncClient(timeout=5.0) as client:
-        resp = await client.get(f"{_CADVISOR_URL}/api/v1.3/containers/docker")
+        resp = await client.get(
+            f"{_CADVISOR_URL}/api/v2.1/stats",
+            params={"type": "docker", "recursive": "true", "count": "2"},
+        )
         resp.raise_for_status()
         containers = resp.json()
 
