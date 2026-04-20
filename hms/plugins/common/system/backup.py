@@ -489,6 +489,14 @@ CONFIGURATION:
                         logger.info(f"⏭️  Saltando stack '{stack_name}' (deshabilitado en config)")
                         continue
 
+                    if not config_manager.is_stack_enabled(stack_name) and not force:
+                        logger.info(f"⏭️  Saltando stack '{stack_name}' (stack deshabilitado en HMS)")
+                        continue
+
+                    if not (self.data_root / stack_name).exists():
+                        logger.info(f"⏭️  Saltando stack '{stack_name}' (data/ no existe)")
+                        continue
+
                     logger.info(f"\n📦 Creando backup de stack '{stack_name}'...")
 
                     hours = self._hours_since_last_backup(stack_name)
@@ -591,11 +599,7 @@ CONFIGURATION:
             stats: dict = {"files": 0, "bytes": 0, "top_files": []}
 
             with tarfile.open(backup_file, "w:gz") as tar:
-                if not (self.data_root / stack_name).exists():
-                    logger.warning(f"   ⚠️  data/{stack_name}/ no existe, creando backup vacío")
-                else:
-                    stats = self._backup_dir_via_docker(host_data_root, stack_name, exclude_patterns, tar)
-
+                stats = self._backup_dir_via_docker(host_data_root, stack_name, exclude_patterns, tar)
                 self._add_manifest_to_tar(tar, self._create_manifest(stack_name, exclude_patterns))
 
             stats["compressed_bytes"] = backup_file.stat().st_size
