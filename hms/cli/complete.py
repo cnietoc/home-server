@@ -27,9 +27,15 @@ def get_completions(words: List[str], current_index: int) -> List[str]:
     first = typed[0]
 
     if first in stack_actions:
-        # Position 2: stack names (or nothing if already given)
         if len(typed) == 1:
-            return stack_metadata.list_stacks()
+            all_stacks = stack_metadata.list_stacks()
+            # Support comma-separated multi-stack completion (hms up home,<TAB>)
+            current_word = words[current_index - 1] if current_index <= len(words) else ""
+            if "," in current_word:
+                prefix = current_word.rsplit(",", 1)[0]
+                already = {s.strip() for s in prefix.split(",")}
+                return [f"{prefix},{s}" for s in all_stacks if s not in already]
+            return all_stacks
         return []
 
     if first in global_plugins:
