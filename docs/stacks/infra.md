@@ -7,7 +7,7 @@ Stack fundamental que proporciona servicios centrales para el sistema.
 | Propiedad | Valor |
 |-----------|-------|
 | **Estado** | ✅ Estable |
-| **Servicios** | 3 servicios (Traefik, TinyAuth, Watchtower) |
+| **Servicios** | 2 servicios (Traefik, TinyAuth) |
 | **Puertos Expuestos** | 80 (HTTP), 443 (HTTPS), 8080 (Traefik Dashboard) |
 | **Almacenamiento** | ~1GB (logs, certificados, config) |
 
@@ -26,13 +26,6 @@ Servicio de autenticación OAuth2 para proteger aplicaciones
 - **URL**: `https://auth.{DOMAIN}`
 - **Protegido**: ❌ No (servicio de autenticación)
 - **Función**: Autenticación vía Google OAuth2, whitelist de usuarios, protección de servicios mediante forward auth
-
-### 3. Watchtower - Actualizador Automático
-Actualización automática de imágenes Docker
-
-- **URL**: Sin acceso web (servicio interno)
-- **Protegido**: N/A (solo monitoreo interno)
-- **Función**: Actualización automática de contenedores, limpieza de imágenes antiguas, notificaciones de actualizaciones
 
 ## 📋 Configuración Requerida
 
@@ -54,18 +47,6 @@ google_client_secret = "tu-secret"  # OAuth Client Secret de Google
 oauth_whitelist = "user@gmail.com"  # Emails autorizados (separados por coma)
 ```
 
-### 🔧 Configuración Opcional
-
-```toml
-# Configuración de Watchtower (valores por defecto)
-[infra.watchtower]
-schedule = '0 0 */12 * * *'         # Cada 12 horas
-notifications = "shoutrrr"          # Tipo de notificaciones
-notification_url = "gotify://..."   # URL de notificaciones
-notifications_level = "info"        # Nivel de notificaciones
-log_level = "info"                  # Nivel de logs
-```
-
 > **💡 Nota**: Para obtener las credenciales de Google OAuth2, visita [Google Cloud Console](https://console.cloud.google.com/apis/credentials) y crea un proyecto OAuth 2.0.
 
 ## 📁 Estructura de Datos
@@ -78,9 +59,8 @@ data/infra/
 │   └── logs/
 │       ├── traefik.log      # Log principal
 │       └── access.log       # Log de accesos
-├── tinyauth/
-│   └── database.sqlite      # Base de datos usuarios/sesiones
-└── watchtower/              # (logs internos del contenedor)
+└── tinyauth/
+    └── database.sqlite      # Base de datos usuarios/sesiones
 ```
 
 ## 🎯 Workflow Típico
@@ -99,11 +79,10 @@ data/infra/
    - TinyAuth valida sesiones mediante forward auth
    - Usuarios deben estar en la whitelist OAuth
 
-4. **Watchtower monitorea**:
-   - Revisa imágenes cada 12 horas (configurable)
-   - Descarga actualizaciones disponibles
-   - Reinicia contenedores actualizados
-   - Limpia imágenes antiguas
+4. **HMS daemon gestiona las actualizaciones**:
+   - `hms update infra` descarga nuevas imágenes y recrea los containers
+   - El job `update-infra` lo ejecuta automáticamente cada día a las 4 AM
+   - Puede causar un breve corte en el proxy durante la recreación
 
 ## 🔐 Certificados SSL
 
