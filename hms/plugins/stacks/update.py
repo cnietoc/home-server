@@ -30,7 +30,7 @@ USAGE:
 
 DESCRIPTION:
   Pulls the latest images for the stack and recreates containers.
-  The stack must be running; use 'hms up' first if it is not.
+  If the stack is stopped, pulls only without restarting.
 """
 
     def get_empty_stack_behavior(self) -> EmptyStackBehavior:
