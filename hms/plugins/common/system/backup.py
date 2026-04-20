@@ -23,6 +23,13 @@ from hms.lib.stacks import stack_metadata
 logger = logging.getLogger(__name__)
 
 
+def _fmt_size(b: int) -> str:
+    for unit, threshold in (("GB", 1024 ** 3), ("MB", 1024 ** 2), ("KB", 1024)):
+        if b >= threshold:
+            return f"{b / threshold:.1f} {unit}"
+    return f"{b} B"
+
+
 class BackupPlugin(GlobalPlugin):
     """Crear backups comprimidos de stacks e infra."""
 
@@ -118,11 +125,11 @@ CONFIGURATION:
         stack_name: str,
         exclude_patterns: List[str],
         dest_tar: tarfile.TarFile,
-    ) -> int:
+    ) -> dict:
         """
         Crea un tar del directorio data/{stack_name}/ usando un contenedor Alpine root.
         Streams la salida directamente a dest_tar para evitar bufferizar todo en memoria.
-        Devuelve el número de ficheros añadidos.
+        Devuelve un dict con stats: files, bytes, top_files.
         """
         exclude_args = []
         for pattern in exclude_patterns:
@@ -140,21 +147,26 @@ CONFIGURATION:
         logger.debug(f"   Docker backup: {' '.join(cmd)}")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        count = 0
+        files = 0
+        total_bytes = 0
+        all_files: List[tuple] = []
         try:
             with tarfile.open(fileobj=proc.stdout, mode="r|") as src_tar:
                 for member in src_tar:
                     f = src_tar.extractfile(member)
                     dest_tar.addfile(member, f)
                     if not member.isdir():
-                        count += 1
+                        files += 1
+                        total_bytes += member.size
+                        all_files.append((member.size, member.name))
         finally:
             proc.stdout.close()
             _, stderr = proc.communicate()
             if proc.returncode != 0:
                 raise RuntimeError(f"Docker tar falló: {stderr.decode().strip()}")
 
-        return count
+        all_files.sort(reverse=True)
+        return {"files": files, "bytes": total_bytes, "top_files": all_files[:5]}
 
     def _restore_data_via_docker(
         self,
@@ -451,10 +463,11 @@ CONFIGURATION:
                         exit_code = 1
                     else:
                         try:
-                            timestamp = self._create_hms_backup()
-                            if timestamp:
+                            result = self._create_hms_backup()
+                            if result:
+                                timestamp, stats = result
                                 timestamps.append(("hms", timestamp))
-                                logger.info(f"✅ Backup de 'hms' completado: hms_{timestamp}.tar.gz")
+                                self._log_backup_stats("hms", timestamp, stats)
                             else:
                                 logger.error("❌ Falló crear backup de 'hms'")
                                 exit_code = 1
@@ -496,10 +509,11 @@ CONFIGURATION:
                             exit_code = 1
                             continue
                         try:
-                            timestamp = self._create_stack_backup(stack_name)
-                            if timestamp:
+                            result = self._create_stack_backup(stack_name)
+                            if result:
+                                timestamp, stats = result
                                 timestamps.append((stack_name, timestamp))
-                                logger.info(f"✅ Backup de '{stack_name}' completado: {stack_name}_{timestamp}.tar.gz")
+                                self._log_backup_stats(stack_name, timestamp, stats)
                             else:
                                 logger.error(f"❌ Falló crear backup de '{stack_name}'")
                                 exit_code = 1
@@ -522,41 +536,51 @@ CONFIGURATION:
 
         return exit_code
 
-    def _create_hms_backup(self) -> Optional[str]:
-        """Backup de infra (via Docker) + config.toml (via Python)."""
+    def _create_hms_backup(self) -> Optional[tuple]:
+        """Backup de infra (via Docker) + config.toml (via Python). Devuelve (timestamp, stats)."""
         try:
             host_data_root = self._get_host_data_root()
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             backup_file = self.backup_root / f"hms_{timestamp}.tar.gz"
             config_file = self.project_root / "config.toml"
 
+            stats: dict = {"files": 0, "bytes": 0, "top_files": []}
+
             with tarfile.open(backup_file, "w:gz") as tar:
                 backup_config = config_manager.get_stack_backup_config("infra")
                 exclude_patterns = backup_config.get("exclude", [])
 
                 if (self.data_root / "infra").exists():
-                    count = self._backup_dir_via_docker(host_data_root, "infra", exclude_patterns, tar)
-                    logger.debug(f"   Backed up {count} files from data/infra/")
+                    dir_stats = self._backup_dir_via_docker(host_data_root, "infra", exclude_patterns, tar)
+                    stats["files"] += dir_stats["files"]
+                    stats["bytes"] += dir_stats["bytes"]
+                    stats["top_files"].extend(dir_stats["top_files"])
                 else:
                     logger.warning("   ⚠️  data/infra/ no existe, saltando")
 
                 if config_file.exists():
-                    logger.debug("   Incluyendo: config.toml")
                     try:
                         tar.add(config_file, arcname="config.toml")
+                        cfg_size = config_file.stat().st_size
+                        stats["files"] += 1
+                        stats["bytes"] += cfg_size
+                        stats["top_files"].append((cfg_size, "config.toml"))
                     except (PermissionError, OSError) as e:
                         logger.warning(f"      ⚠️  No se pudo incluir 'config.toml': {e}")
 
                 self._add_manifest_to_tar(tar, self._create_manifest("hms", []))
 
-            return timestamp
+            stats["top_files"].sort(reverse=True)
+            stats["top_files"] = stats["top_files"][:5]
+            stats["compressed_bytes"] = backup_file.stat().st_size
+            return timestamp, stats
 
         except Exception as e:
             logger.error(f"   Error creando backup de hms: {e}")
             return None
 
-    def _create_stack_backup(self, stack_name: str) -> Optional[str]:
-        """Backup de un stack via Docker."""
+    def _create_stack_backup(self, stack_name: str) -> Optional[tuple]:
+        """Backup de un stack via Docker. Devuelve (timestamp, stats)."""
         try:
             host_data_root = self._get_host_data_root()
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -564,20 +588,35 @@ CONFIGURATION:
             backup_config = config_manager.get_stack_backup_config(stack_name)
             exclude_patterns = backup_config.get("exclude", [])
 
+            stats: dict = {"files": 0, "bytes": 0, "top_files": []}
+
             with tarfile.open(backup_file, "w:gz") as tar:
                 if not (self.data_root / stack_name).exists():
                     logger.warning(f"   ⚠️  data/{stack_name}/ no existe, creando backup vacío")
                 else:
-                    count = self._backup_dir_via_docker(host_data_root, stack_name, exclude_patterns, tar)
-                    logger.debug(f"   Backed up {count} files from data/{stack_name}/")
+                    stats = self._backup_dir_via_docker(host_data_root, stack_name, exclude_patterns, tar)
 
                 self._add_manifest_to_tar(tar, self._create_manifest(stack_name, exclude_patterns))
 
-            return timestamp
+            stats["compressed_bytes"] = backup_file.stat().st_size
+            return timestamp, stats
 
         except Exception as e:
             logger.error(f"   Error creando backup de {stack_name}: {e}")
             return None
+
+    def _log_backup_stats(self, name: str, timestamp: str, stats: dict) -> None:
+        files = stats.get("files", 0)
+        raw = stats.get("bytes", 0)
+        compressed = stats.get("compressed_bytes", 0)
+        top_files = stats.get("top_files", [])
+
+        logger.info(f"✅ Backup de '{name}' completado: {name}_{timestamp}.tar.gz")
+        logger.info(f"   {files} fichero(s)  ·  {_fmt_size(raw)} sin comprimir  →  {_fmt_size(compressed)} en disco")
+        if top_files:
+            logger.info("   Ficheros más grandes:")
+            for size, fname in top_files:
+                logger.info(f"     {_fmt_size(size):>10}  {fname}")
 
     # ─── Manifest ─────────────────────────────────────────────────────────────
 
