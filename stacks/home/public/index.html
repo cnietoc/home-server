@@ -271,61 +271,37 @@
             margin: 2rem 0;
         }
 
-        .refresh-btn {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50px;
-            padding: 1rem;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .spinning {
-            animation: spin 1s linear infinite;
-        }
 
         .stack-metrics {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
             margin-top: 0.6rem;
             padding-top: 0.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .metric-pill {
+        .metric-spark-item {
             display: flex;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.35rem;
             font-size: 0.7rem;
             background: rgba(0, 0, 0, 0.2);
-            padding: 0.2rem 0.5rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 6px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .metric-label {
             opacity: 0.65;
+            min-width: 2rem;
         }
 
         .metric-value {
             font-family: 'Courier New', monospace;
             font-weight: 600;
+            min-width: 4.5rem;
+            text-align: right;
         }
     </style>
 </head>
@@ -354,28 +330,77 @@
         </div>
     </div>
 
-    <button class="refresh-btn" onclick="loadDashboard()" title="Actualizar">
-        <span id="refreshIcon">🔄</span>
-    </button>
-
     <script>
+        const BUFFER_SIZE = 60;
+        const metricsBuffer = {};
+
         function formatBytes(bytes) {
             if (bytes < 1024) return bytes + ' B/s';
             if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB/s';
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB/s';
         }
 
-        function renderStackMetrics(stackName, metrics) {
-            if (!metrics || !metrics[stackName]) return '';
-            const m = metrics[stackName];
+        function sparkline(values, color) {
+            if (values.length < 2) return `<svg width="80" height="24"></svg>`;
+            const w = 80, h = 24;
+            const max = Math.max(...values, 0.001);
+            const points = values.map((v, i) => {
+                const x = (i / (values.length - 1)) * w;
+                const y = h - (v / max) * (h - 2) - 1;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            return `<svg width="${w}" height="${h}" style="display:block">` +
+                `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+                `</svg>`;
+        }
+
+        function updateMetricsBuffer(metrics) {
+            for (const [stack, data] of Object.entries(metrics)) {
+                if (!metricsBuffer[stack]) {
+                    metricsBuffer[stack] = { cpu: [], memory: [], net: [] };
+                }
+                const buf = metricsBuffer[stack];
+                buf.cpu.push(data.cpu_percent);
+                buf.memory.push(data.memory_mb);
+                buf.net.push(data.net_rx + data.net_tx);
+                if (buf.cpu.length > BUFFER_SIZE) { buf.cpu.shift(); buf.memory.shift(); buf.net.shift(); }
+            }
+        }
+
+        function renderStackMetrics(stackName) {
+            const buf = metricsBuffer[stackName];
+            if (!buf || buf.cpu.length === 0) return '<div class="stack-metrics"></div>';
+            const cpu = buf.cpu[buf.cpu.length - 1];
+            const mem = buf.memory[buf.memory.length - 1];
+            const net = buf.net[buf.net.length - 1];
+            const lastData = Object.values(metricsBuffer[stackName]);
             return `
-                <div class="stack-metrics">
-                    <span class="metric-pill"><span class="metric-label">CPU</span><span class="metric-value">${m.cpu_percent}%</span></span>
-                    <span class="metric-pill"><span class="metric-label">RAM</span><span class="metric-value">${m.memory_mb} MB</span></span>
-                    <span class="metric-pill"><span class="metric-label">↓</span><span class="metric-value">${formatBytes(m.net_rx)}</span></span>
-                    <span class="metric-pill"><span class="metric-label">↑</span><span class="metric-value">${formatBytes(m.net_tx)}</span></span>
+                <div id="stack-metrics-${stackName}" class="stack-metrics">
+                    <span class="metric-spark-item">
+                        <span class="metric-label">CPU</span>
+                        ${sparkline(buf.cpu, '#a5b4fc')}
+                        <span class="metric-value">${cpu}%</span>
+                    </span>
+                    <span class="metric-spark-item">
+                        <span class="metric-label">RAM</span>
+                        ${sparkline(buf.memory, '#6ee7b7')}
+                        <span class="metric-value">${mem} MB</span>
+                    </span>
+                    <span class="metric-spark-item">
+                        <span class="metric-label">NET</span>
+                        ${sparkline(buf.net, '#67e8f9')}
+                        <span class="metric-value">${formatBytes(net)}</span>
+                    </span>
                 </div>
             `;
+        }
+
+        function refreshMetricsDom() {
+            for (const stackName of Object.keys(metricsBuffer)) {
+                const el = document.getElementById(`stack-metrics-${stackName}`);
+                if (!el) continue;
+                el.outerHTML = renderStackMetrics(stackName);
+            }
         }
 
         // Función para formatear fechas
@@ -452,7 +477,7 @@
             `;
         }
 
-        function renderStacks(stacks, metrics) {
+        function renderStacks(stacks) {
             const container = document.getElementById('stacksContainer');
 
             if (!stacks || stacks.length === 0) {
@@ -479,7 +504,7 @@
                                 </span>
                             </div>
                         </div>
-                        ${renderStackMetrics(stack.name, metrics)}
+                        ${renderStackMetrics(stack.name)}
                         <div class="services-container">
                             ${services.length ? services.map(service => {
                                 const serviceStatus = getStatusBadge(service.state);
@@ -510,42 +535,40 @@
             }).join('');
         }
 
-        // Función para cargar el dashboard
         async function loadDashboard() {
-            const refreshIcon = document.getElementById('refreshIcon');
-            refreshIcon.classList.add('spinning');
-
             try {
-                const [dashRes, metricsRes] = await Promise.all([
-                    fetch('/api/dashboard'),
-                    fetch('/api/metrics').catch(() => null),
-                ]);
-
-                const data = await dashRes.json();
-                const metrics = metricsRes && metricsRes.ok ? await metricsRes.json() : null;
-
+                const res = await fetch('/api/dashboard');
+                const data = await res.json();
                 document.getElementById('lastUpdated').textContent =
                     `Última actualización: ${formatDate(data.generated_at)}`;
-
                 renderSystemInfo(data.system);
-                renderStacks(data.stacks, metrics);
-
+                renderStacks(data.stacks);
             } catch (error) {
                 console.error('Error loading dashboard:', error);
                 document.getElementById('systemInfo').innerHTML =
                     '<div class="error">Error cargando información del sistema</div>';
                 document.getElementById('stacksContainer').innerHTML =
                     '<div class="error">Error cargando servicios</div>';
-            } finally {
-                refreshIcon.classList.remove('spinning');
             }
         }
 
-        // Cargar dashboard al inicio
-        loadDashboard();
+        async function loadMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                if (!res.ok) return;
+                const metrics = await res.json();
+                updateMetricsBuffer(metrics);
+                refreshMetricsDom();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        }
 
-        // Actualizar cada 30 segundos
-        setInterval(loadDashboard, 30000);
+        loadDashboard();
+        loadMetrics();
+
+        setInterval(loadDashboard, 60000);
+        setInterval(loadMetrics, 10000);
     </script>
 </body>
 </html>
