@@ -113,20 +113,22 @@ DESCRIPTION:
             if current_status in ['stopped', 'not-found']:
                 logger.info(f"🔵 Starting stack '{stack_name}'...")
                 result = docker_manager.stack_up(stack_name)
-
-                if result == 0:
-                    logger.info(f"✅ Stack '{stack_name}' started successfully")
-                else:
-                    logger.error(f"❌ Failed to start stack '{stack_name}'")
-
             elif current_status in ['running', 'partial']:
                 logger.info(f"🔄 Stack '{stack_name}' is already running, reloading config...")
                 result = docker_manager.stack_up(stack_name)
+            else:
+                return
 
-                if result == 0:
-                    logger.info(f"✅ Stack '{stack_name}' reloaded successfully")
-                else:
-                    logger.error(f"⚠️  Failed to reload stack '{stack_name}'")
+            if result != 0:
+                logger.error(f"❌ Failed to start stack '{stack_name}'")
+                return
+
+            logger.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
+            healthy = docker_manager.wait_for_healthy(stack_name)
+            if healthy:
+                logger.info(f"✅ Stack '{stack_name}' started and healthy")
+            else:
+                logger.warning(f"⚠️  Stack '{stack_name}' started but health check failed or timed out")
 
         else:
             # Stack debe estar stopped
