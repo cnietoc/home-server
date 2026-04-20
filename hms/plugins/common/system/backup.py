@@ -393,17 +393,39 @@ CONFIGURATION:
         seconds = parse_interval(str(interval_str))
         return seconds / 3600 if seconds else 12.0
 
-    def _hours_since_last_backup(self, name: str) -> Optional[float]:
-        """Returns hours since the most recent backup for `name`, or None if none exists."""
+    def _last_backup_path(self, name: str) -> Optional[Path]:
+        """Returns the most recent backup file for `name`, or None."""
         backups = sorted(
             self.backup_root.glob(f"{name}_*.tar.gz"),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
-        if not backups:
+        return backups[0] if backups else None
+
+    def _hours_since_last_backup(self, name: str) -> Optional[float]:
+        """Returns hours since the most recent backup for `name`, or None if none exists."""
+        last = self._last_backup_path(name)
+        if not last:
             return None
-        age = datetime.now() - datetime.fromtimestamp(backups[0].stat().st_mtime)
+        age = datetime.now() - datetime.fromtimestamp(last.stat().st_mtime)
         return age.total_seconds() / 3600
+
+    def _data_changed_since_backup(self, stack_name: str, backup_path: Path) -> bool:
+        """
+        Returns True if any file in data/<stack>/ was modified after backup_path was created.
+        Short-circuits on the first changed file found. stat() works even on root-owned files
+        as long as the parent directory is traversable.
+        """
+        backup_ts = backup_path.stat().st_mtime
+        data_dir = self.data_root / stack_name
+        for root, _dirs, files in os.walk(data_dir):
+            for fname in files:
+                try:
+                    if (Path(root) / fname).stat().st_mtime > backup_ts:
+                        return True
+                except OSError:
+                    return True  # can't stat → assume changed
+        return False
 
     def _run_create(self, args: List[str]) -> int:
         """Crear nuevos backups."""
@@ -495,10 +517,15 @@ CONFIGURATION:
 
                     logger.info(f"\n📦 Creando backup de stack '{stack_name}'...")
 
-                    hours = self._hours_since_last_backup(stack_name)
-                    if hours is not None and hours < min_h and not force:
-                        logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
-                        continue
+                    last_backup = self._last_backup_path(stack_name)
+                    if last_backup is not None and not force:
+                        hours = (datetime.now() - datetime.fromtimestamp(last_backup.stat().st_mtime)).total_seconds() / 3600
+                        if hours < min_h:
+                            logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                            continue
+                        if not self._data_changed_since_backup(stack_name, last_backup):
+                            logger.info(f"   ⏭️  Saltando (sin cambios desde el último backup)")
+                            continue
 
                     if dry_run:
                         logger.info(f"   [DRY-RUN] Se crearía: backups/{stack_name}_*.tar.gz")
