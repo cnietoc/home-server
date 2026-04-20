@@ -195,11 +195,16 @@ CONFIGURATION:
         logger.info(f"🔄 Restaurando backup: {backup_file}")
 
         try:
-            return self._restore_backup(backup_path, dry_run)
+            result = self._restore_backup(backup_path, dry_run)
+            if result != 0 and not dry_run:
+                from hms.lib.notify import send as notify
+                notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
+            return result
         except Exception as e:
             logger.error(f"❌ Error durante restauración: {e}")
-            if dry_run:
-                logger.info("   (ejecución en modo de prueba, sin cambios reales)")
+            if not dry_run:
+                from hms.lib.notify import send as notify
+                notify("❌ HMS: restore fallido", f"Backup: {backup_file}\nError: {e}")
             return 1
 
     def _run_create(self, args: List[str]) -> int:
@@ -335,12 +340,14 @@ CONFIGURATION:
         return exit_code
 
     def _extract_member_to(self, tar: tarfile.TarFile, member: tarfile.TarInfo, target_path: Path) -> None:
-        """Extrae un miembro del tar a target_path de forma segura (sin tar.extract)."""
+        """Extrae un miembro del tar a target_path preservando permisos."""
         f = tar.extractfile(member)
         if f is not None:
             target_path.parent.mkdir(parents=True, exist_ok=True)
             with open(target_path, "wb") as out:
                 shutil.copyfileobj(f, out)
+            # Preservar permisos originales del archivo
+            target_path.chmod(member.mode & 0o777)
 
     def _restore_backup(self, backup_path: Path, dry_run: bool = False) -> int:
         """
@@ -378,12 +385,14 @@ CONFIGURATION:
                     logger.info("\n[DRY-RUN] Se restauraría:")
                     if has_config:
                         logger.info("   → config.toml (config actual se guardaría como config.toml.bak)")
-                    if has_infra:
-                        logger.info("   → data/infra/")
-                    if has_stack_data:
-                        for member in members:
-                            if member.name.startswith("data/") and member.isfile():
-                                logger.info(f"   → {member.name}")
+                    # Mostrar resumen por directorio, no fichero a fichero
+                    dir_counts: Dict[str, int] = {}
+                    for m in members:
+                        if m.name.startswith("data/") and m.isfile():
+                            top = "/".join(m.name.split("/")[:3])
+                            dir_counts[top] = dir_counts.get(top, 0) + 1
+                    for dir_path, count in sorted(dir_counts.items()):
+                        logger.info(f"   → {dir_path}/ ({count} archivos)")
                     if stack_targets:
                         logger.info(f"\n[DRY-RUN] Se detendría temporalmente: {', '.join(stack_targets)}")
                     return 0
