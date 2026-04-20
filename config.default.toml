@@ -87,11 +87,13 @@ exclude = [
 ]
 
 [vrising]
-server_name = "Home Server V Rising"
-world_name  = "world1"
-gameport    = "9876"
-queryport   = "9877"
-password    = "__REQUIRED__"
+server_name   = "Home Server V Rising"
+world_name    = "world1"
+gameport      = "9876"
+queryport     = "9877"
+password      = "__REQUIRED__"
+list_on_steam = "true"
+list_on_eos   = "true"
 
 [vrising.backups]
 exclude = [

@@ -21,6 +21,8 @@ services:
       - GAMEPORT=${GAMEPORT}
       - QUERYPORT=${QUERYPORT}
       - HOST_SETTINGS_Password=${PASSWORD}
+      - HOST_SETTINGS_ListOnSteam=${LIST_ON_STEAM}
+      - HOST_SETTINGS_ListOnEOS=${LIST_ON_EOS}
     volumes:
       - ${STACK_DATA}/server:/mnt/vrising/server
       - ${STACK_DATA}/persistentdata:/mnt/vrising/persistentdata
