@@ -338,4 +338,4 @@ traefik.http.routers.private.middlewares: "tinyauth@docker"
 2. Crear `docker-compose.yml`
 3. Crear script de pre-deploy (opcional)
 4. Añadir a `config.toml` o  `config.default.toml`
-5. Probar: `hms mystack up`
+5. Probar: `hms up mystack`
