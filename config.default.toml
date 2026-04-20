@@ -22,7 +22,7 @@ oauth_whitelist = "__REQUIRED__"
 
 [infra.backups]
 exclude = [
-    "**.log"
+    "*.log"
 ]
 
 [jobs.update-dns]

@@ -5,6 +5,7 @@ Los datos se leen/escriben via un contenedor Docker root para manejar ficheros
 propiedad de root creados por otros contenedores.
 """
 
+import fnmatch
 import logging
 import os
 import shutil
@@ -21,6 +22,44 @@ from hms.lib.paths import get_project_root, get_data_root
 from hms.lib.stacks import stack_metadata
 
 logger = logging.getLogger(__name__)
+
+
+def _is_excluded(rel: str, is_dir: bool, patterns: List[str]) -> bool:
+    """
+    Gitignore-style exclusion check.
+    rel     : path relative to data/<stack>/, e.g. "traefik/logs/access.log"
+    is_dir  : whether the tar member is a directory
+    patterns: raw patterns from config (leading/trailing whitespace is stripped here)
+
+    Rules (mirrors gitignore):
+    - Trailing /  → only matches directories
+    - No /        → matches any path component at any depth (basename rule)
+    - Contains /  → matches against the full relative path or any ancestor
+    """
+    for raw in patterns:
+        pat = raw.strip()
+        if not pat or pat.startswith("#"):
+            continue
+        dir_only = pat.endswith("/")
+        if dir_only and not is_dir:
+            continue
+        pat = pat.strip("/")
+        if not pat:
+            continue
+        if "/" not in pat:
+            # Basename rule: match against any single component
+            for component in rel.split("/"):
+                if fnmatch.fnmatch(component, pat):
+                    return True
+        else:
+            # Path rule: match full rel or check if rel lives inside a matched dir
+            if fnmatch.fnmatch(rel, pat):
+                return True
+            parts = rel.split("/")
+            for i in range(1, len(parts)):
+                if fnmatch.fnmatch("/".join(parts[:i]), pat):
+                    return True
+    return False
 
 
 def _fmt_size(b: int) -> str:
@@ -131,28 +170,34 @@ CONFIGURATION:
         Streams la salida directamente a dest_tar para evitar bufferizar todo en memoria.
         Devuelve un dict con stats: files, bytes, top_files.
         """
-        exclude_args = []
+        # Exact paths without wildcards → Docker --exclude so large dirs never cross the pipe.
+        # Everything is also checked Python-side with gitignore semantics (correct glob/depth).
+        docker_exclude_args = []
         for pattern in exclude_patterns:
-            clean = pattern.strip().strip("/")
-            if clean:
-                exclude_args.extend(["--exclude", f"data/{stack_name}/{clean}"])
+            pat = pattern.strip().strip("/")
+            if pat and not any(c in pat for c in "*?["):
+                docker_exclude_args.extend(["--exclude", f"data/{stack_name}/{pat}"])
 
         cmd = [
             "docker", "run", "--rm",
             "-v", f"{host_data_root}:/data:ro",
             "alpine",
             "tar", "cf", "-", "-C", "/",
-        ] + exclude_args + [f"data/{stack_name}"]
+        ] + docker_exclude_args + [f"data/{stack_name}"]
 
         logger.debug(f"   Docker backup: {' '.join(cmd)}")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+        stack_prefix = f"data/{stack_name}/"
         files = 0
         total_bytes = 0
         all_files: List[tuple] = []
         try:
             with tarfile.open(fileobj=proc.stdout, mode="r|") as src_tar:
                 for member in src_tar:
+                    rel = member.name[len(stack_prefix):] if member.name.startswith(stack_prefix) else ""
+                    if rel and _is_excluded(rel, member.isdir(), exclude_patterns):
+                        continue  # tarfile streaming auto-advances past skipped data
                     f = src_tar.extractfile(member)
                     dest_tar.addfile(member, f)
                     if not member.isdir():
