@@ -7,7 +7,7 @@ Stack fundamental que proporciona servicios centrales para el sistema.
 | Propiedad | Valor |
 |-----------|-------|
 | **Estado** | ✅ Estable |
-| **Servicios** | 2 servicios (Traefik, TinyAuth) |
+| **Servicios** | 3 servicios (Traefik, TinyAuth, cAdvisor) |
 | **Puertos Expuestos** | 80 (HTTP), 443 (HTTPS), 8080 (Traefik Dashboard) |
 | **Almacenamiento** | ~1GB (logs, certificados, config) |
 
@@ -19,6 +19,13 @@ Proxy reverso con generación automática de certificados SSL
 - **URL**: `https://traefik.{DOMAIN}`
 - **Protegido**: ✅ Sí (tinyauth)
 - **Función**: Routing de peticiones, generación automática de certificados SSL con Let's Encrypt vía DNS Challenge (Cloudflare), balanceo de carga
+
+### 3. cAdvisor - Monitorización de Contenedores
+Monitor de métricas en tiempo real para todos los contenedores Docker
+
+- **URL**: `https://monitor.{DOMAIN}`
+- **Protegido**: ✅ Sí (tinyauth)
+- **Función**: Métricas por contenedor (CPU, memoria, red, disco), historial de 2 minutos, endpoint Prometheus en `/metrics`
 
 ### 2. TinyAuth - Autenticación Centralizada
 Servicio de autenticación OAuth2 para proteger aplicaciones
@@ -61,6 +68,8 @@ data/infra/
 │       └── access.log       # Log de accesos
 └── tinyauth/
     └── database.sqlite      # Base de datos usuarios/sesiones
+
+# cAdvisor no persiste datos — todo en memoria (ventana de 2 minutos)
 ```
 
 ## 🎯 Workflow Típico

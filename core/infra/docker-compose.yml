@@ -96,6 +96,34 @@ services:
       - "traefik.http.middlewares.tinyauth.forwardauth.maxResponseBodySize=1048576"
       - "hms.description=🔐 Panel de Autenticación"
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: ${STACK_PREFIX}-cadvisor
+    restart: unless-stopped
+    networks:
+      - hms-network
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+    environment:
+      - TZ=${TZ}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hms-network"
+      - "traefik.http.routers.cadvisor.rule=Host(`monitor.${DOMAIN}`)"
+      - "traefik.http.routers.cadvisor.tls=true"
+      - "traefik.http.routers.cadvisor.tls.certresolver=cloudflare"
+      - "traefik.http.routers.cadvisor.service=cadvisor"
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
+      - "traefik.http.routers.cadvisor.middlewares=tinyauth@docker"
+      - "hms.description=📊 Monitor de contenedores Docker"
+
   samba:
     profiles:
       - TODO
