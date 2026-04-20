@@ -15,7 +15,7 @@ services:
     networks:
       - hms-network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      test: ["CMD", "curl", "-sf", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 3
