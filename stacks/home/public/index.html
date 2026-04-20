@@ -447,7 +447,7 @@
 
         container.innerHTML = stacks.map(stack => {
             const sc = statusClass(stack.status);
-            const services = stack.services || [];
+            const services = (stack.services || []).slice().sort((a, b) => (b.public ? 1 : 0) - (a.public ? 1 : 0));
             return `
                 <div class="stack-card ${sc}">
                     <div class="stack-head">
