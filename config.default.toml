@@ -19,13 +19,6 @@ google_client_id = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
 oauth_whitelist = "__REQUIRED__"
 
-[infra.watchtower]
-schedule = '0 0 */12 * * *'
-notifications = "shoutrrr"
-notification_url = "__REQUIRED__"
-notifications_level = "info"
-log_level = "info"
-
 [jobs.update-dns]
 description = "Actualizar DNS en Cloudflare"
 plugin = "system:update-dns"
@@ -44,6 +37,24 @@ args = []
 triggers = [
     { type = "startup", delay = "1m" },  # Ejecutar 1 minuto después del inicio
     { type = "cron", cron = "0 3 * * *" }  # 03:00 cada día
+]
+
+[jobs.update-stacks]
+description = "Actualizar imágenes de todos los stacks (excepto infra)"
+plugin = "system:update-stacks"
+enabled = true
+args = []
+triggers = [
+    { type = "cron", cron = "0 2 * * *" }  # 02:00 cada día
+]
+
+[jobs.update-infra]
+description = "Actualizar imágenes del stack de infraestructura"
+plugin = "update"
+enabled = true
+args = ["infra"]
+triggers = [
+    { type = "cron", cron = "0 4 * * *" }  # 04:00 cada día
 ]
 
 [media]

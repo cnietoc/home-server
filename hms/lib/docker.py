@@ -446,6 +446,40 @@ class DockerComposeManager:
             logger.error(f"Error bringing down stack '{stack_name}': {e}")
             return 1
 
+    def stack_pull(self, stack_name: str) -> tuple[int, bool]:
+        """
+        Descarga las últimas imágenes de un stack con docker compose pull.
+
+        :param stack_name: Nombre del stack
+        :return: (exit_code, has_updates) — has_updates es True si se bajó alguna imagen nueva
+        """
+        compose_file = self._get_compose_file(stack_name)
+        if not compose_file:
+            logger.error(f"No compose file found for stack '{stack_name}'")
+            return 1, False
+
+        try:
+            env = os.environ.copy()
+            env_vars = stack_metadata.get_stack_vars(stack_name)
+            if env_vars:
+                env.update(env_vars)
+
+            result, output = self._exec(
+                ["docker", "compose", "pull"],
+                stack_name,
+                env
+            )
+
+            self._format_docker_error(output)
+            # Docker compose pull imprime "Pulled" cuando baja una imagen nueva
+            # y "Image is up to date" cuando no hay cambios
+            has_updates = "Pulled" in output
+            return result, has_updates
+
+        except Exception as e:
+            logger.error(f"Error pulling images for stack '{stack_name}': {e}")
+            return 1, False
+
     def stack_logs(self, stack_name: str, args: list = None) -> int:
         """
         Muestra los logs de un stack usando docker compose logs.
