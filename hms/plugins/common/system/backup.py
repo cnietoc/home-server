@@ -334,6 +334,14 @@ CONFIGURATION:
 
         return exit_code
 
+    def _extract_member_to(self, tar: tarfile.TarFile, member: tarfile.TarInfo, target_path: Path) -> None:
+        """Extrae un miembro del tar a target_path de forma segura (sin tar.extract)."""
+        f = tar.extractfile(member)
+        if f is not None:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(target_path, "wb") as out:
+                shutil.copyfileobj(f, out)
+
     def _restore_backup(self, backup_path: Path, dry_run: bool = False) -> int:
         """
         Restaura un backup específico.
@@ -341,22 +349,24 @@ CONFIGURATION:
         Determina si es backup de hms o de un stack y restaura en los directorios correspondientes.
         """
         try:
-            backup_name = backup_path.stem.rsplit("_", 1)[0]  # Quitar timestamp
-
+            backup_name = backup_path.stem.rsplit("_", 1)[0]
             logger.info(f"\n📋 Analizando backup: {backup_name}")
 
-            # Leer contenido del tar para determinar tipo
             with tarfile.open(backup_path, "r:gz") as tar:
                 members = tar.getmembers()
                 has_config = any(m.name == "config.toml" for m in members)
                 has_infra = any(m.name.startswith("data/infra/") for m in members)
-                has_stack_data = any(m.name.startswith("data/") and not m.name.startswith("data/infra/") for m in members)
+                has_stack_data = any(
+                    m.name.startswith("data/") and not m.name.startswith("data/infra/")
+                    for m in members
+                )
 
+                # Fix: require 3 parts (data/STACK/...) to avoid empty string from bare "data/" entry
                 stack_targets = sorted({
                     m.name.split("/", 2)[1]
                     for m in members
-                    if m.name.startswith("data/") and len(m.name.split("/", 2)) > 1
-                })
+                    if m.name.startswith("data/") and len(m.name.split("/", 2)) > 2
+                } - {""})
 
                 logger.debug(f"   Config incluido: {has_config}")
                 logger.debug(f"   Infra incluido: {has_infra}")
@@ -365,9 +375,9 @@ CONFIGURATION:
                     logger.debug(f"   Stacks detectados: {', '.join(stack_targets)}")
 
                 if dry_run:
-                    logger.info(f"\n[DRY-RUN] Se restauraría:")
+                    logger.info("\n[DRY-RUN] Se restauraría:")
                     if has_config:
-                        logger.info("   → config.toml")
+                        logger.info("   → config.toml (config actual se guardaría como config.toml.bak)")
                     if has_infra:
                         logger.info("   → data/infra/")
                     if has_stack_data:
@@ -390,50 +400,47 @@ CONFIGURATION:
                     stopped[stack_name] = was_running
 
                 try:
-                    # Restaurar archivos
                     restored_count = 0
-                    logger.info(f"\n🔄 Restaurando {len(members)} items...")
+                    errors = []
+                    logger.info(f"\n🔄 Restaurando archivos...")
 
                     for member in members:
-                        # Saltar manifest
                         if member.name == ".backup-manifest.txt":
-                            logger.debug(f"   Leyendo manifest: {member.name}")
-                            # Mostrar contenido del manifest
-                            f = tar.extractfile(member)
-                            if f:
-                                manifest_content = f.read().decode("utf-8")
-                                logger.debug("\n📋 Manifest del backup:")
-                                for line in manifest_content.split("\n"):
-                                    logger.debug(f"   {line}")
+                            continue
+                        if member.isdir():
                             continue
 
-                        # Restaurar otros archivos
-                        if member.name == "config.toml":
-                            target_path = self.project_root / "config.toml"
-                            logger.debug(f"   Restaurando: {member.name} → {target_path}")
-                            tar.extract(member, path=self.project_root)
-                            shutil.move(self.project_root / member.name, target_path)
-                            restored_count += 1
-                            logger.info(f"   ✅ Restaurado: {member.name}")
+                        try:
+                            if member.name == "config.toml":
+                                target_path = self.project_root / "config.toml"
+                                # Fix: backup existing config before overwriting
+                                if target_path.exists():
+                                    bak_path = self.project_root / "config.toml.bak"
+                                    shutil.copy2(target_path, bak_path)
+                                    logger.info("   💾 Config actual guardado como config.toml.bak")
+                                self._extract_member_to(tar, member, target_path)
+                                restored_count += 1
+                                logger.info(f"   ✅ Restaurado: {member.name}")
 
-                        elif member.name.startswith("data/"):
-                            # Restaurar en data/
-                            target_path = self.project_root / member.name
-                            logger.debug(f"   Restaurando: {member.name} → {target_path}")
-
-                            # Crear directorios si no existen
-                            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-                            if member.isdir():
-                                target_path.mkdir(exist_ok=True)
-                            else:
-                                tar.extract(member, path=self.project_root)
+                            elif member.name.startswith("data/"):
+                                target_path = self.project_root / member.name
+                                self._extract_member_to(tar, member, target_path)
                                 restored_count += 1
 
-                    logger.info(f"\n✅ Restauración completada: {restored_count} items restaurados")
+                        except Exception as e:
+                            errors.append(f"{member.name}: {e}")
+                            logger.error(f"   ❌ Error restaurando {member.name}: {e}")
+
+                    if errors:
+                        logger.error(f"\n⚠️  Restauración parcial: {restored_count} ok, {len(errors)} errores")
+                        for err in errors:
+                            logger.error(f"   - {err}")
+                        return 1
+
+                    logger.info(f"\n✅ Restauración completada: {restored_count} archivos restaurados")
                     return 0
+
                 finally:
-                    # Reanudar stacks que estaban en ejecución
                     for stack_name, was_running in stopped.items():
                         self._start_stack_after_operation(stack_name, was_running)
 
