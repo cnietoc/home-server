@@ -489,10 +489,6 @@ CONFIGURATION:
                         logger.info(f"⏭️  Saltando stack '{stack_name}' (deshabilitado en config)")
                         continue
 
-                    if not config_manager.is_stack_enabled(stack_name) and not force:
-                        logger.info(f"⏭️  Saltando stack '{stack_name}' (stack deshabilitado en HMS)")
-                        continue
-
                     if not (self.data_root / stack_name).exists():
                         logger.info(f"⏭️  Saltando stack '{stack_name}' (data/ no existe)")
                         continue
