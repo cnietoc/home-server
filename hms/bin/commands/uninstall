@@ -38,13 +38,23 @@ else
     echo -e "${YELLOW}ℹ️  No existe symlink en $WRAPPER${NC}"
 fi
 
-# Eliminar tab completion
-COMPLETION_FILE="$HOME/.zsh/completions/_hms"
-if [ -f "$COMPLETION_FILE" ]; then
-    rm -f "$COMPLETION_FILE"
-    echo -e "${GREEN}✅ Tab completion eliminado: $COMPLETION_FILE${NC}"
-else
-    echo -e "${YELLOW}ℹ️  No existe completion en $COMPLETION_FILE${NC}"
+# Eliminar tab completion (ambos shells)
+ZSH_COMPLETION="$HOME/.zsh/completions/_hms"
+BASH_COMPLETION="$HOME/.bash_completion.d/hms"
+REMOVED=false
+
+if [ -f "$ZSH_COMPLETION" ]; then
+    rm -f "$ZSH_COMPLETION"
+    echo -e "${GREEN}✅ Tab completion (zsh) eliminado: $ZSH_COMPLETION${NC}"
+    REMOVED=true
+fi
+if [ -f "$BASH_COMPLETION" ]; then
+    rm -f "$BASH_COMPLETION"
+    echo -e "${GREEN}✅ Tab completion (bash) eliminado: $BASH_COMPLETION${NC}"
+    REMOVED=true
+fi
+if [ "$REMOVED" = false ]; then
+    echo -e "${YELLOW}ℹ️  No se encontró ningún archivo de completion${NC}"
 fi
 
 echo ""

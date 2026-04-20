@@ -100,22 +100,23 @@ hms stop
 
 ## ⌨️ Tab Completion
 
-HMS incluye autocompletado dinámico para zsh. Los stacks y plugins se descubren en tiempo real, por lo que las nuevas adiciones se autocompletan automáticamente.
+HMS incluye autocompletado dinámico para bash y zsh. `install.sh` lo configura automáticamente según el shell del usuario.
 
-`install.sh` configura el completion automáticamente. Solo necesitas añadir esto a `~/.zshrc` si no está ya:
-
+**zsh** — añade a `~/.zshrc` si no está ya:
 ```zsh
 fpath=(~/.zsh/completions $fpath)
 autoload -Uz compinit && compinit
 ```
 
-Reinicia el shell con `exec zsh` y ya puedes usar `hms <TAB>`.
+**bash** — el install añade el `source` a `~/.bashrc` automáticamente.
 
 Si necesitas reinstalarlo manualmente (requiere el contenedor corriendo):
-
 ```bash
-mkdir -p ~/.zsh/completions
-hms completions print > ~/.zsh/completions/_hms
+# zsh
+hms completions print zsh > ~/.zsh/completions/_hms
+
+# bash
+hms completions print bash > ~/.bash_completion.d/hms
 ```
 
 ## 📚 Documentación

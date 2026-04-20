@@ -183,13 +183,16 @@ else
     echo -e "${YELLOW}⚠️  config.toml no existe${NC}"
 fi
 
-# Instalar tab completion para zsh
+# Instalar tab completion según el shell del usuario
 echo ""
-echo "⌨️  Configurando tab completion para zsh..."
-ZSH_COMPLETIONS_DIR="$HOME/.zsh/completions"
-COMPLETION_FILE="$ZSH_COMPLETIONS_DIR/_hms"
-mkdir -p "$ZSH_COMPLETIONS_DIR"
-cat > "$COMPLETION_FILE" << 'COMPLETION_EOF'
+echo "⌨️  Configurando tab completion..."
+CURRENT_SHELL="$(basename "${SHELL:-bash}")"
+
+if [ "$CURRENT_SHELL" = "zsh" ]; then
+    ZSH_COMPLETIONS_DIR="$HOME/.zsh/completions"
+    COMPLETION_FILE="$ZSH_COMPLETIONS_DIR/_hms"
+    mkdir -p "$ZSH_COMPLETIONS_DIR"
+    cat > "$COMPLETION_FILE" << 'COMPLETION_EOF'
 #compdef hms
 
 _hms() {
@@ -205,26 +208,49 @@ _hms() {
 
 _hms
 COMPLETION_EOF
-echo -e "${GREEN}✅ Tab completion instalado en $COMPLETION_FILE${NC}"
+    echo -e "${GREEN}✅ Tab completion instalado en $COMPLETION_FILE${NC}"
 
-ZSHRC="$HOME/.zshrc"
-FPATH_LINE='fpath=(~/.zsh/completions $fpath)'
-COMPINIT_LINE='autoload -Uz compinit && compinit'
-ZSHRC_NEEDS_UPDATE=false
+    ZSHRC="$HOME/.zshrc"
+    FPATH_LINE='fpath=(~/.zsh/completions $fpath)'
+    COMPINIT_LINE='autoload -Uz compinit && compinit'
+    if [ -f "$ZSHRC" ] && grep -qF "$FPATH_LINE" "$ZSHRC"; then
+        echo -e "${GREEN}✅ fpath ya configurado en ~/.zshrc${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Añade esto a tu ~/.zshrc para activar el autocompletado:${NC}"
+        echo ""
+        echo "    $FPATH_LINE"
+        echo "    $COMPINIT_LINE"
+        echo ""
+        echo "    Luego ejecuta: exec zsh"
+    fi
 
-if [ -f "$ZSHRC" ] && grep -qF "$FPATH_LINE" "$ZSHRC"; then
-    echo -e "${GREEN}✅ fpath ya configurado en ~/.zshrc${NC}"
 else
-    ZSHRC_NEEDS_UPDATE=true
-fi
+    # bash (default en Ubuntu)
+    BASH_COMPLETIONS_DIR="$HOME/.bash_completion.d"
+    COMPLETION_FILE="$BASH_COMPLETIONS_DIR/hms"
+    mkdir -p "$BASH_COMPLETIONS_DIR"
+    cat > "$COMPLETION_FILE" << 'COMPLETION_EOF'
+# HMS bash completion
 
-if [ "$ZSHRC_NEEDS_UPDATE" = true ]; then
-    echo -e "${YELLOW}⚠️  Añade esto a tu ~/.zshrc para activar el autocompletado:${NC}"
-    echo ""
-    echo "    $FPATH_LINE"
-    echo "    $COMPINIT_LINE"
-    echo ""
-    echo "    Luego ejecuta: exec zsh"
+_hms() {
+    local completions
+    completions=$(hms --complete "$((COMP_CWORD + 1))" "${COMP_WORDS[@]}" 2>/dev/null)
+    COMPREPLY=($(compgen -W "$completions" -- "${COMP_WORDS[$COMP_CWORD]}"))
+}
+
+complete -F _hms hms
+COMPLETION_EOF
+    echo -e "${GREEN}✅ Tab completion instalado en $COMPLETION_FILE${NC}"
+
+    BASHRC="$HOME/.bashrc"
+    SOURCE_LINE="source $COMPLETION_FILE"
+    if [ -f "$BASHRC" ] && grep -qF "$COMPLETION_FILE" "$BASHRC"; then
+        echo -e "${GREEN}✅ completion ya configurado en ~/.bashrc${NC}"
+    else
+        echo "$SOURCE_LINE" >> "$BASHRC"
+        echo -e "${GREEN}✅ Añadido source a ~/.bashrc${NC}"
+        echo -e "${YELLOW}ℹ️  Ejecuta 'source ~/.bashrc' o abre una nueva terminal para activarlo${NC}"
+    fi
 fi
 
 # Finalizar
