@@ -546,4 +546,32 @@ class DockerComposeManager:
             return 1
 
 
+    def wait_for_healthy(self, stack_name: str, timeout: int = 120, poll_interval: float = 3.0) -> bool:
+        """
+        Wait until all containers with healthchecks are healthy.
+        Returns True if healthy (or no healthchecks defined), False on timeout or unhealthy.
+        """
+        import time
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            containers = self._get_stack_containers(stack_name)
+            if not containers:
+                return False
+
+            with_health = [c for c in containers if c.get("Health") not in ("", None)]
+            if not with_health:
+                return True
+
+            if any(c.get("Health") == "unhealthy" for c in with_health):
+                return False
+
+            if all(c.get("Health") == "healthy" for c in with_health):
+                return True
+
+            time.sleep(poll_interval)
+
+        return False
+
+
 docker_manager = DockerComposeManager()

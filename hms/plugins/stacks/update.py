@@ -60,10 +60,17 @@ DESCRIPTION:
         logger.info(f"🔄 Recreating containers for '{stack_name}'...")
         up_result = docker_manager.stack_up(stack_name)
 
-        if up_result == 0:
-            logger.info(f"✅ Stack '{stack_name}' updated successfully")
-            notify(f"⬆️ HMS: {stack_name} actualizado", "Nuevas imágenes desplegadas")
-        else:
+        if up_result != 0:
             logger.error(f"❌ Failed to recreate containers for '{stack_name}'")
+            return up_result
+
+        logger.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
+        healthy = docker_manager.wait_for_healthy(stack_name)
+        if healthy:
+            logger.info(f"✅ Stack '{stack_name}' updated and healthy")
+            notify(f"⬆️ HMS: {stack_name} actualizado", "Nuevas imágenes desplegadas ✅")
+        else:
+            logger.warning(f"⚠️  Stack '{stack_name}' updated but health check failed or timed out")
+            notify(f"⬆️ HMS: {stack_name} actualizado", "Imágenes desplegadas ⚠️ health check fallido")
 
         return up_result
