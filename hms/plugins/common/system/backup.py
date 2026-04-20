@@ -187,11 +187,22 @@ CONFIGURATION:
                     elif f:
                         out_tar.addfile(member, f)
                         count += 1
+        except (BrokenPipeError, ValueError, OSError) as e:
+            # Docker tar may have already exited (successfully) and closed the
+            # read end of the pipe before we send the end-of-archive blocks.
+            # Check the return code below to determine actual success/failure.
+            logger.debug(f"   Pipe error during restore write: {e}")
         finally:
-            proc.stdin.close()
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
             _, stderr = proc.communicate()
-            if proc.returncode != 0:
-                raise RuntimeError(f"Docker restore falló: {stderr.decode().strip()}")
+
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Docker restore falló (exit {proc.returncode}): {stderr.decode().strip()}"
+            )
 
         return count
 
