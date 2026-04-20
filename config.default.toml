@@ -94,6 +94,7 @@ queryport     = "9877"
 password      = "__REQUIRED__"
 list_on_steam = "true"
 list_on_eos   = "true"
+game_mode     = "PvE"
 
 [vrising.backups]
 exclude = [
