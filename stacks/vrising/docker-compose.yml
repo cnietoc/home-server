@@ -16,6 +16,8 @@ services:
       - "${QUERYPORT}:${QUERYPORT}/udp"
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - SERVERNAME=${SERVER_NAME}
       - WORLDNAME=${WORLD_NAME}
       - GAMEPORT=${GAMEPORT}

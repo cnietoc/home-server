@@ -73,7 +73,7 @@ hms system backup create                 # Todos los stacks + hms
 hms system backup --stack media          # Stack específico
 hms system backup --hms-only             # Solo hms (infra + config)
 hms system backup --dry-run              # Simular sin ejecutar
-hms system backup --force                # Ignorar enabled=false
+hms system backup --force                # Ignorar enabled=false y min_interval
 hms system backup --no-rotate            # No eliminar backups antiguos
 
 # Listar backups

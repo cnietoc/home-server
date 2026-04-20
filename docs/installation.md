@@ -178,6 +178,13 @@ El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
 
+Opciones de backup configurables en `[global.backups]`:
+
+| Campo | Default | Descripción |
+|-------|---------|-------------|
+| `max_backups` | `5` | Máximo de backups a mantener por stack |
+| `min_interval` | `"12h"` | Intervalo mínimo entre backups del mismo stack (evita duplicados cuando el job se lanza más veces de la necesaria). Formatos: `"12h"`, `"30m"`, `"1d"`. Se puede omitir con `--force`. |
+
 > **💡 Consulta**: Si necesitas modificar valores opcionales, revisa el archivo [`config.default.toml`](../config.default.toml) para ver todas las opciones disponibles.
 
 ### 📖 Guías para Obtener Credenciales
