@@ -9,6 +9,8 @@ services:
     image: trueosiris/vrising
     restart: unless-stopped
     stop_grace_period: 2m
+    # Required: https://github.com/TrueOsiris/docker-vrising#image-2026-02-21
+    entrypoint: ["/bin/bash", "-c", "sed -i 's/\\r//g' /start.sh && exec /bin/bash /start.sh"]
     ports:
       - "${GAMEPORT}:${GAMEPORT}/udp"
       - "${QUERYPORT}:${QUERYPORT}/udp"
