@@ -195,7 +195,7 @@ CONFIGURATION:
         finally:
             try:
                 proc.stdin.close()
-            except OSError:
+            except (OSError, ValueError):
                 pass
             _, stderr = proc.communicate()
 
