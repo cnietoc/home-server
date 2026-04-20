@@ -167,6 +167,21 @@ CONFIGURATION:
         Preserva owner, permisos y timestamps originales.
         Devuelve el número de ficheros restaurados.
         """
+        import io
+
+        # Build tar into memory first to avoid pipe lifecycle issues when
+        # streaming directly to a subprocess stdin.
+        buf = io.BytesIO()
+        count = 0
+        with tarfile.open(fileobj=buf, mode="w") as out_tar:
+            for member in data_members:
+                f = src_tar.extractfile(member)
+                if member.isdir():
+                    out_tar.addfile(member)
+                elif f:
+                    out_tar.addfile(member, f)
+                    count += 1
+
         cmd = [
             "docker", "run", "--rm", "-i",
             "-v", f"{host_data_root}:/data",
@@ -175,33 +190,11 @@ CONFIGURATION:
         ]
 
         logger.debug(f"   Docker restore: {' '.join(cmd)}")
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(cmd, input=buf.getvalue(), capture_output=True)
 
-        count = 0
-        try:
-            with tarfile.open(fileobj=proc.stdin, mode="w|") as out_tar:
-                for member in data_members:
-                    f = src_tar.extractfile(member)
-                    if member.isdir():
-                        out_tar.addfile(member)
-                    elif f:
-                        out_tar.addfile(member, f)
-                        count += 1
-        except (BrokenPipeError, ValueError, OSError) as e:
-            # Docker tar may have already exited (successfully) and closed the
-            # read end of the pipe before we send the end-of-archive blocks.
-            # Check the return code below to determine actual success/failure.
-            logger.debug(f"   Pipe error during restore write: {e}")
-        finally:
-            try:
-                proc.stdin.close()
-            except (OSError, ValueError):
-                pass
-            _, stderr = proc.communicate()
-
-        if proc.returncode != 0:
+        if result.returncode != 0:
             raise RuntimeError(
-                f"Docker restore falló (exit {proc.returncode}): {stderr.decode().strip()}"
+                f"Docker restore falló (exit {result.returncode}): {result.stderr.decode().strip()}"
             )
 
         return count
