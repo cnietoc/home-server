@@ -99,13 +99,6 @@ Actualizar imágenes Docker de todos los stacks habilitados (excepto infra)
 hms system update-stacks
 ```
 
-#### system update-infra
-Actualizar imágenes Docker del stack de infraestructura (Traefik + TinyAuth)
-
-```bash
-hms system update-infra
-```
-
 #### system update-dns
 Actualizar registros DNS en Cloudflare
 
@@ -250,9 +243,6 @@ hms update infra
 
 # Actualizar todos los stacks (excepto infra)
 hms system update-stacks
-
-# Actualizar solo infra
-hms system update-infra
 
 # Actualizar HMS desde el repositorio
 hms self-update
