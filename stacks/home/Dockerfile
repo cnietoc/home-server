@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
 # Instalar herramientas del sistema necesarias
 RUN apk add --no-cache \
@@ -27,23 +27,11 @@ COPY public/ ./public/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Debug: verificar estructura de archivos
-RUN echo "=== Estructura de /app ===" && \
-    ls -la /app/ && \
-    echo "=== Estructura de /app/public ===" && \
-    ls -la /app/public/ && \
-    echo "=== Contenido de server.js (primeras 10 líneas) ===" && \
-    head -10 /app/server.js
-
 # Exponer puerto
 EXPOSE 3000
 
-# Variables de entorno
 ENV NODE_ENV=production \
     PORT=3000
-
-# Verificar que Node.js puede iniciar (test básico)
-RUN node --version && npm --version
 
 # Usar entrypoint para manejo dinámico de usuarios
 ENTRYPOINT ["/entrypoint.sh"]

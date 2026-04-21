@@ -505,7 +505,7 @@
                         </div>
                         <div class="stack-right">
                             <span class="container-counts">${stack.containers.running}/${stack.containers.total}</span>
-                            <a class="stack-btn stop" href="/api/stacks/${stack.name}/down" onclick="return confirm('¿Parar ${stack.name}?')">■</a>
+                            ${!['infra','home'].includes(stack.name) ? `<a class="stack-btn stop" href="/api/stacks/${stack.name}/down" onclick="return confirm('¿Parar ${stack.name}?')">■</a>` : ''}
                             <span class="status-dot ${sc}"></span>
                         </div>
                     </div>

@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.venv
+venv
+
+# Node
+**/node_modules
+**/.npm
+**/coverage
+**/.nyc_output
+
+# Runtime data (never needed at build time)
+data/
+logs/
+backups/
+
+# Docs & tests
+docs/
+tests/
+
+# Local config (secrets)
+config.toml
+
+# Misc
+*.log
+.env
+.env.*
+README.md

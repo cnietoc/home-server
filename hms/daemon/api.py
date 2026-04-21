@@ -431,7 +431,7 @@ async def api_reload_jobs() -> JSONResponse:
     return await reload_jobs()
 
 
-_PROTECTED_STACKS = {"infra"}
+_PROTECTED_STACKS = {"infra", "home"}
 
 
 @app.post("/api/stacks/{name}/up")
