@@ -352,8 +352,10 @@ class DockerComposeManager:
                 except OSError:
                     break
 
-            process.wait()
+            process.wait(timeout=300)
         except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
             logger.error(f"Timeout executing command {' '.join(command)} for stack '{stack_name}'")
             return 1, b"".join(output_buffer).decode(errors="replace")
         except Exception as e:
