@@ -136,6 +136,13 @@
         .stack-card.partial  { border-left-color: var(--amber); }
         .stack-card.stopped  { border-left-color: var(--red);   }
 
+        @keyframes pending-pulse {
+            0%, 100% { border-left-color: var(--accent); opacity: 1; }
+            50%       { border-left-color: rgba(129,140,248,0.3); opacity: 0.65; }
+        }
+        .op-pending { animation: pending-pulse 1.2s ease-in-out infinite; }
+        .available-item.op-pending { animation: pending-pulse 1.2s ease-in-out infinite; border-color: var(--accent); }
+
         .stack-head {
             display: flex;
             align-items: center;
@@ -553,6 +560,9 @@
         btn.textContent = '';
         btn.classList.add('pending');
 
+        const card = btn.closest('.stack-card, .available-item');
+        if (card) card.classList.add('op-pending');
+
         const url = `/api/stacks/${name}/${action}`;
         try {
             const res = await fetch(url, {
@@ -567,6 +577,7 @@
 
         btn.textContent = originalText;
         btn.classList.remove('pending');
+        if (card) card.classList.remove('op-pending');
         await loadDashboard();
     }
 
