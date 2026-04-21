@@ -595,7 +595,15 @@
             const data = await res.json();
             document.getElementById('lastUpdated').textContent = formatDate(data.generated_at);
             renderSystemInfo(data.system);
-            renderStacks(data.stacks);
+            const PINNED = ['infra', 'home'];
+            const sorted = [...data.stacks].sort((a, b) => {
+                const ai = PINNED.indexOf(a.name), bi = PINNED.indexOf(b.name);
+                if (ai !== -1 && bi !== -1) return ai - bi;
+                if (ai !== -1) return -1;
+                if (bi !== -1) return 1;
+                return 0;
+            });
+            renderStacks(sorted);
             renderAvailable(data.available);
         } catch (e) {
             console.error('Error loading dashboard:', e);
