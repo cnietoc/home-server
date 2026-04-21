@@ -9,6 +9,7 @@ from typing import List
 from hms.core.plugin import StackPlugin, EmptyStackBehavior
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
+from hms.lib.notify import send as notify
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,10 @@ DESCRIPTION:
 
             if result == 0:
                 logger.info(f"✅ Stack '{stack_name}' stopped successfully")
+                notify("🔴 Stack parado", stack_name)
             else:
                 logger.error(f"❌ Failed to stop stack '{stack_name}'")
+                notify("❌ Error al parar stack", stack_name)
         else:
             logger.info(f"ℹ️  Stack '{stack_name}' is not running, nothing to stop.")
             result = docker_manager.stack_down(stack_name)

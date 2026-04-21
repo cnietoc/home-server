@@ -9,6 +9,7 @@ from typing import List
 from hms.core.plugin import StackPlugin, EmptyStackBehavior
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
+from hms.lib.notify import send as notify
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +63,16 @@ DESCRIPTION:
 
         if result != 0:
             logger.error(f"❌ Failed to start stack '{stack_name}'")
+            notify("❌ Error al arrancar stack", stack_name)
             return result
 
         logger.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
         healthy = docker_manager.wait_for_healthy(stack_name)
         if healthy:
             logger.info(f"✅ Stack '{stack_name}' is up and healthy")
+            notify("🟢 Stack arrancado", stack_name)
         else:
             logger.warning(f"⚠️  Stack '{stack_name}' started but health check failed or timed out")
+            notify("⚠️ Stack arrancado (healthcheck fallido)", stack_name)
 
         return result
