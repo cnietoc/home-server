@@ -1,22 +1,22 @@
 [global]
-host_root = "__REQUIRED__"
-puid = "__REQUIRED__"
-pgid = "__REQUIRED__"
-tz = "__REQUIRED__"
-domain = "__REQUIRED__"
+host_root        = "__REQUIRED__"
+puid             = "__REQUIRED__"
+pgid             = "__REQUIRED__"
+tz               = "__REQUIRED__"
+domain           = "__REQUIRED__"
 # Opcional: URL de notificaciones Apprise (Telegram, Discord, Slack, etc.)
 # Telegram: tgram://BOT_TOKEN/CHAT_ID
 # Discord:  discord://TOKEN@WEBHOOK_ID
 notification_url = ""
 
 [infra.cloudflare]
-email = "__REQUIRED__"
+email         = "__REQUIRED__"
 dns_api_token = "__REQUIRED__"
 
 [infra.auth]
-google_client_id = "__REQUIRED__"
+google_client_id     = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
-oauth_whitelist = "__REQUIRED__"
+oauth_whitelist      = "__REQUIRED__"
 
 [infra.watchtower]
 notification_url = "__REQUIRED__"
@@ -27,6 +27,8 @@ password = "__REQUIRED__"
 [corekeeper]
 password = "__REQUIRED__"
 
-[terraria]
+[vrising]
 password = "__REQUIRED__"
 
+[terraria]
+password = "__REQUIRED__"

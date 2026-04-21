@@ -1,72 +1,69 @@
 [global]
-host_root = "__REQUIRED__"
-puid = "__REQUIRED__"
-pgid = "__REQUIRED__"
-tz = "__REQUIRED__"
-domain = "__REQUIRED__"
-log_level = "info"
+host_root        = "__REQUIRED__"
+puid             = "__REQUIRED__"
+pgid             = "__REQUIRED__"
+tz               = "__REQUIRED__"
+domain           = "__REQUIRED__"
+log_level        = "info"
 notification_url = ""
 
 [global.backups]
-max_backups = 5
+max_backups  = 5
 min_interval = "12h"
 
 [infra.cloudflare]
-email = "__REQUIRED__"
+email         = "__REQUIRED__"
 dns_api_token = "__REQUIRED__"
 
 [infra.auth]
-google_client_id = "__REQUIRED__"
+google_client_id     = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
-oauth_whitelist = "__REQUIRED__"
+oauth_whitelist      = "__REQUIRED__"
 
 [infra.backups]
-exclude = [
-    "*.log"
-]
+exclude = ["*.log"]
 
 [jobs.update-dns]
 description = "Actualizar DNS en Cloudflare"
-plugin = "system:update-dns"
-args = []
-triggers = [
-    { type = "startup", delay = "10s" },
+plugin      = "system:update-dns"
+args        = []
+triggers    = [
+    { type = "startup",  delay    = "10s" },
     { type = "interval", interval = "30m" },
-    # { type = "cron", cron = "*/15 * * * *" }
 ]
 
 [jobs.backup-daily]
 description = "Backup diario de todos los stacks e infra"
-plugin = "system:backup"
-enabled = true
-args = []
-triggers = [
-    { type = "startup", delay = "1m" }, # Ejecutar 1 minuto después del inicio
-    { type = "cron", cron = "0 3 * * *" }  # 03:00 cada día
+plugin      = "system:backup"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "startup", delay = "1m"        },  # 1 minuto después del inicio
+    { type = "cron",    cron  = "0 3 * * *" },  # 03:00 cada día
 ]
 
 [jobs.update-stacks]
 description = "Actualizar imágenes de todos los stacks (excepto infra)"
-plugin = "system:update-stacks"
-enabled = true
-args = []
-triggers = [
-    { type = "cron", cron = "0 2 * * *" }  # 02:00 cada día
+plugin      = "system:update-stacks"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "cron", cron = "0 2 * * *" },  # 02:00 cada día
 ]
 
 [jobs.update-infra]
 description = "Actualizar imágenes del stack de infraestructura"
-plugin = "update"
-enabled = true
-args = ["infra"]
-triggers = [
-    { type = "cron", cron = "0 4 * * *" }  # 04:00 cada día
+plugin      = "update"
+enabled     = true
+args        = ["infra"]
+triggers    = [
+    { type = "cron", cron = "0 4 * * *" },  # 04:00 cada día
 ]
 
 [media]
 enable_intel_qsv = false
-enable_nvidia = false
-enable_vaapi = false
+enable_nvidia    = false
+enable_vaapi     = false
 
 [media.backups]
 exclude = [
@@ -83,31 +80,27 @@ exclude = [
     "/config/sonarr/Backups",
     "/config/jackett/*.txt",
     "/config/jellyfin/log/",
-    "/config/jellyfin/temp/"
+    "/config/jellyfin/temp/",
 ]
 
 [home.backups]
 enabled = false
 
 [asf.backups]
-exclude = [
-    "/logs/"
-]
+exclude = ["/logs/"]
 
 [necesse]
-motd = "Welcome to my Neccesse server!"
+motd     = "Welcome to my Neccesse server!"
 password = "__REQUIRED__"
 
 [corekeeper]
-world_name = "Home Server CoreKeeper Server"
-game_id = ""
-password = "__REQUIRED__"
+world_name          = "Home Server CoreKeeper Server"
+game_id             = ""
+password            = "__REQUIRED__"
 discord_webhook_url = ""
 
 [corekeeper.backups]
-exclude = [
-    "/server-files/"
-]
+exclude = ["/server-files/"]
 
 [vrising]
 server_name          = "Home Server V Rising"
@@ -117,30 +110,26 @@ queryport            = "9877"
 password             = "__REQUIRED__"
 list_on_steam        = "true"
 list_on_eos          = "true"
-game_settings_preset = "StandardPvE"
-
-# QoL overrides (applied on top of preset — preset may override some of these)
-teleport_bound_items = "0"      # 0 = puedes teleportarte con recursos
-castle_decay_rate    = "0.1"    # 0.1 = con muy poco decay de castillos
-blood_essence_drain  = "0.5"    # drenaje de esencia del corazón reducido a la mitad
-material_yield       = "1.5"    # +50% materiales al farmear
-craft_rate           = "2.0"    # crafteo 2x más rápido
-refinement_rate      = "2.0"    # refinado 2x más rápido
-day_duration         = "720"    # duración del ciclo día/noche en segundos (defecto: 1080)
+game_settings_preset = "StandardPvE"        # StandardPvE | StandardPvP | StandardPvE_Easy | ...
+teleport_bound_items = false                # false = puedes teleportarte con recursos encima
+castle_decay_rate    = "0.1"                # decay mínimo del castillo
+blood_essence_drain  = "0.5"               # el corazón drena esencia a la mitad de velocidad
+material_yield       = "1.5"               # +50% materiales al farmear
+craft_rate           = "2.0"               # crafteo 2x más rápido
+refinement_rate      = "2.0"               # refinado 2x más rápido
+day_duration         = "720"               # duración del ciclo día/noche en segundos (defecto: 1080)
 
 [vrising.backups]
-exclude = [
-    "/server/"
-]
+exclude = ["/server/"]
 
 [terraria]
-world_name = "World"
-world_size = "2"
-difficulty = "0"
-motd = "Welcome to my Terraria server!"
-password = "__REQUIRED__"
+world_name  = "World"
+world_size  = "2"           # 1=pequeño, 2=medio, 3=grande
+difficulty  = "0"           # 0=normal, 1=expert, 2=master, 3=journey
+motd        = "Welcome to my Terraria server!"
+password    = "__REQUIRED__"
 max_players = "16"
-secure = "1"
-npcstream = "1"
-language = "en-US"
-modpack = "Default"
+secure      = "1"
+npcstream   = "1"
+language    = "en-US"
+modpack     = "Default"
