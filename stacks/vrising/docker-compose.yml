@@ -22,10 +22,19 @@ services:
       - WORLDNAME=${WORLD_NAME}
       - GAMEPORT=${GAMEPORT}
       - QUERYPORT=${QUERYPORT}
+      # Host settings
       - HOST_SETTINGS_Password=${PASSWORD}
       - HOST_SETTINGS_ListOnSteam=${LIST_ON_STEAM}
       - HOST_SETTINGS_ListOnEOS=${LIST_ON_EOS}
-      - GAME_SETTINGS_GameModeType=${GAME_MODE}
+      - HOST_SETTINGS_GameSettingsPreset=${GAME_SETTINGS_PRESET}
+      # QoL overrides (applied on top of preset)
+      - GAME_SETTINGS_TeleportBoundItems=${TELEPORT_BOUND_ITEMS}
+      - GAME_SETTINGS_CastleDecayRateModifier=${CASTLE_DECAY_RATE}
+      - GAME_SETTINGS_CastleBloodEssenceDrainModifier=${BLOOD_ESSENCE_DRAIN}
+      - GAME_SETTINGS_MaterialYieldModifier_Global=${MATERIAL_YIELD}
+      - GAME_SETTINGS_CraftRateModifier=${CRAFT_RATE}
+      - GAME_SETTINGS_RefinementRateModifier=${REFINEMENT_RATE}
+      - GAME_SETTINGS_GameTimeModifiers__DayDurationInSeconds=${DAY_DURATION}
     volumes:
       - ${STACK_DATA}/server:/mnt/vrising/server
       - ${STACK_DATA}/persistentdata:/mnt/vrising/persistentdata
