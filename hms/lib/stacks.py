@@ -194,13 +194,15 @@ class StackMetadata:
         :param service: Name of the service
         :return: True if service is public, False otherwise
         """
-        traefik_middlewares = self._get_service_labels(stack_name, service, "traefik.http.routers.*.middlewares")
+        explicit = self._get_service_label(stack_name, service, "hms.public")
+        if explicit is not None:
+            return explicit.lower() == "true"
 
-        # if any middleware contains "tinyauth" then is not public
+        traefik_middlewares = self._get_service_labels(stack_name, service, "traefik.http.routers.*.middlewares")
         for label_key, middleware in traefik_middlewares.items():
             if "tinyauth@docker" in middleware.lower():
                 return False
-        return True and self.get_service_subdomain(stack_name, service) is not None
+        return self.get_service_subdomain(stack_name, service) is not None
 
     def get_service_hosts(self, stack_name: str, service: str) -> list[str]:
         """
