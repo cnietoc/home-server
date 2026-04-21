@@ -505,7 +505,7 @@
                         </div>
                         <div class="stack-right">
                             <span class="container-counts">${stack.containers.running}/${stack.containers.total}</span>
-                            <a class="stack-btn stop" href="/api/stacks/${stack.name}/down">■</a>
+                            <a class="stack-btn stop" href="/api/stacks/${stack.name}/down" onclick="return confirm('¿Parar ${stack.name}?')">■</a>
                             <span class="status-dot ${sc}"></span>
                         </div>
                     </div>
@@ -555,7 +555,7 @@
                     <div class="available-name">${s.name}</div>
                     ${s.description ? `<div class="available-desc">${s.description}</div>` : ''}
                 </div>
-                <a class="stack-btn start" href="/api/stacks/${s.name}/up">▶</a>
+                <a class="stack-btn start" href="/api/stacks/${s.name}/up" onclick="return confirm('¿Arrancar ${s.name}?')">▶</a>
             </div>
         `).join('');
     }
