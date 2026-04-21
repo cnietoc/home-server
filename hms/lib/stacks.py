@@ -195,7 +195,7 @@ class StackMetadata:
         :return: True if service is public, False otherwise
         """
         explicit = self._get_service_label(stack_name, service, "hms.public")
-        if explicit is not None:
+        if explicit:
             return explicit.lower() == "true"
 
         traefik_middlewares = self._get_service_labels(stack_name, service, "traefik.http.routers.*.middlewares")
