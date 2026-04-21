@@ -4,6 +4,7 @@ Expone endpoints bajo /api y mantiene legacy para compatibilidad.
 Integra el scheduler APScheduler en el ciclo de vida de FastAPI.
 """
 
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -11,7 +12,7 @@ from datetime import datetime, timezone
 import os
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from hms.daemon.scheduler import (
@@ -421,3 +422,28 @@ async def reload_jobs() -> JSONResponse:
 async def api_reload_jobs() -> JSONResponse:
     """Reload scheduler jobs (API namespace)."""
     return await reload_jobs()
+
+
+_PROTECTED_STACKS = {"infra"}
+
+
+@app.post("/api/stacks/{name}/up")
+async def stack_up_endpoint(name: str) -> JSONResponse:
+    if not stack_metadata.stack_exists(name):
+        raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, docker_manager.stack_up, name)
+    _cache["dashboard"] = {"ts": 0.0, "data": None}
+    return JSONResponse(content={"status": "ok", "stack": name, "action": "up"})
+
+
+@app.post("/api/stacks/{name}/down")
+async def stack_down_endpoint(name: str) -> JSONResponse:
+    if not stack_metadata.stack_exists(name):
+        raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
+    if name in _PROTECTED_STACKS:
+        raise HTTPException(status_code=403, detail=f"Stack '{name}' está protegido")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, docker_manager.stack_down, name)
+    _cache["dashboard"] = {"ts": 0.0, "data": None}
+    return JSONResponse(content={"status": "ok", "stack": name, "action": "down"})

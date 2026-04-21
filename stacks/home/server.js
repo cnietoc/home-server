@@ -47,6 +47,26 @@ app.get('/api/metrics', async (req, res) => {
     }
 });
 
+app.get('/api/stacks/:name/up', async (req, res) => {
+    try {
+        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/up`, { method: 'POST' }, 60000);
+        res.redirect('/');
+    } catch (error) {
+        console.error(`Error starting stack ${req.params.name}:`, error.message);
+        res.redirect('/');
+    }
+});
+
+app.get('/api/stacks/:name/down', async (req, res) => {
+    try {
+        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/down`, { method: 'POST' }, 60000);
+        res.redirect('/');
+    } catch (error) {
+        console.error(`Error stopping stack ${req.params.name}:`, error.message);
+        res.redirect('/');
+    }
+});
+
 // Ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
