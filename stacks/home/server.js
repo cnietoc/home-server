@@ -48,22 +48,28 @@ app.get('/api/metrics', async (req, res) => {
 });
 
 app.get('/api/stacks/:name/up', async (req, res) => {
+    const isAjax = req.headers['x-hms-control'] === '1';
     try {
-        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/up`, { method: 'POST' }, 60000);
-        res.redirect('/');
+        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/up`, { method: 'POST' }, 180000);
+        if (isAjax) res.json({ status: 'ok' });
+        else res.redirect('/');
     } catch (error) {
         console.error(`Error starting stack ${req.params.name}:`, error.message);
-        res.redirect('/');
+        if (isAjax) res.status(502).json({ error: error.message });
+        else res.redirect('/');
     }
 });
 
 app.get('/api/stacks/:name/down', async (req, res) => {
+    const isAjax = req.headers['x-hms-control'] === '1';
     try {
-        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/down`, { method: 'POST' }, 60000);
-        res.redirect('/');
+        await fetchWithTimeout(`${HMS_API_URL}/api/stacks/${req.params.name}/down`, { method: 'POST' }, 180000);
+        if (isAjax) res.json({ status: 'ok' });
+        else res.redirect('/');
     } catch (error) {
         console.error(`Error stopping stack ${req.params.name}:`, error.message);
-        res.redirect('/');
+        if (isAjax) res.status(502).json({ error: error.message });
+        else res.redirect('/');
     }
 });
 

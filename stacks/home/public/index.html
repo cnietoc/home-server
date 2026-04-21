@@ -327,9 +327,13 @@
             text-decoration: none;
             line-height: 1.6;
             transition: border-color 0.15s, color 0.15s, background 0.15s;
+            cursor: pointer;
         }
         .stack-btn.start:hover { border-color: var(--green); color: var(--green); background: rgba(52,211,153,0.06); }
         .stack-btn.stop:hover  { border-color: var(--red);   color: var(--red);   background: rgba(248,113,113,0.06); }
+        .stack-btn.pending     { pointer-events: none; opacity: 0.5; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .stack-btn.pending::after { content: '⟳'; display: inline-block; animation: spin 1s linear infinite; }
 
         /* ── Misc ── */
         .loading  { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
@@ -505,7 +509,7 @@
                         </div>
                         <div class="stack-right">
                             <span class="container-counts">${stack.containers.running}/${stack.containers.total}</span>
-                            ${!['infra','home'].includes(stack.name) ? `<a class="stack-btn stop" href="/api/stacks/${stack.name}/down" onclick="return confirm('¿Parar ${stack.name}?')">■</a>` : ''}
+                            ${!['infra','home'].includes(stack.name) ? `<a class="stack-btn stop" onclick="controlStack('${stack.name}','down',this)">■</a>` : ''}
                             <span class="status-dot ${sc}"></span>
                         </div>
                     </div>
@@ -541,6 +545,31 @@
         }).join('');
     }
 
+    async function controlStack(name, action, btn) {
+        const label = action === 'up' ? 'Arrancar' : 'Parar';
+        if (!confirm(`¿${label} ${name}?`)) return;
+
+        const originalText = btn.textContent;
+        btn.textContent = '';
+        btn.classList.add('pending');
+
+        const url = `/api/stacks/${name}/${action}`;
+        try {
+            const res = await fetch(url, {
+                headers: { 'X-HMS-Control': '1' },
+                redirect: 'manual',
+            });
+            if (res.type === 'opaqueredirect') {
+                window.location.href = url;
+                return;
+            }
+        } catch (_) {}
+
+        btn.textContent = originalText;
+        btn.classList.remove('pending');
+        await loadDashboard();
+    }
+
     function renderAvailable(available) {
         const section = document.getElementById('availableSection');
         const container = document.getElementById('availableContainer');
@@ -555,7 +584,7 @@
                     <div class="available-name">${s.name}</div>
                     ${s.description ? `<div class="available-desc">${s.description}</div>` : ''}
                 </div>
-                <a class="stack-btn start" href="/api/stacks/${s.name}/up" onclick="return confirm('¿Arrancar ${s.name}?')">▶</a>
+                <a class="stack-btn start" onclick="controlStack('${s.name}','up',this)">▶</a>
             </div>
         `).join('');
     }
