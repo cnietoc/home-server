@@ -289,6 +289,33 @@
         .visibility-public  { background: rgba(52,211,153,0.1); color: var(--green); }
         .visibility-private { background: rgba(107,107,126,0.12); color: var(--muted); }
 
+        /* ── Available stacks ── */
+        .available-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .available-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.875rem;
+        }
+
+        .available-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .available-desc {
+            font-size: 0.68rem;
+            color: var(--muted);
+        }
+
         /* ── Stack control buttons ── */
         .stack-btn {
             font-size: 0.75rem;
@@ -333,6 +360,11 @@
         <div class="stack-list" id="stacksContainer">
             <div class="loading">Cargando...</div>
         </div>
+    </section>
+
+    <section id="availableSection" style="display:none">
+        <div class="section-label">Arrancar</div>
+        <div class="available-grid" id="availableContainer"></div>
     </section>
 </div>
 
@@ -473,10 +505,7 @@
                         </div>
                         <div class="stack-right">
                             <span class="container-counts">${stack.containers.running}/${stack.containers.total}</span>
-                            ${stack.status === 'running' || stack.status === 'partial'
-                                ? `<a class="stack-btn stop" href="/api/stacks/${stack.name}/down">■</a>`
-                                : `<a class="stack-btn start" href="/api/stacks/${stack.name}/up">▶</a>`
-                            }
+                            <a class="stack-btn stop" href="/api/stacks/${stack.name}/down">■</a>
                             <span class="status-dot ${sc}"></span>
                         </div>
                     </div>
@@ -512,6 +541,25 @@
         }).join('');
     }
 
+    function renderAvailable(available) {
+        const section = document.getElementById('availableSection');
+        const container = document.getElementById('availableContainer');
+        if (!available || available.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = '';
+        container.innerHTML = available.map(s => `
+            <div class="available-item">
+                <div>
+                    <div class="available-name">${s.name}</div>
+                    ${s.description ? `<div class="available-desc">${s.description}</div>` : ''}
+                </div>
+                <a class="stack-btn start" href="/api/stacks/${s.name}/up">▶</a>
+            </div>
+        `).join('');
+    }
+
     async function loadDashboard() {
         try {
             const res = await fetch('/api/dashboard');
@@ -519,6 +567,7 @@
             document.getElementById('lastUpdated').textContent = formatDate(data.generated_at);
             renderSystemInfo(data.system);
             renderStacks(data.stacks);
+            renderAvailable(data.available);
         } catch (e) {
             console.error('Error loading dashboard:', e);
             document.getElementById('systemInfo').innerHTML = '<div class="error-msg">Error cargando el sistema</div>';

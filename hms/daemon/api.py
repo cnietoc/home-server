@@ -259,6 +259,12 @@ def _build_dashboard_data() -> dict:
             }
         )
 
+    available = [
+        {"name": s, "description": stack_metadata.get_description(s) or ""}
+        for s in stack_metadata.list_stacks()
+        if not config_manager.is_stack_enabled(s)
+    ]
+
     system["totals"] = {
         "stacks": len(stacks_data),
         "containers": {
@@ -271,6 +277,7 @@ def _build_dashboard_data() -> dict:
     return {
         "system": system,
         "stacks": stacks_data,
+        "available": available,
         "generated_at": time.time(),
     }
 
@@ -432,6 +439,8 @@ async def stack_up_endpoint(name: str) -> JSONResponse:
     if not stack_metadata.stack_exists(name):
         raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
     try:
+        if not config_manager.is_stack_enabled(name):
+            config_manager.enable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_up, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
@@ -450,6 +459,8 @@ async def stack_down_endpoint(name: str) -> JSONResponse:
     if name in _PROTECTED_STACKS:
         raise HTTPException(status_code=403, detail=f"Stack '{name}' está protegido")
     try:
+        if config_manager.is_stack_enabled(name):
+            config_manager.disable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_down, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
