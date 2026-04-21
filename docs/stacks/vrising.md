@@ -35,16 +35,35 @@ El servidor soporta modos **PvE** y **PvP**, configuración granular de dificult
 
 ```toml
 [vrising]
-server_name = "Home Server V Rising"   # Nombre visible en la lista de servidores
-world_name  = "world1"                 # Nombre del directorio de guardado
-gameport    = "9876"                   # Puerto UDP del juego
-queryport   = "9877"                   # Puerto UDP de query (Steam browser)
-password    = "mi-contraseña-segura"   # Contraseña de acceso (vacío = sin contraseña)
+server_name          = "Home Server V Rising"   # Nombre visible en la lista de servidores
+world_name           = "world1"                 # Nombre del directorio de guardado
+gameport             = "9876"                   # Puerto UDP del juego
+queryport            = "9877"                   # Puerto UDP de query (Steam browser)
+password             = "mi-contraseña-segura"   # Contraseña de acceso (vacío = sin contraseña)
+game_settings_preset = "StandardPvE"            # Preset de dificultad base
 ```
 
-### ⚙️ Configuración avanzada (GameSettings y HostSettings)
+### ⚙️ Preset y ajustes QoL
 
-El resto de opciones (modo PvE/PvP, dificultad, crafteo, ciclo día/noche, autosaves, RCON…) se configuran directamente editando los ficheros JSON que el servidor genera en el primer arranque:
+El servidor arranca con un preset de dificultad base y encima se aplican overrides individuales de calidad de vida:
+
+```toml
+[vrising]
+game_settings_preset = "StandardPvE"  # Preset base (StandardPvE, HardcorePvE, StandardPvP…)
+
+# QoL overrides (se aplican sobre el preset)
+teleport_bound_items = "0"      # 0 = puedes teleportarte con recursos
+castle_decay_rate    = "0.1"    # decay de castillos muy reducido
+blood_essence_drain  = "0.5"    # drenaje de esencia del corazón reducido a la mitad
+material_yield       = "1.5"    # +50% materiales al farmear
+craft_rate           = "2.0"    # crafteo 2x más rápido
+refinement_rate      = "2.0"    # refinado 2x más rápido
+day_duration         = "720"    # duración del ciclo día/noche en segundos (defecto: 1080)
+```
+
+> **Presets disponibles**: `StandardPvE`, `HardcorePvE`, `StandardPvP`, `HardcorePvP`, `SoloPvP`. Consulta el PDF de referencia en `stacks/vrising/` para el listado completo de valores por preset.
+
+Los overrides de `config.toml` tienen **prioridad** sobre el preset. Para cualquier otro ajuste fino, edita directamente los ficheros JSON generados en el primer arranque:
 
 ```
 data/vrising/persistentdata/Settings/
@@ -52,7 +71,7 @@ data/vrising/persistentdata/Settings/
 └── ServerGameSettings.json    # Configuración del juego (dificultad, multiplicadores...)
 ```
 
-Estos ficheros se generan con los valores por defecto la primera vez. Edítalos con el servidor parado y reinicia para aplicar los cambios.
+Estos ficheros se generan con los valores del preset la primera vez. Edítalos con el servidor parado y reinicia para aplicar los cambios.
 
 ## 📁 Estructura de Datos
 

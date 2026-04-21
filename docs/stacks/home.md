@@ -13,16 +13,16 @@ Dashboard central de HMS - página de inicio con enlaces a todos los servicios d
 
 ## 📝 Descripción
 
-El stack **home** proporciona una página web que actúa como **punto de entrada central** a todos los servicios de HMS. Muestra enlaces organizados a los diferentes servicios desplegados (Jellyfin, Radarr, Sonarr, Traefik Dashboard, etc.) con descripciones y estado de cada uno.
+El stack **home** proporciona una página web que actúa como **punto de entrada central** a todos los servicios de HMS. Muestra estado del sistema, métricas en tiempo real y enlaces a todos los servicios desplegados, con botones para arrancar y parar cada stack directamente desde el navegador.
 
 ## 🔧 Servicios Incluidos
 
 ### 1. Dashboard HMS - Portal Centralizado
-Página de inicio con enlaces a todos los servicios
+Página de inicio con estado de stacks y control de los mismos
 
 - **URL**: `https://{DOMAIN}` (raíz del dominio)
-- **Protegido**: ❌ No (acceso público)
-- **Función**: Portal central, descubrimiento de servicios, estado de sistema, enlaces rápidos
+- **Protegido**: ✅ Parcial — lectura pública, control autenticado (ver sección Seguridad)
+- **Función**: Portal central, estado del sistema, métricas, control de stacks
 
 ## 📋 Configuración Requerida
 
@@ -42,12 +42,20 @@ El stack home es completamente **stateless** - no persiste ningún dato en disco
 ## 🎯 Características
 
 - ✅ Descubrimiento automático de servicios
-- ✅ Enlaces a todas las aplicaciones desplegadas
-- ✅ Mostrar estado de cada servicio
+- ✅ Estado y métricas en tiempo real (CPU, RAM, red) por stack
+- ✅ Botones ▶/■ para arrancar y parar stacks desde el navegador
 - ✅ Integración con etiquetas `hms.description` de Docker
 - ✅ Responsive design (funciona en mobile)
-- ✅ Acceso rápido a aplicaciones
 
 ## 🔐 Seguridad
 
-El dashboard home **no tiene protección** - es públicamente accesible. Está diseñado para ser el punto de entrada visible del sistema.
+El dashboard usa **dos routers Traefik** sobre el mismo servicio:
+
+| Ruta | Acceso | Descripción |
+|------|--------|-------------|
+| `https://{DOMAIN}/` | Público | Dashboard de solo lectura |
+| `https://{DOMAIN}/api/stacks/*` | TinyAuth (Google OAuth) | Endpoints de control ▶/■ |
+
+Al hacer click en un botón de control, si no hay sesión activa Traefik redirige al login de Google (`https://auth.{DOMAIN}`). Tras autenticarse, la acción se ejecuta y vuelve al dashboard automáticamente.
+
+El stack **infra** está protegido y no puede detenerse desde el dashboard.
