@@ -271,6 +271,11 @@
             flex-shrink: 0;
         }
 
+        @media (max-width: 520px) {
+            .service-row { flex-wrap: wrap; }
+            .service-right { flex-shrink: 1; padding-left: 1.1rem; }
+        }
+
         .endpoint-link {
             font-size: 0.68rem;
             color: var(--accent);
@@ -577,8 +582,8 @@
 
         btn.textContent = originalText;
         btn.classList.remove('pending');
-        if (card) card.classList.remove('op-pending');
         await loadDashboard();
+        if (card && document.body.contains(card)) card.classList.remove('op-pending');
     }
 
     function renderAvailable(available) {
