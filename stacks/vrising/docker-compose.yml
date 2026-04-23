@@ -27,6 +27,7 @@ services:
       - HOST_SETTINGS_ListOnSteam=${LIST_ON_STEAM}
       - HOST_SETTINGS_ListOnEOS=${LIST_ON_EOS}
       - HOST_SETTINGS_GameSettingsPreset=${GAME_SETTINGS_PRESET}
+      - HOST_SETTINGS_GameDifficultyPreset=${GAME_DIFFICULTY_PRESET}
       # QoL overrides (applied on top of preset)
       - GAME_SETTINGS_TeleportBoundItems=${TELEPORT_BOUND_ITEMS}
       - GAME_SETTINGS_CastleDecayRateModifier=${CASTLE_DECAY_RATE}

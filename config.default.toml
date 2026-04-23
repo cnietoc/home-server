@@ -103,21 +103,22 @@ discord_webhook_url = ""
 exclude = ["/server-files/"]
 
 [vrising]
-server_name          = "Home Server V Rising"
-world_name           = "world1"
-gameport             = "9876"
-queryport            = "9877"
-password             = "__REQUIRED__"
-list_on_steam        = "true"
-list_on_eos          = "true"
-game_settings_preset = "StandardPvE"        # StandardPvE | StandardPvP | StandardPvE_Easy | ...
-teleport_bound_items = false                # false = puedes teleportarte con recursos encima
-castle_decay_rate    = "0.1"                # decay mínimo del castillo
-blood_essence_drain  = "0.5"               # el corazón drena esencia a la mitad de velocidad
-material_yield       = "1.5"               # +50% materiales al farmear
-craft_rate           = "2.0"               # crafteo 2x más rápido
-refinement_rate      = "2.0"               # refinado 2x más rápido
-day_duration         = "720"               # duración del ciclo día/noche en segundos (defecto: 1080)
+server_name            = "Home Server V Rising"
+world_name             = "world1"
+gameport               = "9876"
+queryport              = "9877"
+password               = "__REQUIRED__"
+list_on_steam          = "true"
+list_on_eos            = "true"
+game_settings_preset   = "StandardPvE"        # StandardPvE | StandardPvE_Easy | StandardPvE_Hard | StandardPvP | StandardPvP_Easy | StandardPvP_Hard | SoloPvP | DuoPvP | HardcorePvP | HardcoreDuoPvP | Level30PvE | Level30PvP | Level50PvE | Level50PvP | Level70PvE | Level70PvP
+game_difficulty_preset = "Difficulty_Normal"  # Difficulty_Easy | Difficulty_Normal | Difficulty_Brutal
+teleport_bound_items   = false                # false = puedes teleportarte con recursos encima
+castle_decay_rate      = "0.1"                # decay mínimo del castillo
+blood_essence_drain    = "0.5"                # el corazón drena esencia a la mitad de velocidad
+material_yield         = "1.5"                # +50% materiales al farmear
+craft_rate             = "2.0"                # crafteo 2x más rápido
+refinement_rate        = "2.0"                # refinado 2x más rápido
+day_duration           = "720"                # duración del ciclo día/noche en segundos (defecto: 1080)
 
 [vrising.backups]
 exclude = ["/server/"]
