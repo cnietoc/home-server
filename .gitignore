@@ -5,6 +5,10 @@ data/state.yml
 /config.toml
 .onedrive-path
 
+# Logs
+logs/*.log
+logs/*.log.*
+
 # Python
 .venv/
 venv/
