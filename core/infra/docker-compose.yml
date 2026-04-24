@@ -115,7 +115,7 @@ services:
       - --housekeeping_interval=10s
       - --global_housekeeping_interval=60s
       - --docker_only=true
-      - --disable_metrics=accelerator,advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
+      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
       - --allow_dynamic_housekeeping=true
     environment:
       - TZ=${TZ}
