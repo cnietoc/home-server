@@ -329,38 +329,42 @@ class DockerComposeManager:
         master, slave = pty.openpty()
         output_buffer = []
         try:
-            process = subprocess.Popen(
-                command,
-                cwd=stack_dir,
-                stdin=slave,
-                env=env,
-                stdout=slave,
-                stderr=slave,
-                close_fds=True
-            )
+            try:
+                process = subprocess.Popen(
+                    command,
+                    cwd=stack_dir,
+                    stdin=slave,
+                    env=env,
+                    stdout=slave,
+                    stderr=slave,
+                    close_fds=True
+                )
+            finally:
+                os.close(slave)
 
-            os.close(slave)
-
-            while True:
-                try:
-                    output = os.read(master, 1024)
-                    if not output:
+            try:
+                while True:
+                    try:
+                        output = os.read(master, 1024)
+                        if not output:
+                            break
+                        if not hidden:
+                            os.write(1, output)  # stdout real solo si no está oculto
+                        output_buffer.append(output)
+                    except OSError:
                         break
-                    if not hidden:
-                        os.write(1, output)  # stdout real solo si no está oculto
-                    output_buffer.append(output)
-                except OSError:
-                    break
 
-            process.wait(timeout=300)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-            logger.error(f"Timeout executing command {' '.join(command)} for stack '{stack_name}'")
-            return 1, b"".join(output_buffer).decode(errors="replace")
-        except Exception as e:
-            logger.error(f"Error executing command {' '.join(command)} for stack '{stack_name}': {e}")
-            return 1, b"".join(output_buffer).decode(errors="replace")
+                process.wait(timeout=300)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                logger.error(f"Timeout executing command {' '.join(command)} for stack '{stack_name}'")
+                return 1, b"".join(output_buffer).decode(errors="replace")
+            except Exception as e:
+                logger.error(f"Error executing command {' '.join(command)} for stack '{stack_name}': {e}")
+                return 1, b"".join(output_buffer).decode(errors="replace")
+        finally:
+            os.close(master)
 
         return process.returncode, b"".join(output_buffer).decode(errors="replace")
 
