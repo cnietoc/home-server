@@ -14,12 +14,6 @@ services:
     restart: unless-stopped
     networks:
       - hms-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     environment:
       - NODE_ENV=production
       - PORT=3000
