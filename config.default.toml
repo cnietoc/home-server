@@ -86,6 +86,9 @@ exclude = [
 [home.backups]
 enabled = false
 
+[pets.backups]
+enabled = false
+
 [asf.backups]
 exclude = ["/logs/"]
 

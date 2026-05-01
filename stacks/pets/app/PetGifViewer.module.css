@@ -1,0 +1,86 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.scene {
+  width: 480px;
+  height: 480px;
+  max-width: 90vw;
+  max-height: 90vw;
+  perspective: 1200px;
+}
+
+.card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 20px;
+  overflow: hidden;
+  animation: neonPulse 2s ease-in-out infinite alternate;
+}
+
+.card.flipping {
+  transform: rotateY(180deg);
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a0030, #001a30);
+  font-size: 5rem;
+}
+
+.label {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 1.2rem;
+  border-radius: 999px;
+  transition: background 0.4s, color 0.4s, box-shadow 0.4s;
+}
+
+.label.cat {
+  background: #2a003a;
+  color: #ff77ff;
+  box-shadow: 0 0 12px #ff00ff88;
+}
+
+.label.dog {
+  background: #00233a;
+  color: #77ddff;
+  box-shadow: 0 0 12px #00ccff88;
+}
+
+@keyframes neonPulse {
+  from {
+    box-shadow:
+      0 0 10px #ff00ff,
+      0 0 20px #ff00ff,
+      0 0 40px #ff00ff,
+      0 0 10px #00ffff inset;
+  }
+  to {
+    box-shadow:
+      0 0 20px #00ffff,
+      0 0 40px #00ffff,
+      0 0 80px #00ffff,
+      0 0 20px #ff00ff inset;
+  }
+}

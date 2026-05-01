@@ -1,0 +1,36 @@
+name: ${STACK_PREFIX}
+
+networks:
+  hms-network:
+    external: true
+
+x-hms:
+  description: "Web de gatitos aleatorios (Next.js)"
+
+services:
+  web:
+    build: .
+    container_name: ${STACK_PREFIX}
+    restart: unless-stopped
+    networks:
+      - hms-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=${TZ}
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "hms-network"
+      traefik.http.routers.pets.rule: "Host(`pets.${DOMAIN}`)"
+      traefik.http.routers.pets.tls: "true"
+      traefik.http.routers.pets.tls.certresolver: "cloudflare"
+      traefik.http.services.pets.loadbalancer.server.port: "3000"
+      com.centurylinklabs.watchtower.enable: "false"
+      hms.description: "🐱 Gatitos aleatorios"
+      hms.public: "true"

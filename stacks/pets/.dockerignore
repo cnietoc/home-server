@@ -1,0 +1,9 @@
+.next/
+node_modules/
+.git/
+*.md
+.env*
+npm-debug.log*
+.npm
+coverage
+*.log
