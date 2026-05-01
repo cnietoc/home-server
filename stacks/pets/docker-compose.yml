@@ -5,7 +5,7 @@ networks:
     external: true
 
 x-hms:
-  description: "Web de gatitos aleatorios (Next.js)"
+  description: "Web de mascotas aleatorias (Next.js)"
 
 services:
   web:
@@ -32,5 +32,5 @@ services:
       traefik.http.routers.pets.tls.certresolver: "cloudflare"
       traefik.http.services.pets.loadbalancer.server.port: "3000"
       com.centurylinklabs.watchtower.enable: "false"
-      hms.description: "🐱 Gatitos aleatorios"
+      hms.description: "🐾 Mascotas aleatorias"
       hms.public: "true"

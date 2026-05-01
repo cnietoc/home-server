@@ -1,6 +1,6 @@
-# Stack: Pets (Gatitos Aleatorios)
+# Stack: Pets (Mascotas Aleatorias)
 
-Web de gatitos aleatorios construida con Next.js 15.
+Web de mascotas aleatorias construida con Next.js 15.
 
 ## 📋 Overview
 
@@ -13,7 +13,7 @@ Web de gatitos aleatorios construida con Next.js 15.
 
 ## 📝 Descripción
 
-El stack **pets** sirve una web estática/dinámica construida con Next.js 15 en modo `standalone`. La imagen se construye localmente desde el código fuente incluido en `stacks/pets/` — no hay imagen externa en ningún registry.
+El stack **pets** sirve una web construida con Next.js 15 en modo `standalone`. La imagen se construye localmente desde el código fuente incluido en `stacks/pets/` — no hay imagen externa en ningún registry.
 
 ## 🔧 Servicios Incluidos
 
@@ -21,7 +21,7 @@ El stack **pets** sirve una web estática/dinámica construida con Next.js 15 en
 
 - **URL**: `https://pets.{DOMAIN}`
 - **Protegido**: ❌ Acceso público
-- **Función**: Muestra gatitos aleatorios
+- **Función**: Muestra mascotas aleatorias
 
 ## 📋 Configuración Requerida
 
