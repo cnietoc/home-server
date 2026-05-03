@@ -45,6 +45,10 @@ class RouterClient(Protocol):
         """Elimina un mapeo si existe; no-op si no existe."""
         ...
 
+    def is_mapped(self, port: int, protocol: str, lan_ip: str) -> bool:
+        """Devuelve True si el puerto ya está mapeado a lan_ip."""
+        ...
+
     def get_external_ip(self) -> str:
         """Devuelve la IP pública WAN del router."""
         ...
@@ -121,6 +125,18 @@ class UpnpClient:
         except Exception as e:
             raise RouterError(f"No se pudo añadir mapeo {m.port}/{proto}: {e}") from e
 
+    def is_mapped(self, port: int, protocol: str, lan_ip: str) -> bool:
+        proto = protocol.upper()
+        try:
+            u = self._get_upnp()
+            existing = u.getspecificportmapping(port, proto)
+            if existing is None:
+                return False
+            int_client, int_port, *_ = existing
+            return int_client == lan_ip
+        except Exception:
+            return False
+
     def delete_mapping(self, port: int, protocol: str) -> None:
         proto = protocol.upper()
         try:
@@ -179,6 +195,9 @@ class NatpmpClient:
         proto = natpmp.NATPMP_PROTOCOL_TCP if m.protocol == "tcp" else natpmp.NATPMP_PROTOCOL_UDP
         natpmp.map_port(proto, m.port, m.port, lease, gateway=gw)
 
+    def is_mapped(self, port: int, protocol: str, lan_ip: str) -> bool:
+        return False  # NAT-PMP no soporta consultar mapeos existentes
+
     def delete_mapping(self, port: int, protocol: str) -> None:
         try:
             import natpmp
@@ -202,6 +221,9 @@ class NoopClient:
 
     def list_mappings(self) -> list[dict]:
         return []
+
+    def is_mapped(self, port: int, protocol: str, lan_ip: str) -> bool:
+        return False
 
     def add_mapping(self, m: PortMapping, lan_ip: str, lease: int) -> None:
         pass
@@ -333,8 +355,12 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
 
     for pm in ports:
         try:
+            already = client.is_mapped(pm.port, pm.protocol, lan_ip)
             client.add_mapping(pm, lan_ip, lease)
-            logger.info(f"🌐 Router: {pm.port}/{pm.protocol} → {lan_ip} [{pm.stack}]")
+            if already:
+                logger.info(f"🔄 Router: {pm.port}/{pm.protocol} → {lan_ip} (refrescado) [{pm.stack}]")
+            else:
+                logger.info(f"🌐 Router: {pm.port}/{pm.protocol} → {lan_ip} [{pm.stack}]")
         except Exception as e:
             logger.warning(f"⚠️  Router: no se pudo añadir {pm.port}/{pm.protocol}: {e}")
 
