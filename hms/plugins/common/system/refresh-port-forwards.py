@@ -42,11 +42,13 @@ OPTIONS:
   -h, --help    Mostrar esta ayuda
 
 CONFIGURACIÓN:
+  [global]
+  host_ip = "192.168.X.X"   # IP del host (requerido; se autoconfigura en `hms install`)
+
   [router]
   enabled        = true
   backend        = "upnp"   # "upnp" | "natpmp" | "none"
   gateway_ip     = ""       # IP del router (vacío = autodetección)
-  lan_ip         = ""       # IP LAN del servidor (vacío = autodetección)
   lease_duration = "3600"   # segundos
 
 EJEMPLOS:
@@ -138,7 +140,8 @@ EJEMPLOS:
         return 0
 
     def _reconcile(self, client, cfg: dict, dry_run: bool, prune: bool, verbose: bool) -> int:
-        from hms.lib.router import RouterError, detect_lan_ip, get_desired_mappings
+        from hms.lib.config import config_manager
+        from hms.lib.router import RouterError, get_desired_mappings
 
         exclude = cfg.get("exclude_stacks", [])
         desired = get_desired_mappings(exclude_stacks=exclude)
@@ -147,7 +150,10 @@ EJEMPLOS:
             logger.info("ℹ️  Ningún stack tiene public_ports declarados")
             return 0
 
-        lan_ip = cfg.get("lan_ip", "") or detect_lan_ip()
+        lan_ip = config_manager.get_global_config().get("host_ip", "")
+        if not lan_ip:
+            logger.error("❌ global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
+            return 1
         lease = int(cfg.get("lease_duration", 3600))
 
         if verbose:

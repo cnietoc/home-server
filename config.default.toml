@@ -4,6 +4,7 @@ puid             = "__REQUIRED__"
 pgid             = "__REQUIRED__"
 tz               = "__REQUIRED__"
 domain           = "__REQUIRED__"
+host_ip          = "__REQUIRED__"  # IP LAN del host (se autoconfigura en `hms install`)
 log_level        = "info"
 notification_url = ""
 
@@ -46,7 +47,6 @@ triggers    = [
 enabled         = true         # false si UPnP no está disponible en el router
 backend         = "upnp"       # "upnp" | "natpmp" | "none"
 gateway_ip      = ""           # opcional: IP del router (p.ej. "192.168.1.1"); vacío = autodetección
-lan_ip          = ""           # opcional: IP LAN del host; vacío = autodetección
 lease_duration  = "3600"       # segundos de duración del lease (0 = permanente si el router lo soporta)
 exclude_stacks  = []           # stacks a gestionar a mano (p.ej. ["infra"])
 

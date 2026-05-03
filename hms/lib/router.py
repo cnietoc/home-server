@@ -220,15 +220,21 @@ def _is_docker_ip(ip: str) -> bool:
 
 
 def detect_lan_ip(gateway: str = "8.8.8.8") -> str:
-    """Detecta la IP LAN del host usando el truco UDP estándar."""
+    """
+    Detecta la IP LAN del host usando el truco UDP estándar.
+    Lanza RouterError si detecta una IP de red Docker interna (172.16.0.0/12),
+    ya que HMS corre en Docker por defecto y no puede autodetectar la IP del host.
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((gateway, 80))
         ip = s.getsockname()[0]
 
     if _is_docker_ip(ip):
-        logger.warning(
-            f"⚠️  Router: IP detectada ({ip}) es una red Docker interna, no la LAN del host. "
-            "Configura la IP real del servidor en config.toml: router.lan_ip = \"192.168.X.X\""
+        raise RouterError(
+            f"IP autodetectada ({ip}) es una red interna de Docker, no la LAN del host. "
+            "Añade la IP real del servidor a config.toml:\n\n"
+            "  [router]\n"
+            "  lan_ip = \"192.168.X.X\"\n"
         )
 
     return ip
@@ -309,7 +315,10 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
     if not ports:
         return
 
-    lan_ip = cfg.get("lan_ip", "") or detect_lan_ip()
+    lan_ip = config_manager.get_global_config().get("host_ip", "")
+    if not lan_ip:
+        logger.warning("⚠️  Router: global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
+        return
     lease = int(cfg.get("lease_duration", 3600))
 
     try:

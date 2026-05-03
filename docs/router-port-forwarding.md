@@ -38,11 +38,13 @@ Los mapeos activos se pueden ver en **WAN → NAT Passthrough → Show Active UP
 Para personalizar, añade en tu `config.toml`:
 
 ```toml
+[global]
+host_ip = "192.168.X.X"   # IP del host en la LAN (se autoconfigura en `hms install`)
+
 [router]
 enabled        = true
 backend        = "upnp"          # "upnp" | "natpmp" | "none"
 gateway_ip     = ""              # opcional: IP del router (vacío = autodetección)
-lan_ip         = ""              # opcional: IP LAN del host (vacío = autodetección)
 lease_duration = "3600"          # segundos (0 = permanente si el router lo soporta)
 exclude_stacks = []              # p.ej. ["infra"] para gestionar Traefik a mano
 ```

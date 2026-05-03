@@ -4,6 +4,7 @@ puid             = "__REQUIRED__"
 pgid             = "__REQUIRED__"
 tz               = "__REQUIRED__"
 domain           = "__REQUIRED__"
+host_ip          = "__REQUIRED__"  # IP del host en la LAN (se autoconfigura en `hms install`)
 # Opcional: URL de notificaciones Apprise (Telegram, Discord, Slack, etc.)
 # Telegram: tgram://BOT_TOKEN/CHAT_ID
 # Discord:  discord://TOKEN@WEBHOOK_ID
@@ -29,7 +30,6 @@ notification_url = "__REQUIRED__"
 # enabled        = true
 # backend        = "upnp"          # "upnp" | "natpmp" | "none"
 # gateway_ip     = "192.168.1.1"   # IP del router; vacío = autodetección por SSDP
-# lan_ip         = "192.168.1.100" # IP LAN del servidor; vacío = autodetección
 # lease_duration = "3600"          # segundos
 # exclude_stacks = []              # p.ej. ["infra"] para gestionar Traefik a mano
 
