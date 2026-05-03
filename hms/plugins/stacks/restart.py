@@ -52,6 +52,9 @@ DESCRIPTION:
 
         logger.info(f"✅ Stack '{stack_name}' stopped successfully")
 
+        from hms.lib.router import remove_port_forwards_for_stack
+        remove_port_forwards_for_stack(stack_name)
+
         # Then, start it again
         logger.info(f"🟢 Starting stack '{stack_name}'...")
 
@@ -70,6 +73,8 @@ DESCRIPTION:
 
         if up_result == 0:
             logger.info(f"✅ Stack '{stack_name}' restarted successfully")
+            from hms.lib.router import apply_port_forwards_for_stack
+            apply_port_forwards_for_stack(stack_name)
         else:
             logger.error(f"❌ Failed to start stack '{stack_name}' during restart")
 

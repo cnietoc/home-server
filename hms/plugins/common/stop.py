@@ -52,6 +52,8 @@ DESCRIPTION:
 
         logger.info(f"📋 Found {len(stacks)} stack(s): {', '.join(stacks)}")
 
+        from hms.lib.router import remove_port_forwards_for_stack
+
         for stack_name in stacks:
             enabled = config_manager.is_stack_enabled(stack_name)
             if enabled:
@@ -59,9 +61,11 @@ DESCRIPTION:
             else:
                 logger.debug(f"ℹ️  Stopping disabled stack '{stack_name}'...")
             docker_manager.stack_down(stack_name)
+            remove_port_forwards_for_stack(stack_name)
 
         logger.info("ℹ️  Stopping infrastructure stack 'infra'...")
         docker_manager.stack_down("infra")
+        remove_port_forwards_for_stack("infra")
 
         logger.info("✅ All stacks stopped successfully")
 
