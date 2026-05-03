@@ -210,11 +210,28 @@ class NoopClient:
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _is_docker_ip(ip: str) -> bool:
+    """Devuelve True si la IP está en el rango Docker (172.16.0.0/12)."""
+    try:
+        import ipaddress
+        return ipaddress.ip_address(ip) in ipaddress.ip_network("172.16.0.0/12")
+    except ValueError:
+        return False
+
+
 def detect_lan_ip(gateway: str = "8.8.8.8") -> str:
     """Detecta la IP LAN del host usando el truco UDP estándar."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((gateway, 80))
-        return s.getsockname()[0]
+        ip = s.getsockname()[0]
+
+    if _is_docker_ip(ip):
+        logger.warning(
+            f"⚠️  Router: IP detectada ({ip}) es una red Docker interna, no la LAN del host. "
+            "Configura la IP real del servidor en config.toml: router.lan_ip = \"192.168.X.X\""
+        )
+
+    return ip
 
 
 def _detect_default_gateway() -> str:
