@@ -109,24 +109,28 @@ class UpnpClient:
         return results
 
     def add_mapping(self, m: PortMapping, lan_ip: str, lease: int) -> None:
-        u = self._get_upnp()
         proto = m.protocol.upper()
         desc = f"hms:{m.stack}:{m.description}" if m.description else f"hms:{m.stack}"
         try:
+            u = self._get_upnp()
             result = u.addportmapping(m.port, proto, lan_ip, m.port, desc, lease)
             if result is False:
                 raise RouterError(f"addportmapping devolvió False para {m.port}/{proto}")
+        except RouterError:
+            raise
         except Exception as e:
             raise RouterError(f"No se pudo añadir mapeo {m.port}/{proto}: {e}") from e
 
     def delete_mapping(self, port: int, protocol: str) -> None:
-        u = self._get_upnp()
         proto = protocol.upper()
         try:
+            u = self._get_upnp()
             existing = u.getspecificportmapping(port, proto)
             if existing is None:
                 return  # ya no existe
             u.deleteportmapping(port, proto)
+        except RouterError:
+            raise
         except Exception as e:
             raise RouterError(f"No se pudo eliminar mapeo {port}/{proto}: {e}") from e
 
@@ -331,7 +335,7 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
         try:
             client.add_mapping(pm, lan_ip, lease)
             logger.info(f"🌐 Router: {pm.port}/{pm.protocol} → {lan_ip} [{pm.stack}]")
-        except RouterError as e:
+        except Exception as e:
             logger.warning(f"⚠️  Router: no se pudo añadir {pm.port}/{pm.protocol}: {e}")
 
 

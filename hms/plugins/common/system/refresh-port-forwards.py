@@ -197,8 +197,8 @@ EJEMPLOS:
                 try:
                     client.add_mapping(pm, lan_ip, lease)
                     added += 1
-                except RouterError as e:
-                    logger.warning(f"    ⚠️  {e}")
+                except Exception as e:
+                    logger.warning(f"    ⚠️  {pm.port}/{pm.protocol}: {e}")
                     failed += 1
             else:
                 added += 1
