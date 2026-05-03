@@ -10,6 +10,7 @@ from hms.core.plugin import StackPlugin, EmptyStackBehavior
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
 from hms.lib.notify import send as notify
+from hms.lib.router import remove_port_forwards_for_stack
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ DESCRIPTION:
             if result == 0:
                 logger.info(f"✅ Stack '{stack_name}' stopped successfully")
                 notify("🔴 Stack parado", stack_name)
+                remove_port_forwards_for_stack(stack_name)
             else:
                 logger.error(f"❌ Failed to stop stack '{stack_name}'")
                 notify("❌ Error al parar stack", stack_name)

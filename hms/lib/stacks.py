@@ -1,7 +1,12 @@
 import logging
+import string
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
+
+if TYPE_CHECKING:
+    from hms.lib.router import PortMapping
 
 from hms.lib.host_paths import get_host_stack_dir, get_host_data_dir
 from hms.lib.paths import get_stacks_root, get_core_root, get_stack_dir, get_data_root
@@ -246,6 +251,47 @@ class StackMetadata:
                 subdomain = host_part.split(".")[0]
                 return subdomain
         return None
+
+    def get_public_ports(self, stack_name: str) -> list["PortMapping"]:
+        """
+        Lee x-hms.public_ports del compose y devuelve lista de PortMapping.
+        Sustituye variables ${VAR} usando las vars del stack (MAYÚSCULAS).
+        """
+        from hms.lib.router import PortMapping
+
+        metadata = self._get_stack_metadata(stack_name)
+        raw_ports = metadata.get("public_ports")
+        if not raw_ports or not isinstance(raw_ports, list):
+            return []
+
+        env_vars = self.get_stack_vars(stack_name)
+        result = []
+        for entry in raw_ports:
+            if not isinstance(entry, dict):
+                continue
+            raw_port = str(entry.get("port", ""))
+            protocol = str(entry.get("protocol", "tcp")).lower()
+            description = str(entry.get("description", ""))
+
+            # Sustituye ${VAR} usando las vars del stack
+            raw_port = string.Template(raw_port).safe_substitute(env_vars)
+            try:
+                port = int(raw_port)
+            except ValueError:
+                logger.warning(f"Stack '{stack_name}': puerto inválido '{raw_port}', omitiendo")
+                continue
+
+            if protocol not in ("tcp", "udp"):
+                logger.warning(f"Stack '{stack_name}': protocolo '{protocol}' desconocido, omitiendo")
+                continue
+
+            result.append(PortMapping(
+                stack=stack_name,
+                port=port,
+                protocol=protocol,  # type: ignore[arg-type]
+                description=description,
+            ))
+        return result
 
     def _flatten(self, d: dict, parent_key: str = '') -> dict[str, str]:
         """

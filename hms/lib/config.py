@@ -432,6 +432,11 @@ class TomlConfigManager:
 
         self._save_config(config)
 
+    def get_router_config(self) -> Dict[str, Any]:
+        """Obtiene la sección [router] de config.toml (con defaults aplicados)."""
+        config = self._load_config()
+        return config.get("router", {})
+
     def get_job_definitions(self) -> List[JobDefinition]:
         """
         Nueva API: devuelve lista de JobDefinition desde `[jobs.<name>]`.

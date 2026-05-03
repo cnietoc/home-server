@@ -32,6 +32,9 @@ dev = [
     "black>=23.0",
     "ruff>=0.1.0",
 ]
+router = [
+    "miniupnpc>=2.2",
+]
 
 [build-system]
 requires = ["hatchling"]

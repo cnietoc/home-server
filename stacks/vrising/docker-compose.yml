@@ -2,6 +2,9 @@ name: ${STACK_PREFIX}
 
 x-hms:
   description: "Servidor de juego V Rising"
+  public_ports:
+    - { port: "${GAMEPORT}",  protocol: udp, description: "V Rising game" }
+    - { port: "${QUERYPORT}", protocol: udp, description: "V Rising query" }
 
 services:
   vrising:

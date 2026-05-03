@@ -8,6 +8,9 @@ networks:
 
 x-hms:
   description: "Suite completa de medios: descargas, gestión y streaming"
+  public_ports:
+    - { port: 6881, protocol: tcp, description: "qBittorrent peer port" }
+    - { port: 6881, protocol: udp, description: "qBittorrent peer port" }
 
 services:
   # Jellyfin - Servidor de medios
