@@ -101,8 +101,11 @@ async def lifespan(app: FastAPI):
     for job in jobs:
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
-    not_ready = await _wait_for_stacks_ready(timeout_s=300, poll_s=3)
-    notify("🚀 HMS started", _build_startup_message(not_ready))
+    async def _notify_when_ready():
+        not_ready = await _wait_for_stacks_ready(timeout_s=300, poll_s=3)
+        notify("🚀 HMS started", _build_startup_message(not_ready))
+
+    asyncio.create_task(_notify_when_ready())
 
     yield
 
