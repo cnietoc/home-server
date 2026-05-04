@@ -36,7 +36,25 @@ _CADVISOR_URL = os.environ.get("CADVISOR_URL", "http://hms-infra-cadvisor:8080")
 _STACK_PREFIX = "hms-"
 
 
-def _build_startup_message(jobs: list) -> str:
+async def _wait_for_stacks_ready(timeout_s: int = 300, poll_s: int = 3) -> list[str]:
+    """Poll until all enabled stacks have running == total. Returns stacks NOT ready at timeout."""
+    enabled = [s for s in stack_metadata.list_stacks() if config_manager.is_stack_enabled(s)]
+    if not enabled:
+        return []
+    deadline = time.monotonic() + timeout_s
+    loop = asyncio.get_running_loop()
+    while True:
+        not_ready = []
+        for name in enabled:
+            counts = await loop.run_in_executor(None, docker_manager.get_stack_container_counts, name)
+            if counts.get("total", 0) == 0 or counts.get("running", 0) < counts.get("total", 0):
+                not_ready.append(name)
+        if not not_ready or time.monotonic() >= deadline:
+            return not_ready
+        await asyncio.sleep(poll_s)
+
+
+def _build_startup_message(not_ready: list[str]) -> str:
     lines = []
 
     domain = config_manager.get_config_value("global.domain", "")
@@ -47,7 +65,22 @@ def _build_startup_message(jobs: list) -> str:
     if enabled:
         lines.append(f"📦 Stacks ({len(enabled)}): {' · '.join(enabled)}")
 
-    lines.append(f"📋 {len(jobs)} active job(s)")
+    if not_ready:
+        lines.append(f"⚠️ Not ready after 5min: {' · '.join(not_ready)}")
+
+    sysinfo = _get_system_info()
+    parts = []
+    disk = sysinfo.get("disk", {}).get("usage_percent")
+    mem = sysinfo.get("memory", {}).get("usage_percent")
+    load_status = sysinfo.get("load", {}).get("status")
+    if disk is not None and disk != "unknown":
+        parts.append(f"disk {disk}%")
+    if mem is not None and mem != "unknown":
+        parts.append(f"mem {mem}%")
+    if load_status and load_status != "unknown":
+        parts.append(f"load {load_status}")
+    if parts:
+        lines.append(f"💻 {' · '.join(parts)}")
 
     return "\n".join(lines)
 
@@ -68,7 +101,8 @@ async def lifespan(app: FastAPI):
     for job in jobs:
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
-    notify("🚀 HMS started", _build_startup_message(jobs))
+    not_ready = await _wait_for_stacks_ready(timeout_s=300, poll_s=3)
+    notify("🚀 HMS started", _build_startup_message(not_ready))
 
     yield
 
