@@ -43,5 +43,4 @@ if [[ -n "$PGID" && "$PGID" != "$CURRENT_GID" ]]; then
     exit 1
 fi
 
-echo "👤 Ejecutando como UID=$(id -u) GID=$(id -g)"
 exec "$@"
