@@ -6,11 +6,14 @@ Run as: python -m hms [args]
 import logging
 import os
 import sys
+import time
 
 from hms.cli.cli import CLIDispatcher
 from hms.lib.config import config_manager
 from hms.lib.logging_config import setup_logging
 from hms.lib.paths import get_logs_root
+
+_cli_event_logger = logging.getLogger("hms.cli.event")
 
 
 def main():
@@ -56,9 +59,17 @@ def main():
     )
     config_manager.load_env_config()
 
-    dispatcher = CLIDispatcher()
-    exit_code = dispatcher.dispatch(args)
-    sys.exit(exit_code)
+    cmd_str = " ".join(args) if args else "(sin args)"
+    _cli_event_logger.info("▶ CLI start: %s", cmd_str)
+    t0 = time.monotonic()
+    exit_code = 1
+    try:
+        dispatcher = CLIDispatcher()
+        exit_code = dispatcher.dispatch(args)
+        sys.exit(exit_code)
+    finally:
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        _cli_event_logger.info("⏹ CLI end: %s — %.0fms (exit=%d)", cmd_str, elapsed_ms, exit_code)
 
 
 if __name__ == "__main__":

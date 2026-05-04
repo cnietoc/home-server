@@ -3,14 +3,12 @@ Plugin: system logs
 Ver logs de HMS (daemon y CLI) en tiempo real o snapshot.
 """
 
-import logging
 import subprocess
 from typing import List
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 from hms.lib.paths import get_logs_root
-
-logger = logging.getLogger(__name__)
 
 LOG_FILE = "hms.log"
 
@@ -65,12 +63,12 @@ EXAMPLES:
                 return 0
             elif arg in ("-n", "--lines"):
                 if i + 1 >= len(args):
-                    logger.error("--lines requiere un valor numérico")
+                    ui.err("--lines requiere un valor numérico")
                     return 1
                 try:
                     lines = int(args[i + 1])
                 except ValueError:
-                    logger.error(f"--lines: valor inválido '{args[i + 1]}'")
+                    ui.err(f"--lines: valor inválido '{args[i + 1]}'")
                     return 1
                 i += 2
             elif arg in ("-f", "--follow"):
@@ -78,17 +76,17 @@ EXAMPLES:
                 i += 1
             elif arg == "--grep":
                 if i + 1 >= len(args):
-                    logger.error("--grep requiere un patrón")
+                    ui.err("--grep requiere un patrón")
                     return 1
                 grep_pattern = args[i + 1]
                 i += 2
             else:
-                logger.error(f"Argumento desconocido: {arg}")
+                ui.err(f"Argumento desconocido: {arg}")
                 return 1
 
         log_path = get_logs_root() / LOG_FILE
         if not log_path.exists():
-            logger.error(f"No hay logs todavía: {log_path}")
+            ui.err(f"No hay logs todavía: {log_path}")
             return 1
 
         tail_cmd = ["tail", f"-n{lines}"]

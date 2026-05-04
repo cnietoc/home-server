@@ -105,11 +105,13 @@ class DockerComposeManager:
         if predeploy_sh.exists():
             script_to_run = predeploy_sh
             command = ["bash", str(predeploy_sh)]
-            logger.info(f"🔧 Running pre-deploy.sh for stack '{stack_name}'...")
+            from hms.lib import ui as _ui
+            _ui.info(f"🔧 Running pre-deploy.sh for stack '{stack_name}'...")
         elif predeploy_py.exists():
             script_to_run = predeploy_py
             command = ["python", str(predeploy_py)]
-            logger.info(f"🔧 Running pre-deploy.py for stack '{stack_name}'...")
+            from hms.lib import ui as _ui
+            _ui.info(f"🔧 Running pre-deploy.py for stack '{stack_name}'...")
 
         if not script_to_run:
             logger.debug(f"No pre-deploy script found for stack '{stack_name}'")
@@ -133,20 +135,23 @@ class DockerComposeManager:
                         if line.strip():
                             logger.info(f"   {line}")
             else:
-                logger.error(f"Pre-deploy script failed with code {result.returncode}")
+                from hms.lib import ui as _ui
+                _ui.err(f"Pre-deploy script failed for '{stack_name}' (exit {result.returncode})")
+                logger.error("pre-deploy failed for '%s' (exit %d)", stack_name, result.returncode)
                 if result.stderr:
-                    logger.error(f"Error output:")
                     for line in result.stderr.strip().split('\n'):
                         if line.strip():
-                            logger.error(f"   {line}")
+                            logger.error("   %s", line)
 
             return result.returncode
 
         except subprocess.TimeoutExpired:
-            logger.error(f"Pre-deploy script timeout for stack '{stack_name}'")
+            from hms.lib import ui as _ui
+            _ui.err(f"Pre-deploy script timed out for '{stack_name}'")
+            logger.error("pre-deploy timeout for '%s'", stack_name)
             return 1
         except Exception:
-            logger.exception(f"Error running pre-deploy script for stack '{stack_name}'")
+            logger.exception("pre-deploy error for '%s'", stack_name)
             return 1
 
     def _get_compose_file(self, stack_name: str) -> Optional[Path]:

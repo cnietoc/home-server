@@ -7,6 +7,7 @@ import logging
 from typing import List
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ EJEMPLOS:
         while i < len(args):
             arg = args[i]
             if arg in ("--help", "-h"):
-                logger.info(self.get_help())
+                print(self.get_help())
                 return 0
             elif arg == "--dry-run":
                 dry_run = True
@@ -87,13 +88,13 @@ EJEMPLOS:
             elif arg == "--stack":
                 i += 1
                 if i >= len(args):
-                    logger.error("❌ --stack requiere un argumento")
+                    ui.err("--stack requiere un argumento")
                     return 1
                 stack_name = args[i]
             elif arg == "--remove":
                 remove = True
             else:
-                logger.error(f"❌ Argumento desconocido: {arg}")
+                ui.err(f"Argumento desconocido: {arg}")
                 return 1
             i += 1
 
@@ -113,16 +114,18 @@ EJEMPLOS:
 
         cfg = config_manager.get_router_config()
         if not cfg.get("enabled", True):
-            logger.info("ℹ️  Port-forwarding desactivado (router.enabled = false)")
+            ui.info("ℹ️  Port-forwarding desactivado (router.enabled = false)")
             return 0
 
         try:
             client = get_router_client()
         except RouterError as e:
-            logger.error(f"❌ Router: {e}")
+            ui.err(f"Router: {e}")
+            logger.error("Router connect failed: %s", e)
             return 1
-        except Exception as e:
-            logger.error(f"❌ Error inesperado al conectar con el router: {e}")
+        except Exception:
+            ui.err("Error inesperado al conectar con el router")
+            logger.exception("Router connect failed")
             return 1
 
         if list_only:
@@ -133,22 +136,23 @@ EJEMPLOS:
     def _list_mappings(self, client, cfg: dict) -> int:
         try:
             mappings = client.list_mappings()
-        except Exception as e:
-            logger.error(f"❌ No se pudieron listar mapeos: {e}")
+        except Exception:
+            ui.err("No se pudieron listar los mapeos del router")
+            logger.exception("list_mappings failed")
             return 1
 
         if not mappings:
-            logger.info("ℹ️  No hay mapeos activos (o el backend no soporta enumeración)")
+            ui.info("ℹ️  No hay mapeos activos (o el backend no soporta enumeración)")
             return 0
 
         try:
             ext_ip = client.get_external_ip()
-            logger.info(f"🌐 IP pública: {ext_ip}")
+            ui.info(f"🌐 IP pública: {ext_ip}")
         except Exception:
             pass
 
-        logger.info(f"📋 Mapeos activos en el router ({len(mappings)}):")
-        logger.info("")
+        ui.info(f"📋 Mapeos activos en el router ({len(mappings)}):")
+        ui.info("")
         for m in mappings:
             port = m.get("ext_port", "?")
             proto = m.get("protocol", "?")
@@ -156,9 +160,9 @@ EJEMPLOS:
             desc = m.get("description", "")
             lease = m.get("lease_time", 0)
             lease_str = f"lease: {lease}s" if lease else "lease: permanente"
-            logger.info(f"  {port:<6}/{proto:<4} → {dest:<22} {desc!r:<35} ({lease_str})")
+            ui.info(f"  {port:<6}/{proto:<4} → {dest:<22} {desc!r:<35} ({lease_str})")
 
-        logger.info("")
+        ui.info("")
         return 0
 
     def _reconcile(self, client, cfg: dict, dry_run: bool, prune: bool, verbose: bool) -> int:
@@ -169,37 +173,38 @@ EJEMPLOS:
         desired = get_desired_mappings(exclude_stacks=exclude)
 
         if not desired:
-            logger.info("ℹ️  Ningún stack tiene public_ports declarados")
+            ui.info("ℹ️  Ningún stack tiene public_ports declarados")
             return 0
 
         lan_ip = config_manager.get_global_config().get("host_ip", "")
         if not lan_ip:
-            logger.error("❌ global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
+            ui.err("global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
             return 1
         lease = int(cfg.get("lease_duration", 3600))
 
         if verbose:
-            logger.info(f"📍 IP LAN: {lan_ip}")
+            ui.info(f"📍 IP LAN: {lan_ip}")
             try:
                 ext_ip = client.get_external_ip()
-                logger.info(f"🌐 IP WAN: {ext_ip}")
+                ui.info(f"🌐 IP WAN: {ext_ip}")
             except Exception:
                 pass
-            logger.info("")
+            ui.info("")
 
         if dry_run:
-            logger.info("🔥 Modo DRY-RUN: no se aplicarán cambios")
-            logger.info("")
+            ui.info("🔥 Modo DRY-RUN: no se aplicarán cambios")
+            ui.info("")
 
         processed, failed = reconcile_port_forwards(
             desired, client, lan_ip, lease, dry_run=dry_run, prune=prune
         )
 
-        logger.info("")
+        ui.info("")
         if failed == 0:
             status = "dry-run" if dry_run else "OK"
-            logger.info(f"✅ {processed}/{len(desired)} port-forwards procesados [{status}]")
+            ui.ok(f"{processed}/{len(desired)} port-forwards procesados [{status}]")
         else:
-            logger.warning(f"⚠️  {processed}/{len(desired)} procesados, {failed} fallaron")
+            ui.warn(f"{processed}/{len(desired)} procesados, {failed} fallaron")
+            logger.warning("reconcile: %d/%d failed", failed, len(desired))
 
         return 0 if failed == 0 else 1

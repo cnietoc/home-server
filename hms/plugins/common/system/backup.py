@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
 from hms.lib.paths import get_project_root, get_data_root
@@ -145,8 +146,8 @@ CONFIGURATION:
         elif command == "list":
             return self._run_list(args)
         else:
-            logger.error(f"❌ Comando desconocido: {command}")
-            logger.info(self.get_help())
+            ui.err(f"Comando desconocido: {command}")
+            print(self.get_help())
             return 1
 
     # ─── Helpers Docker ──────────────────────────────────────────────────────
@@ -272,15 +273,15 @@ CONFIGURATION:
     def _run_list(self, args: List[str]) -> int:
         """Listar todos los backups disponibles."""
         if not self.backup_root.exists():
-            logger.info("❌ Directorio de backups no existe")
+            ui.err("Directorio de backups no existe")
             return 1
 
         backup_files = sorted(self.backup_root.glob("*.tar.gz"), reverse=True)
         if not backup_files:
-            logger.info("❌ No hay backups disponibles")
+            ui.info("ℹ️  No hay backups disponibles")
             return 0
 
-        logger.info(f"📦 Total de backups encontrados: {len(backup_files)}\n")
+        ui.info(f"📦 Total de backups encontrados: {len(backup_files)}\n")
 
         backup_groups: Dict[str, List[Path]] = {}
         for backup_file in backup_files:
@@ -291,11 +292,11 @@ CONFIGURATION:
 
         for group_name in sorted(backup_groups.keys()):
             backups = backup_groups[group_name]
-            logger.info(f"📁 {group_name.upper()}")
+            ui.info(f"📁 {group_name.upper()}")
             for i, backup_file in enumerate(backups):
                 size_mb = backup_file.stat().st_size / (1024 * 1024)
                 marker = "→" if i == 0 else " "
-                logger.info(f"  {marker} {backup_file.name:40s} ({size_mb:8.2f} MB)")
+                ui.info(f"  {marker} {backup_file.name:40s} ({size_mb:8.2f} MB)")
 
         return 0
 
@@ -310,11 +311,11 @@ CONFIGURATION:
         while i < len(args):
             arg = args[i]
             if arg in ("-h", "--help"):
-                logger.info(self.get_help())
+                print(self.get_help())
                 return 0
             elif arg == "--file":
                 if i + 1 >= len(args):
-                    logger.error("❌ --file requiere un valor")
+                    ui.err("--file requiere un valor")
                     return 1
                 backup_file = args[i + 1]
                 i += 2
@@ -322,20 +323,20 @@ CONFIGURATION:
                 dry_run = True
                 i += 1
             else:
-                logger.warning(f"⚠️  Argumento desconocido: {arg}")
+                ui.warn(f"Argumento desconocido: {arg}")
                 i += 1
 
         if not backup_file:
-            logger.error("❌ Se requiere --file con nombre del backup")
-            logger.info("\nPara listar backups disponibles:\n  hms system backup list")
+            ui.err("Se requiere --file con nombre del backup")
+            ui.info("\nPara listar backups disponibles:\n  hms system backup list")
             return 1
 
         backup_path = self.backup_root / backup_file
         if not backup_path.exists():
-            logger.error(f"❌ Backup no encontrado: {backup_file}")
+            ui.err(f"Backup no encontrado: {backup_file}")
             return 1
 
-        logger.info(f"🔄 Restaurando backup: {backup_file}")
+        ui.info(f"🔄 Restaurando backup: {backup_file}")
 
         try:
             result = self._restore_backup(backup_path, dry_run)
@@ -344,16 +345,17 @@ CONFIGURATION:
                 notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
             return result
         except Exception:
-            logger.exception("❌ Error durante restauración")
+            logger.exception("restore_backup failed for '%s'", backup_file)
+            ui.err("Error durante restauración")
             if not dry_run:
                 from hms.lib.notify import send as notify
-                notify("❌ HMS: restore fallido", f"Backup: {backup_file}\nError: {e}")
+                notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
             return 1
 
     def _restore_backup(self, backup_path: Path, dry_run: bool = False) -> int:
         """Restaura un backup. Datos via Docker (root), config.toml via Python."""
         backup_name = backup_path.stem.rsplit("_", 1)[0]
-        logger.info(f"\n📋 Analizando backup: {backup_name}")
+        ui.info(f"\n📋 Analizando backup: {backup_name}")
 
         with tarfile.open(backup_path, "r:gz") as tar:
             members = tar.getmembers()
@@ -378,18 +380,18 @@ CONFIGURATION:
             config_member = next((m for m in members if m.name == "config.toml"), None)
 
             if dry_run:
-                logger.info("\n[DRY-RUN] Se restauraría:")
+                ui.info("\n[DRY-RUN] Se restauraría:")
                 if has_config:
-                    logger.info("   → config.toml (config actual se guardaría como config.toml.bak)")
+                    ui.info("   → config.toml (config actual se guardaría como config.toml.bak)")
                 dir_counts: Dict[str, int] = {}
                 for m in data_members:
                     if not m.isdir():
                         top = "/".join(m.name.split("/")[:3])
                         dir_counts[top] = dir_counts.get(top, 0) + 1
                 for dir_path, count in sorted(dir_counts.items()):
-                    logger.info(f"   → {dir_path}/ ({count} archivos)")
+                    ui.info(f"   → {dir_path}/ ({count} archivos)")
                 if stack_targets:
-                    logger.info(f"\n[DRY-RUN] Se detendría temporalmente: {', '.join(stack_targets)}")
+                    ui.info(f"\n[DRY-RUN] Se detendría temporalmente: {', '.join(stack_targets)}")
                 return 0
 
             host_data_root = self._get_host_data_root()
@@ -399,7 +401,7 @@ CONFIGURATION:
             for stack_name in stack_targets:
                 was_running = self._stop_stack_for_operation(stack_name)
                 if was_running is None:
-                    logger.error(f"❌ No se pudo detener '{stack_name}' para restauración")
+                    ui.err(f"No se pudo detener '{stack_name}' para restauración")
                     for prev_stack, prev_running in stopped.items():
                         self._start_stack_after_operation(prev_stack, prev_running)
                     return 1
@@ -408,20 +410,19 @@ CONFIGURATION:
             try:
                 # Restaurar datos via Docker (maneja ficheros root)
                 if data_members:
-                    logger.info(f"\n🐳 Restaurando datos via Docker...")
+                    ui.info("\n🐳 Restaurando datos via Docker...")
                     restored_count = self._restore_data_via_docker(tar, data_members, host_data_root)
-                    logger.info(f"   ✅ {restored_count} archivos restaurados")
+                    ui.info(f"   ✅ {restored_count} archivos restaurados")
 
-                # Restaurar config.toml via Python (no tiene problemas de permisos)
                 if config_member:
                     target_path = self.project_root / "config.toml"
                     if target_path.exists():
                         shutil.copy2(target_path, self.project_root / "config.toml.bak")
-                        logger.info("   💾 Config actual guardado como config.toml.bak")
+                        ui.info("   💾 Config actual guardado como config.toml.bak")
                     self._extract_member_to(tar, config_member, target_path)
-                    logger.info("   ✅ Restaurado: config.toml")
+                    ui.info("   ✅ Restaurado: config.toml")
 
-                logger.info("\n✅ Restauración completada")
+                ui.ok("Restauración completada")
                 return 0
 
             finally:
@@ -484,11 +485,11 @@ CONFIGURATION:
         while i < len(args):
             arg = args[i]
             if arg in ("--help", "-h"):
-                logger.info(self.get_help())
+                print(self.get_help())
                 return 0
             elif arg == "--stack":
                 if i + 1 >= len(args):
-                    logger.error("❌ --stack requiere un valor")
+                    ui.err("--stack requiere un valor")
                     return 1
                 specific_stack = args[i + 1]
                 i += 2
@@ -505,28 +506,28 @@ CONFIGURATION:
                 no_rotate = True
                 i += 1
             else:
-                logger.warning(f"⚠️  Argumento desconocido: {arg}")
+                ui.warn(f"Argumento desconocido: {arg}")
                 i += 1
 
-        logger.info("🔄 Iniciando backup...")
+        ui.info("🔄 Iniciando backup...")
 
         exit_code = 0
         timestamps = []
 
         try:
             if not specific_stack or specific_stack == "hms":
-                logger.info("\n📦 Creando backup de 'hms' (infra + config)...")
+                ui.info("\n📦 Creando backup de 'hms' (infra + config)...")
                 min_h = self._min_backup_interval_h()
                 hours = self._hours_since_last_backup("hms")
                 if hours is not None and hours < min_h and not force:
-                    logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                    ui.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
                 elif dry_run:
-                    logger.info("   [DRY-RUN] Se crearía: backups/hms_*.tar.gz")
-                    logger.info("   [DRY-RUN] Se detendría temporalmente: infra")
+                    ui.info("   [DRY-RUN] Se crearía: backups/hms_*.tar.gz")
+                    ui.info("   [DRY-RUN] Se detendría temporalmente: infra")
                 else:
                     infra_was_running = self._stop_stack_for_operation("infra")
                     if infra_was_running is None:
-                        logger.error("❌ No se pudo detener 'infra' para backup")
+                        ui.err("No se pudo detener 'infra' para backup")
                         exit_code = 1
                     else:
                         try:
@@ -536,7 +537,7 @@ CONFIGURATION:
                                 timestamps.append(("hms", timestamp))
                                 self._log_backup_stats("hms", timestamp, stats)
                             else:
-                                logger.error("❌ Falló crear backup de 'hms'")
+                                ui.err("Falló crear backup de 'hms'")
                                 exit_code = 1
                         finally:
                             if self._start_stack_after_operation("infra", infra_was_running) != 0:
@@ -553,35 +554,35 @@ CONFIGURATION:
                     backup_config = config_manager.get_stack_backup_config(stack_name)
                     enabled = backup_config.get("enabled", True)
                     if not enabled and not force:
-                        logger.info(f"⏭️  Saltando stack '{stack_name}' (deshabilitado en config)")
+                        ui.info(f"⏭️  Saltando stack '{stack_name}' (deshabilitado en config)")
                         continue
 
                     if not (self.data_root / stack_name).exists():
-                        logger.info(f"⏭️  Saltando stack '{stack_name}' (data/ no existe)")
+                        ui.info(f"⏭️  Saltando stack '{stack_name}' (data/ no existe)")
                         continue
 
-                    logger.info(f"\n📦 Creando backup de stack '{stack_name}'...")
+                    ui.info(f"\n📦 Creando backup de stack '{stack_name}'...")
 
                     last_backup = self._last_backup_path(stack_name)
                     if last_backup is not None and not force:
                         hours = (datetime.now() - datetime.fromtimestamp(last_backup.stat().st_mtime)).total_seconds() / 3600
                         if hours < min_h:
-                            logger.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                            ui.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
                             continue
                         if not self._data_changed_since_backup(stack_name, last_backup):
-                            logger.info(f"   ⏭️  Saltando (sin cambios desde el último backup)")
+                            ui.info(f"   ⏭️  Saltando (sin cambios desde el último backup)")
                             continue
 
                     if dry_run:
-                        logger.info(f"   [DRY-RUN] Se crearía: backups/{stack_name}_*.tar.gz")
-                        logger.info(f"   [DRY-RUN] Se detendría temporalmente: {stack_name}")
+                        ui.info(f"   [DRY-RUN] Se crearía: backups/{stack_name}_*.tar.gz")
+                        ui.info(f"   [DRY-RUN] Se detendría temporalmente: {stack_name}")
                         exclude_patterns = backup_config.get("exclude", [])
                         if exclude_patterns:
-                            logger.debug(f"   [DRY-RUN] Excluyendo: {exclude_patterns}")
+                            logger.debug("   [DRY-RUN] Excluyendo: %s", exclude_patterns)
                     else:
                         was_running = self._stop_stack_for_operation(stack_name)
                         if was_running is None:
-                            logger.error(f"❌ No se pudo detener '{stack_name}' para backup")
+                            ui.err(f"No se pudo detener '{stack_name}' para backup")
                             exit_code = 1
                             continue
                         try:
@@ -591,23 +592,24 @@ CONFIGURATION:
                                 timestamps.append((stack_name, timestamp))
                                 self._log_backup_stats(stack_name, timestamp, stats)
                             else:
-                                logger.error(f"❌ Falló crear backup de '{stack_name}'")
+                                ui.err(f"Falló crear backup de '{stack_name}'")
                                 exit_code = 1
                         finally:
                             if self._start_stack_after_operation(stack_name, was_running) != 0:
                                 exit_code = 1
 
             if not dry_run and not no_rotate:
-                logger.info("\n🔄 Rotando backups antiguos...")
+                ui.info("\n🔄 Rotando backups antiguos...")
                 self._rotate_backups()
 
             if dry_run:
-                logger.info("\n✨ [DRY-RUN] Simulación completada (sin cambios reales)")
+                ui.ok("[DRY-RUN] Simulación completada (sin cambios reales)")
             else:
-                logger.info(f"\n✨ Backup completado. {len(timestamps)} backup(s) creado(s)")
+                ui.ok(f"Backup completado. {len(timestamps)} backup(s) creado(s)")
 
         except Exception:
-            logger.exception("❌ Error durante backup")
+            logger.exception("backup failed")
+            ui.err("Error durante backup")
             return 1
 
         return exit_code
@@ -632,7 +634,7 @@ CONFIGURATION:
                     stats["bytes"] += dir_stats["bytes"]
                     stats["top_files"].extend(dir_stats["top_files"])
                 else:
-                    logger.warning("   ⚠️  data/infra/ no existe, saltando")
+                    ui.warn("data/infra/ no existe, saltando")
 
                 if config_file.exists():
                     try:
@@ -642,7 +644,7 @@ CONFIGURATION:
                         stats["bytes"] += cfg_size
                         stats["top_files"].append((cfg_size, "config.toml"))
                     except (PermissionError, OSError) as e:
-                        logger.warning(f"      ⚠️  No se pudo incluir 'config.toml': {e}")
+                        ui.warn(f"No se pudo incluir 'config.toml': {e}")
 
                 self._add_manifest_to_tar(tar, self._create_manifest("hms", []))
 
@@ -683,12 +685,12 @@ CONFIGURATION:
         compressed = stats.get("compressed_bytes", 0)
         top_files = stats.get("top_files", [])
 
-        logger.info(f"✅ Backup de '{name}' completado: {name}_{timestamp}.tar.gz")
-        logger.info(f"   {files} fichero(s)  ·  {_fmt_size(raw)} sin comprimir  →  {_fmt_size(compressed)} en disco")
+        ui.ok(f"Backup de '{name}' completado: {name}_{timestamp}.tar.gz")
+        ui.info(f"   {files} fichero(s)  ·  {_fmt_size(raw)} sin comprimir  →  {_fmt_size(compressed)} en disco")
         if top_files:
-            logger.info("   Ficheros más grandes:")
+            ui.info("   Ficheros más grandes:")
             for size, fname in top_files:
-                logger.info(f"     {_fmt_size(size):>10}  {fname}")
+                ui.info(f"     {_fmt_size(size):>10}  {fname}")
 
     # ─── Manifest ─────────────────────────────────────────────────────────────
 
@@ -724,7 +726,7 @@ Patrón exclusión: {exclude_patterns if exclude_patterns else 'ninguno'}
                 backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
                 for backup_file in backups[max_backups:]:
                     backup_file.unlink()
-                    logger.info(f"🗑️  Eliminado: {backup_file.name}")
+                    logger.info("rotated out: %s", backup_file.name)
 
         except Exception:
             logger.exception("Error durante rotación de backups")
@@ -734,21 +736,21 @@ Patrón exclusión: {exclude_patterns if exclude_patterns else 'ninguno'}
     def _start_stack_after_operation(self, stack_name: str, was_running: bool) -> int:
         if not was_running:
             return 0
-        logger.info(f"🟢 Reiniciando stack '{stack_name}'...")
+        ui.info(f"🟢 Reiniciando stack '{stack_name}'...")
         result = docker_manager.stack_up(stack_name)
         if result == 0:
-            logger.info(f"✅ Stack '{stack_name}' reanudado")
+            ui.ok(f"Stack '{stack_name}' reanudado")
         else:
-            logger.error(f"❌ No se pudo reanudar '{stack_name}'")
+            ui.err(f"No se pudo reanudar '{stack_name}'")
         return result
 
     def _stop_stack_for_operation(self, stack_name: str) -> Optional[bool]:
         current_status = docker_manager.get_stack_status(stack_name)
         if current_status in ["running", "partial"]:
-            logger.info(f"🔴 Deteniendo stack '{stack_name}'...")
+            ui.info(f"🔴 Deteniendo stack '{stack_name}'...")
             result = docker_manager.stack_down(stack_name)
             if result != 0:
-                logger.error(f"❌ Falló detener '{stack_name}'")
+                ui.err(f"Falló detener '{stack_name}'")
                 return None
             return True
         return False
