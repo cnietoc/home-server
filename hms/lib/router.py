@@ -335,7 +335,20 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
         return
 
     try:
-        current = {(m["ext_port"], m["protocol"].lower()) for m in client.list_mappings()}
+        current_list = client.list_mappings()
+        current = {(m["ext_port"], m["protocol"].lower()) for m in current_list}
+        if current_list:
+            logger.debug(f"📋 Router: {len(current_list)} mapeo(s) activos antes de actualizar [{stack_name}]:")
+            for m in current_list:
+                port = m.get("ext_port", "?")
+                proto = m.get("protocol", "?").lower()
+                dest = f"{m.get('int_client', '?')}:{m.get('int_port', '?')}"
+                desc = m.get("description", "")
+                lease = m.get("lease_time", 0)
+                lease_str = f"{lease}s" if lease else "permanente"
+                logger.debug(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
+        else:
+            logger.debug(f"📋 Router: sin mapeos activos [{stack_name}]")
     except Exception:
         current = set()
 
