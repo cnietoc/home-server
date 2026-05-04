@@ -96,7 +96,7 @@ El servidor **no aparece en listas públicas**. Los jugadores deben conectarse d
 3. Introducir `IP-DEL-SERVIDOR:9876`
 4. Introducir la contraseña si hay una configurada
 
-⚠️ Los puertos **9876 y 9877 UDP** deben estar abiertos y redirigidos en el router para acceso desde internet.
+HMS abre los puertos **`${GAMEPORT}` y `${QUERYPORT}` UDP** automáticamente en el router vía UPnP al hacer `hms vrising up` (ver [port-forwarding automático](../router-port-forwarding.md)).
 
 ### Servidor público (lista de Steam)
 

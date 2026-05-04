@@ -82,7 +82,7 @@ language = "en-US"                         # Idioma del servidor (ej: en-US, es-
 
 ### Puertos
 
-El servidor utiliza el puerto **7777/TCP** para el tráfico del juego.
+El servidor utiliza el puerto **7777/TCP** para el tráfico del juego. HMS abre este puerto automáticamente en el router vía UPnP al hacer `hms terraria up` (requiere UPnP habilitado en el router — ver [port-forwarding automático](../router-port-forwarding.md)).
 
 ## 🔌 Conexión del Cliente
 

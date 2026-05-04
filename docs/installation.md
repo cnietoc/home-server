@@ -175,8 +175,11 @@ El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Backups automáticos diarios (3 AM)
 - ✅ Actualización de DNS cada 30 minutos
 - ✅ Actualizaciones automáticas de contenedores (cada 12 horas)
+- ✅ Port-forwarding automático vía UPnP (puertos declarados en `x-hms.public_ports`)
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
+
+Para el port-forwarding automático solo necesitas tener UPnP habilitado en tu router. Ver [docs/router-port-forwarding.md](router-port-forwarding.md) para más detalles.
 
 Opciones de backup configurables en `[global.backups]`:
 

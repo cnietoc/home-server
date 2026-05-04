@@ -49,22 +49,13 @@ lease_duration = "3600"          # segundos (0 = permanente si el router lo sopo
 exclude_stacks = []              # p.ej. ["infra"] para gestionar Traefik a mano
 ```
 
-## Nota importante: Docker y UPnP
+## Docker y UPnP
 
-UPnP usa **SSDP multicast** para descubrir el router. Esto requiere que HMS tenga acceso a la red local del host.
+UPnP usa **SSDP multicast** para descubrir el router, lo que requiere acceso a la red local del host. El daemon de HMS corre en bridge networking (red Docker privada) para no exponer su API en la LAN — desde ahí el multicast no alcanza al router.
 
-- Si HMS corre en Docker con `network_mode: host` → funciona directamente.
-- Si corre en modo bridge (red Docker privada) → el multicast no alcanza la red local.
+**Solución automática**: cada vez que HMS necesita hacer una operación UPnP, lanza un contenedor efímero con `network_mode: host`, ejecuta la operación, y termina. El daemon principal permanece aislado.
 
-**Solución para modo bridge**: usa el backend NAT-PMP con la IP del router explícita:
-
-```toml
-[router]
-backend    = "natpmp"
-gateway_ip = "192.168.1.1"   # IP de tu router
-```
-
-NAT-PMP solo necesita conectividad L3 al gateway (sin multicast), funciona en cualquier red Docker.
+No necesitas configurar nada para que esto funcione.
 
 ## Añadir puertos a un stack nuevo
 
