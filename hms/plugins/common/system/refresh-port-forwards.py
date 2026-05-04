@@ -196,7 +196,7 @@ EJEMPLOS:
             ui.info("")
 
         processed, failed = reconcile_port_forwards(
-            desired, client, lan_ip, lease, dry_run=dry_run, prune=prune
+            desired, client, lan_ip, lease, dry_run=dry_run, prune=prune, out=ui.info
         )
 
         ui.info("")

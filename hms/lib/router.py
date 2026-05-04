@@ -314,9 +314,10 @@ def get_router_client() -> RouterClient:
 # High-level helpers
 # ---------------------------------------------------------------------------
 
-def _log_current_mappings(current_list: list[dict]) -> None:
+def _log_current_mappings(current_list: list[dict], out=None) -> None:
+    _out = out or logger.info
     if current_list:
-        logger.info(f"📋 Mapeos activos en el router ({len(current_list)}):")
+        _out(f"📋 Mapeos activos en el router ({len(current_list)}):")
         for m in current_list:
             port = m.get("ext_port", "?")
             proto = m.get("protocol", "?").lower()
@@ -324,9 +325,9 @@ def _log_current_mappings(current_list: list[dict]) -> None:
             desc = m.get("description", "")
             lease_time = m.get("lease_time", 0)
             lease_str = f"{lease_time}s" if lease_time else "permanente"
-            logger.info(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
+            _out(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
     else:
-        logger.info("📋 Sin mapeos activos en el router")
+        _out("📋 Sin mapeos activos en el router")
 
 
 def reconcile_port_forwards(
@@ -336,19 +337,22 @@ def reconcile_port_forwards(
     lease: int,
     dry_run: bool = False,
     prune: bool = False,
+    out=None,
 ) -> tuple[int, int]:
     """
     Reconcilia los port-forwards deseados contra el estado actual del router.
     Loguea los mapeos existentes, aplica los cambios y opcionalmente poda los obsoletos.
     Devuelve (procesados, fallidos).
     """
+    _out = out or logger.info
+
     try:
         current_list = client.list_mappings()
     except Exception:
         current_list = []
 
-    _log_current_mappings(current_list)
-    logger.info("")
+    _log_current_mappings(current_list, out=_out)
+    _out("")
 
     current_keys = {(m["ext_port"], m["protocol"].lower()) for m in current_list}
     desired_keys = {(pm.port, pm.protocol) for pm in desired}
@@ -356,22 +360,23 @@ def reconcile_port_forwards(
     processed = 0
     failed = 0
 
-    logger.info(f"🔄 Reconciliando {len(desired)} port-forward(s)...")
-    logger.info("")
+    _out(f"🔄 Reconciliando {len(desired)} port-forward(s)...")
+    _out("")
 
     for pm in desired:
         exists = (pm.port, pm.protocol) in current_keys
         action = "🔄 refresh" if exists else "➕ añadir"
-        logger.info(f"  {action}  {pm.port}/{pm.protocol}  →  {lan_ip}  [{pm.stack}]")
+        _out(f"  {action}  {pm.port}/{pm.protocol}  →  {lan_ip}  [{pm.stack}]")
         if not dry_run:
             try:
                 client.add_mapping(pm, lan_ip, lease)
                 processed += 1
             except RouterConflictError as e:
-                logger.info(f"    ℹ️  {e}")
+                _out(f"    ℹ️  {e}")
                 processed += 1
             except Exception as e:
-                logger.warning(f"    ⚠️  {pm.port}/{pm.protocol}: {e}")
+                logger.warning("port-forward %s/%s failed: %s", pm.port, pm.protocol, e)
+                _out(f"    ⚠️  {pm.port}/{pm.protocol}: {e}")
                 failed += 1
         else:
             processed += 1
@@ -379,15 +384,16 @@ def reconcile_port_forwards(
     if prune:
         stale_keys = current_keys - desired_keys
         if stale_keys:
-            logger.info("")
-            logger.info(f"🧹 Eliminando {len(stale_keys)} mapeo(s) obsoleto(s)...")
+            _out("")
+            _out(f"🧹 Eliminando {len(stale_keys)} mapeo(s) obsoleto(s)...")
             for port, proto in stale_keys:
-                logger.info(f"  🗑️  {port}/{proto}")
+                _out(f"  🗑️  {port}/{proto}")
                 if not dry_run:
                     try:
                         client.delete_mapping(port, proto)
                     except RouterError as e:
-                        logger.warning(f"    ⚠️  {e}")
+                        logger.warning("delete_mapping %s/%s failed: %s", port, proto, e)
+                        _out(f"    ⚠️  {e}")
 
     return processed, failed
 
