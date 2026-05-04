@@ -316,9 +316,12 @@ def get_router_client() -> RouterClient:
 
 def _log_current_mappings(current_list: list[dict], out=None) -> None:
     def _out(msg):
-        if out is not None and msg:
+        if out is not None:
+            if msg:
+                logger.info(msg)
+            out(msg)
+        elif msg:
             logger.info(msg)
-        (out or logger.info)(msg)
     if current_list:
         _out(f"📋 Active mappings on the router ({len(current_list)}):")
         for m in current_list:
@@ -348,9 +351,12 @@ def reconcile_port_forwards(
     Returns (processed, failed).
     """
     def _out(msg):
-        if out is not None and msg:
+        if out is not None:
+            if msg:
+                logger.info(msg)
+            out(msg)
+        elif msg:
             logger.info(msg)
-        (out or logger.info)(msg)
 
     try:
         current_list = client.list_mappings()
