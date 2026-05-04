@@ -6,6 +6,7 @@ Actualiza todos los stacks habilitados (excepto infra) que estén corriendo.
 import logging
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 from hms.lib.config import config_manager
 from hms.lib.stacks import stack_metadata
 
@@ -41,10 +42,10 @@ DESCRIPTION:
         ]
 
         if not stacks:
-            logger.info("ℹ️  No hay stacks habilitados para actualizar")
+            ui.info("ℹ️  No hay stacks habilitados para actualizar")
             return 0
 
-        logger.info(f"🔄 Actualizando {len(stacks)} stack(s): {', '.join(stacks)}")
+        ui.info(f"🔄 Actualizando {len(stacks)} stack(s): {', '.join(stacks)}")
 
         updater = UpdatePlugin()
         failed = []
@@ -55,7 +56,8 @@ DESCRIPTION:
                 failed.append(stack)
 
         if failed:
-            logger.warning(f"⚠️  Fallaron: {', '.join(failed)}")
+            ui.warn(f"Fallaron: {', '.join(failed)}")
+            logger.warning("update-stacks: fallaron %s", ", ".join(failed))
             return 1
 
         return 0
