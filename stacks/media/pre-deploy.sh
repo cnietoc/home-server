@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Script de pre-deploy para el stack media
-# Genera docker-compose.override.yml basado en configuración de hardware
-# Se ejecuta automáticamente antes del deploy
+# Pre-deploy script for the media stack
+# Generates docker-compose.override.yml based on hardware configuration
+# Runs automatically before deploy
 
 set -euo pipefail
 
@@ -11,48 +11,48 @@ STACK_DIR="$SCRIPT_DIR"
 STACK_NAME="$(basename "$STACK_DIR")"
 OVERRIDE_FILE="$STACK_DIR/docker-compose.override.yml"
 
-# Cargar variables de entorno del stack (si existen)
+# Load stack environment variables (if present)
 if [[ -f "$STACK_DIR/.env" ]]; then
     set -a
     source "$STACK_DIR/.env"
     set +a
 fi
 
-echo "🔧 Generando configuración de hardware para stack: $STACK_NAME"
+echo "🔧 Generating hardware configuration for stack: $STACK_NAME"
 
-# Generar override file
+# Generate override file
 cat > "$OVERRIDE_FILE" << 'EOF'
 
 services:
 EOF
 
-# Configurar Tdarr según hardware
+# Configure Tdarr based on available hardware
 if [[ "${ENABLE_INTEL_QSV}" == "true" ]]; then
     echo "    devices:" >> "$OVERRIDE_FILE"
     echo "      - /dev/dri:/dev/dri" >> "$OVERRIDE_FILE"
-    echo "    # Intel Quick Sync habilitado para Tdarr" >> "$OVERRIDE_FILE"
+    echo "    # Intel Quick Sync enabled for Tdarr" >> "$OVERRIDE_FILE"
 elif [[ "${ENABLE_NVIDIA}" == "true" ]]; then
     echo "    runtime: nvidia" >> "$OVERRIDE_FILE"
     echo "    environment:" >> "$OVERRIDE_FILE"
     echo "      - NVIDIA_VISIBLE_DEVICES=all" >> "$OVERRIDE_FILE"
     echo "      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility" >> "$OVERRIDE_FILE"
-    echo "    # NVIDIA NVENC habilitado para Tdarr" >> "$OVERRIDE_FILE"
+    echo "    # NVIDIA NVENC enabled for Tdarr" >> "$OVERRIDE_FILE"
 elif [[ "${ENABLE_VAAPI}" == "true" ]]; then
     echo "    devices:" >> "$OVERRIDE_FILE"
     echo "      - /dev/dri:/dev/dri" >> "$OVERRIDE_FILE"
-    echo "    # VAAPI habilitado para Tdarr" >> "$OVERRIDE_FILE"
+    echo "    # VAAPI enabled for Tdarr" >> "$OVERRIDE_FILE"
 else
-    echo "    {} # Sin aceleración por hardware para Tdarr" >> "$OVERRIDE_FILE"
+    echo "    {} # No hardware acceleration for Tdarr" >> "$OVERRIDE_FILE"
 fi
 
-echo "✅ Configuración de hardware generada: $OVERRIDE_FILE"
-echo "📋 Configuración aplicada:"
+echo "✅ Hardware configuration generated: $OVERRIDE_FILE"
+echo "📋 Applied configuration:"
 if [[ "${ENABLE_INTEL_QSV}" == "true" ]]; then
-    echo "   🔧 Tdarr: Intel Quick Sync Video habilitado para transcodificación"
+    echo "   🔧 Tdarr: Intel Quick Sync Video enabled for transcoding"
 elif [[ "${ENABLE_NVIDIA}" == "true" ]]; then
-    echo "   🔧 Tdarr: NVIDIA NVENC habilitado para transcodificación"
+    echo "   🔧 Tdarr: NVIDIA NVENC enabled for transcoding"
 elif [[ "${ENABLE_VAAPI}" == "true" ]]; then
-    echo "   🔧 Tdarr: VAAPI habilitado para transcodificación"
+    echo "   🔧 Tdarr: VAAPI enabled for transcoding"
 else
-    echo "   💻 Tdarr: Solo CPU para transcodificación"
+    echo "   💻 Tdarr: CPU-only transcoding"
 fi

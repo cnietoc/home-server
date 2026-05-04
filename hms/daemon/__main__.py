@@ -1,9 +1,10 @@
 """
-HMS Daemon - Servicio que ejecuta jobs periódicos del scheduler.
-El scheduler se integra con FastAPI via lifespan events.
+HMS Daemon - Service that runs periodic scheduler jobs.
+The scheduler integrates with FastAPI via lifespan events.
 """
 
 import logging
+import logging.handlers
 
 import uvicorn
 
@@ -15,42 +16,60 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    """Punto de entrada del daemon."""
-    # Cargar configuración y establecer variables de entorno
+    """Daemon entry point."""
+    import os
+    os.environ["HMS_DAEMON"] = "1"  # ui.* redirects to logger instead of print
+
+    # Load configuration and set environment variables
     log_level = config_manager.get_config_value("global.log_level")
 
-    # Configurar logging centralizado
+    # Set up centralised logging
     log_dir = get_logs_root()
     setup_logging(
-        log_file=log_dir / "hms-daemon.log",
+        log_file=log_dir / "hms.log",
         level=logging.getLevelName(log_level.upper()),
-        console=True,
+        console=False,
+        rotator=True,
+        tag="daemon",
     )
     config_manager.load_env_config()
 
-    # Hacer que los loggers de uvicorn usen los handlers/formatos globales
-    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    # uvicorn.error → root logger (hms.log), uvicorn.access → separate access.log
+    for name in ("uvicorn", "uvicorn.error"):
         uv_logger = logging.getLogger(name)
-        uv_logger.handlers = []  # limpia handlers propios
-        uv_logger.propagate = True  # reenvía al root con formato unificado
+        uv_logger.handlers = []
+        uv_logger.propagate = True
         uv_logger.setLevel(logging.INFO)
+
+    _access_handler = logging.handlers.RotatingFileHandler(
+        log_dir / "access.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    _access_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", "%Y-%m-%d %H:%M:%S"))
+    uv_access = logging.getLogger("uvicorn.access")
+    uv_access.handlers = [_access_handler]
+    uv_access.propagate = False
+    uv_access.setLevel(logging.INFO)
+
+    # httpx/httpcore: outgoing requests — INFO is too verbose, WARNING is sufficient
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     logger.info("=" * 60)
     logger.info("🎯 HMS DAEMON")
     logger.info("=" * 60)
-    logger.info("🌐 API disponible en 0.0.0.0:8080")
+    logger.info("🌐 API available at 0.0.0.0:8080")
     logger.info("")
 
-    # Ejecutar uvicorn
-    # log_level="warning": uvicorn solo muestra warnings/errors
-    # Los logs del scheduler/FastAPI van al root logger (consola + archivo)
+    # Run uvicorn
+    # log_level="warning": uvicorn only shows warnings/errors
+    # Scheduler/FastAPI logs go to the root logger (console + file)
     uvicorn.run(
         "hms.daemon.api:app",
         host="0.0.0.0",
         port=8080,
         log_level="info",
         access_log=True,
-        log_config=None,  # Usa los handlers/formatos ya configurados
+        log_config=None,  # Use the already-configured handlers/formatters
     )
 
 

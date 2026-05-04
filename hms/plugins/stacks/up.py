@@ -7,6 +7,7 @@ import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin, EmptyStackBehavior
+from hms.lib import ui
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
 from hms.lib.notify import send as notify
@@ -30,7 +31,7 @@ up - Up a stack
 
 USAGE:
   hms [STACK] up
-  
+
 DESCRIPTION:
   Ups the specified stack.
 """
@@ -43,9 +44,9 @@ DESCRIPTION:
 
         missing_config = config_manager.check_missing_stack_config(stack_name)
         if missing_config:
-            logger.error(f"❌ Cannot up stack '{stack_name}'. Missing required configuration:")
+            ui.err(f"Cannot up stack '{stack_name}'. Missing required configuration:")
             for item in missing_config:
-                logger.error(f" - {item}")
+                ui.err(f" - {item}")
             return 1
 
         enabled = config_manager.is_stack_enabled(stack_name)
@@ -56,25 +57,27 @@ DESCRIPTION:
         current_status = docker_manager.get_stack_status(stack_name)
 
         if current_status in ['stopped', 'not-found']:
-            logger.info(f"🟢 Starting stack '{stack_name}'...")
+            ui.info(f"🟢 Starting stack '{stack_name}'...")
             result = docker_manager.stack_up(stack_name)
         else:
-            logger.info(f"🔄 Stack '{stack_name}' is already running, reloading config...")
+            ui.info(f"🔄 Stack '{stack_name}' is already running, reloading config...")
             result = docker_manager.stack_up(stack_name)
 
         if result != 0:
-            logger.error(f"❌ Failed to start stack '{stack_name}'")
-            notify("❌ Error al arrancar stack", stack_name)
+            ui.err(f"Failed to start stack '{stack_name}'")
+            logger.error(f"stack_up failed for '{stack_name}' (exit {result})")
+            notify("❌ Error starting stack", stack_name)
             return result
 
-        logger.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
+        ui.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
         healthy = docker_manager.wait_for_healthy(stack_name)
         if healthy:
-            logger.info(f"✅ Stack '{stack_name}' is up and healthy")
-            notify("🟢 Stack arrancado", stack_name)
+            ui.ok(f"Stack '{stack_name}' is up and healthy")
+            notify("🟢 Stack started", stack_name)
         else:
-            logger.warning(f"⚠️  Stack '{stack_name}' started but health check failed or timed out")
-            notify("⚠️ Stack arrancado (healthcheck fallido)", stack_name)
+            ui.warn(f"Stack '{stack_name}' started but health check failed or timed out")
+            logger.warning(f"Healthcheck failed/timeout for '{stack_name}'")
+            notify("⚠️ Stack started (healthcheck failed)", stack_name)
 
         apply_port_forwards_for_stack(stack_name)
 

@@ -5,16 +5,16 @@ RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; BOLD='\033[1m'; NC='\
 
 confirm() {
     echo -e "${YELLOW}⚠️  $1${NC}"
-    read -r -p "   ¿Continuar? [s/N] " ans
-    [[ "${ans,,}" == "s" ]]
+    read -r -p "   Continue? [y/N] " ans
+    [[ "${ans,,}" == "y" ]]
 }
 
 usage() {
-    echo -e "${BOLD}Uso:${NC} $0 [--all]"
+    echo -e "${BOLD}Usage:${NC} $0 [--all]"
     echo ""
-    echo "  (sin flags)   Limpia recursos no usados (contenedores parados, imágenes"
-    echo "                sin usar, volúmenes y redes huérfanos, build cache)"
-    echo "  --all         Para todos los contenedores en ejecución y luego limpia todo"
+    echo "  (no flags)    Cleans unused resources (stopped containers, dangling images,"
+    echo "                unused volumes and networks, build cache)"
+    echo "  --all         Stop all running containers then clean everything"
     exit 1
 }
 
@@ -23,57 +23,57 @@ for arg in "$@"; do
     case "$arg" in
         --all) FULL=1 ;;
         -h|--help) usage ;;
-        *) echo -e "${RED}Argumento desconocido: $arg${NC}"; usage ;;
+        *) echo -e "${RED}Unknown argument: $arg${NC}"; usage ;;
     esac
 done
 
 if [[ $FULL -eq 1 ]]; then
-    echo -e "${BOLD}🧹 Docker Clean (todo)${NC}"
+    echo -e "${BOLD}🧹 Docker Clean (all)${NC}"
 else
     echo -e "${BOLD}🧹 Docker Clean${NC}"
 fi
 echo ""
 
-# ── Parar contenedores (solo en modo --all) ───────────────────────────────────
+# ── Stop containers (--all mode only) ────────────────────────────────────────
 if [[ $FULL -eq 1 ]]; then
     running=$(docker ps -q)
     if [[ -n "$running" ]]; then
         count=$(echo "$running" | wc -l | tr -d ' ')
-        confirm "Se van a parar $count contenedor(es) en ejecución" || { echo "Cancelado."; exit 0; }
+        confirm "About to stop $count running container(s)" || { echo "Cancelled."; exit 0; }
         docker stop $running
-        echo -e "${GREEN}✓ Contenedores parados${NC}"
+        echo -e "${GREEN}✓ Containers stopped${NC}"
     else
-        echo "  Sin contenedores en ejecución"
+        echo "  No running containers"
     fi
     echo ""
 fi
 
-# ── Contenedores parados ──────────────────────────────────────────────────────
+# ── Stopped containers ────────────────────────────────────────────────────────
 docker container prune -f
-echo -e "${GREEN}✓ Contenedores parados eliminados${NC}"
+echo -e "${GREEN}✓ Stopped containers removed${NC}"
 
-# ── Imágenes sin usar ─────────────────────────────────────────────────────────
+# ── Unused images ─────────────────────────────────────────────────────────────
 if [[ $FULL -eq 1 ]]; then
     docker image prune -af
-    echo -e "${GREEN}✓ Imágenes eliminadas (todas)${NC}"
+    echo -e "${GREEN}✓ All images removed${NC}"
 else
     docker image prune -f
-    echo -e "${GREEN}✓ Imágenes huérfanas eliminadas${NC}"
+    echo -e "${GREEN}✓ Dangling images removed${NC}"
 fi
 
-# ── Volúmenes sin usar ────────────────────────────────────────────────────────
+# ── Unused volumes ────────────────────────────────────────────────────────────
 docker volume prune -f
-echo -e "${GREEN}✓ Volúmenes eliminados${NC}"
+echo -e "${GREEN}✓ Volumes removed${NC}"
 
-# ── Redes sin usar ────────────────────────────────────────────────────────────
+# ── Unused networks ───────────────────────────────────────────────────────────
 docker network prune -f
-echo -e "${GREEN}✓ Redes eliminadas${NC}"
+echo -e "${GREEN}✓ Networks removed${NC}"
 
 # ── Build cache ───────────────────────────────────────────────────────────────
 docker buildx prune -af
-echo -e "${GREEN}✓ Build cache eliminada${NC}"
+echo -e "${GREEN}✓ Build cache cleared${NC}"
 
-# ── Resumen ───────────────────────────────────────────────────────────────────
+# ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}📊 Estado final:${NC}"
+echo -e "${BOLD}📊 Final state:${NC}"
 docker system df

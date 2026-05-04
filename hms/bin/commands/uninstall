@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HMS Uninstall Command - ejecuta hms stop y elimina symlink
+# HMS Uninstall Command - runs hms stop and removes symlink
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,54 +8,54 @@ USER_BIN="$HOME/.local/bin"
 WRAPPER="$USER_BIN/hms"
 WRAPPER_SRC="$REPO_ROOT/hms/bin/hms"
 
-# Colores para output
+# Output colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "🗑️  Desinstalador HMS"
+echo "🗑️  HMS Uninstaller"
 echo ""
 
-# Ejecutar hms stop usando el bin directo (no symlink)
-echo "⏹️  Deteniendo HMS..."
+# Run hms stop using the binary directly (not symlink)
+echo "⏹️  Stopping HMS..."
 if [ -f "$WRAPPER_SRC" ]; then
     "$WRAPPER_SRC" stop 2>/dev/null || {
-        echo -e "${YELLOW}⚠️  No se pudo ejecutar hms stop${NC}"
+        echo -e "${YELLOW}⚠️  Failed to run hms stop${NC}"
     }
 else
-    echo -e "${YELLOW}⚠️  No se encontró wrapper en $WRAPPER_SRC${NC}"
+    echo -e "${YELLOW}⚠️  Wrapper not found at $WRAPPER_SRC${NC}"
 fi
 
 echo ""
 
-# Eliminar symlink
+# Remove symlink
 if [ -L "$WRAPPER" ]; then
     rm -f "$WRAPPER"
-    echo -e "${GREEN}✅ Symlink eliminado: $WRAPPER${NC}"
+    echo -e "${GREEN}✅ Symlink removed: $WRAPPER${NC}"
 elif [ -e "$WRAPPER" ]; then
-    echo -e "${YELLOW}⚠️  $WRAPPER existe pero no es symlink. No se elimina automáticamente.${NC}"
+    echo -e "${YELLOW}⚠️  $WRAPPER exists but is not a symlink. Not removed automatically.${NC}"
 else
-    echo -e "${YELLOW}ℹ️  No existe symlink en $WRAPPER${NC}"
+    echo -e "${YELLOW}ℹ️  No symlink found at $WRAPPER${NC}"
 fi
 
-# Eliminar tab completion (ambos shells)
+# Remove tab completion (both shells)
 ZSH_COMPLETION="$HOME/.zsh/completions/_hms"
 BASH_COMPLETION="$HOME/.bash_completion.d/hms"
 REMOVED=false
 
 if [ -f "$ZSH_COMPLETION" ]; then
     rm -f "$ZSH_COMPLETION"
-    echo -e "${GREEN}✅ Tab completion (zsh) eliminado: $ZSH_COMPLETION${NC}"
+    echo -e "${GREEN}✅ Tab completion (zsh) removed: $ZSH_COMPLETION${NC}"
     REMOVED=true
 fi
 if [ -f "$BASH_COMPLETION" ]; then
     rm -f "$BASH_COMPLETION"
-    echo -e "${GREEN}✅ Tab completion (bash) eliminado: $BASH_COMPLETION${NC}"
+    echo -e "${GREEN}✅ Tab completion (bash) removed: $BASH_COMPLETION${NC}"
     REMOVED=true
 fi
 if [ "$REMOVED" = false ]; then
-    echo -e "${YELLOW}ℹ️  No se encontró ningún archivo de completion${NC}"
+    echo -e "${YELLOW}ℹ️  No completion files found${NC}"
 fi
 
 echo ""
-echo -e "${GREEN}✅ Desinstalación completada${NC}"
+echo -e "${GREEN}✅ Uninstall complete${NC}"

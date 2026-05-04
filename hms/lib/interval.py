@@ -1,6 +1,6 @@
 """
-Parse intervalos de tiempo en formato natural similar a HEALTHCHECK de Docker.
-Soporta: 1d, 2h, 3m, 4s (días, horas, minutos, segundos)
+Parse time intervals in natural format similar to Docker HEALTHCHECK.
+Supports: 1d, 2h, 3m, 4s (days, hours, minutes, seconds)
 """
 
 import re
@@ -9,21 +9,21 @@ from typing import Optional
 
 def parse_interval(interval_str: str) -> Optional[int]:
     """
-    Parse un intervalo de tiempo en formato natural (ej: "30m", "2h", "1d") a segundos.
+    Parse a time interval in natural format (e.g. "30m", "2h", "1d") to seconds.
 
     Args:
-        interval_str: String con intervalo (ej: "30m", "2h", "1d")
+        interval_str: String with interval (e.g. "30m", "2h", "1d")
 
     Returns:
-        Intervalo en segundos o None si es inválido
+        Interval in seconds or None if invalid
 
-    Ejemplos:
+    Examples:
         parse_interval("30m") -> 1800
         parse_interval("2h") -> 7200
         parse_interval("1d") -> 86400
         parse_interval("45s") -> 45
         parse_interval("1h30m") -> 5400
-        parse_interval("1h 30m") -> 5400 (con espacios)
+        parse_interval("1h 30m") -> 5400 (with spaces)
     """
     if not interval_str or not isinstance(interval_str, str):
         return None
@@ -32,17 +32,17 @@ def parse_interval(interval_str: str) -> Optional[int]:
     if not interval_str:
         return None
 
-    # Remover espacios para parseo
+    # Remove spaces for parsing
     interval_str_normalized = interval_str.replace(" ", "")
 
-    # Patrón para encontrar números seguidos de unidad
+    # Pattern to find numbers followed by a unit
     pattern = r'(\d+)([smhd])'
     matches = re.findall(pattern, interval_str_normalized)
 
     if not matches:
         return None
 
-    # Verificar que la duración completa fue parseada (sin caracteres extra)
+    # Verify that the full duration was parsed (no extra characters)
     reconstructed = ''.join(f"{num}{unit}" for num, unit in matches)
     if reconstructed != interval_str_normalized:
         return None
@@ -64,15 +64,15 @@ def parse_interval(interval_str: str) -> Optional[int]:
 
 def format_interval(seconds: int) -> str:
     """
-    Formatear segundos a intervalo legible (ej: "1h 30m 45s").
+    Format seconds to a readable interval (e.g. "1h 30m 45s").
 
     Args:
-        seconds: Intervalo en segundos
+        seconds: Interval in seconds
 
     Returns:
-        String con intervalo formateado
+        Formatted interval string
 
-    Ejemplos:
+    Examples:
         format_interval(1800) -> "30m"
         format_interval(7200) -> "2h"
         format_interval(86400) -> "1d"

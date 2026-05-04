@@ -2,13 +2,11 @@
 Plugin: validate stack
 Validate the configuration of a stack."""
 
-import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin, EmptyStackBehavior
+from hms.lib import ui
 from hms.lib.config import config_manager
-
-logger = logging.getLogger(__name__)
 
 
 class ValidateStackPlugin(StackPlugin):
@@ -37,15 +35,16 @@ DESCRIPTION:
     def run_for_stack(self, stack_name: str, args: List[str]) -> int:
         missing_config = config_manager.check_missing_global_config()
         if missing_config:
-            logger.error("❌ Global configuration validation failed. Missing required configuration:")
+            ui.err("Global configuration validation failed. Missing required configuration:")
             for item in missing_config:
-                logger.error(f" - {item}")
+                ui.err(f" - {item}")
             return 1
 
         missing_config = config_manager.check_missing_stack_config(stack_name)
         if missing_config:
-            logger.error(f"❌ Stack '{stack_name}' validation failed. Missing required configuration:")
+            ui.err(f"Stack '{stack_name}' validation failed. Missing required configuration:")
             for item in missing_config:
-                logger.error(f" - {item}")
+                ui.err(f" - {item}")
             return 1
+        ui.ok(f"Stack '{stack_name}' configuration is valid")
         return 0

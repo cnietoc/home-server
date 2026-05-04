@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HMS Install Command - crea symlink en ~/.local/bin/hms y prepara config.toml
+# HMS Install Command - creates symlink in ~/.local/bin/hms and sets up config.toml
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,102 +10,102 @@ COMPOSE_DIR="$REPO_ROOT/core/hms"
 CONFIG_FILE="$REPO_ROOT/config.toml"
 FORCE="${1:-}"
 
-# Colores para output
+# Output colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "🚀 Instalador HMS"
+echo "🚀 HMS Installer"
 echo ""
 
-# Validar Docker
+# Validate Docker
 if ! command -v docker &> /dev/null; then
-    echo -e "${RED}❌ Docker no está instalado en el host${NC}"
+    echo -e "${RED}❌ Docker is not installed on the host${NC}"
     exit 1
 fi
 
 if ! docker info &> /dev/null; then
-    echo -e "${RED}❌ Docker daemon no disponible. Abre Docker Desktop e inténtalo de nuevo.${NC}"
+    echo -e "${RED}❌ Docker daemon is not available. Open Docker Desktop and try again.${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Docker disponible${NC}"
+echo -e "${GREEN}✅ Docker available${NC}"
 
-# Validar compose
+# Validate compose
 if [ ! -f "$COMPOSE_DIR/docker-compose.yml" ]; then
-    echo -e "${RED}❌ No se encontró docker-compose en: $COMPOSE_DIR/docker-compose.yml${NC}"
+    echo -e "${RED}❌ docker-compose not found at: $COMPOSE_DIR/docker-compose.yml${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ docker-compose.yml encontrado${NC}"
+echo -e "${GREEN}✅ docker-compose.yml found${NC}"
 
-# Validar wrapper fuente
+# Validate source wrapper
 if [ ! -f "$WRAPPER_SRC" ]; then
-    echo -e "${RED}❌ No se encontró wrapper fuente en: $WRAPPER_SRC${NC}"
+    echo -e "${RED}❌ Source wrapper not found at: $WRAPPER_SRC${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Wrapper fuente encontrado${NC}"
+echo -e "${GREEN}✅ Source wrapper found${NC}"
 
-# Crear ~/.local/bin si no existe
+# Create ~/.local/bin if it doesn't exist
 mkdir -p "$USER_BIN"
-echo -e "${GREEN}✅ ~/.local/bin listo${NC}"
+echo -e "${GREEN}✅ ~/.local/bin ready${NC}"
 
-# Verificar si el symlink ya existe
+# Check if symlink already exists
 TARGET="$USER_BIN/hms"
 if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
     if [ "$FORCE" != "--force" ]; then
-        echo -e "${RED}❌ $TARGET ya existe. Usa --force para sobrescribir.${NC}"
+        echo -e "${RED}❌ $TARGET already exists. Use --force to overwrite.${NC}"
         exit 1
     fi
     rm -f "$TARGET"
-    echo "⚠️  Symlink anterior eliminado"
+    echo "⚠️  Previous symlink removed"
 fi
 
-# Crear symlink
+# Create symlink
 ln -s "$WRAPPER_SRC" "$TARGET"
-echo -e "${GREEN}✅ Symlink creado: $TARGET -> $WRAPPER_SRC${NC}"
+echo -e "${GREEN}✅ Symlink created: $TARGET -> $WRAPPER_SRC${NC}"
 
-# Verificar PATH contiene ~/.local/bin
+# Verify PATH contains ~/.local/bin
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
-    echo -e "${YELLOW}⚠️  ~/.local/bin no está en PATH${NC}"
+    echo -e "${YELLOW}⚠️  ~/.local/bin is not in PATH${NC}"
     echo ""
-    echo "Añade esta línea a tu ~/.zshrc:"
+    echo "Add this line to your ~/.zshrc:"
     echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
     echo ""
-    echo "Luego ejecuta:"
+    echo "Then run:"
     echo "    source ~/.zshrc"
     exit 1
 fi
-echo -e "${GREEN}✅ ~/.local/bin está en PATH${NC}"
+echo -e "${GREEN}✅ ~/.local/bin is in PATH${NC}"
 
-# Validar permisos de Docker
+# Validate Docker permissions
 HOST_OS=$(uname -s)
 if [ "$HOST_OS" = "Darwin" ]; then
-    echo "ℹ️ macOS detectado: Docker Desktop no usa el grupo 'docker' del host"
-    echo "   Se omitirá la verificación de grupo"
+    echo "ℹ️ macOS detected: Docker Desktop does not use the host 'docker' group"
+    echo "   Skipping group permission check"
 else
     echo ""
-    echo "🔐 Validando permisos de Docker..."
+    echo "🔐 Validating Docker permissions..."
     if ! groups | grep -q docker; then
-        echo -e "${YELLOW}⚠️  Tu usuario no está en el grupo 'docker'${NC}"
+        echo -e "${YELLOW}⚠️  Your user is not in the 'docker' group${NC}"
         echo ""
-        echo "Para agregar tu usuario al grupo docker ejecuta:"
+        echo "To add your user to the docker group run:"
         echo "    sudo usermod -aG docker $USER"
         echo ""
-        echo "Luego cierra sesión y vuelve a iniciar sesión para aplicar los cambios."
+        echo "Then log out and back in for the changes to take effect."
         echo ""
-        read -p "¿Continuar de todas formas? (y/N): " -n 1 -r
+        read -p "Continue anyway? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
     else
-        echo -e "${GREEN}✅ Usuario en grupo docker${NC}"
+        echo -e "${GREEN}✅ User is in docker group${NC}"
     fi
 fi
 
-# Generar o actualizar config.toml
+# Generate or update config.toml
 echo ""
-echo "📝 Configurando config.toml..."
+echo "📝 Configuring config.toml..."
 
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
@@ -115,7 +115,7 @@ else
     DOCKER_GID=0
 fi
 
-# Detectar timezone del sistema
+# Detect system timezone
 if [ -f /etc/timezone ]; then
     SYSTEM_TZ=$(cat /etc/timezone)
 elif [ -L /etc/localtime ]; then
@@ -125,7 +125,7 @@ else
 fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    # Crear config.toml básico si no existe
+    # Create minimal config.toml if not present
     cat > "$CONFIG_FILE" << EOF
 [global]
 host_root = "$REPO_ROOT"
@@ -134,12 +134,12 @@ pgid = $CURRENT_GID
 docker_gid = $DOCKER_GID
 tz = "$SYSTEM_TZ"
 EOF
-    echo -e "${GREEN}✅ config.toml creado con valores básicos${NC}"
+    echo -e "${GREEN}✅ config.toml created with default values${NC}"
 fi
 
-# Actualizar puid, pgid, docker_gid y tz en config.toml existente
+# Update puid, pgid, docker_gid and tz in existing config.toml
 if [ -f "$CONFIG_FILE" ]; then
-    # Función auxiliar para actualizar o agregar campo en una sección
+    # Helper function to update or add a field in a section
     update_toml_field() {
         local file="$1"
         local section="$2"
@@ -171,22 +171,22 @@ if [ -f "$CONFIG_FILE" ]; then
         ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     }
 
-    # Actualizar campos en sección [global]
+    # Update fields in [global] section
     update_toml_field "$CONFIG_FILE" "global" "puid" "$CURRENT_UID"
     update_toml_field "$CONFIG_FILE" "global" "pgid" "$CURRENT_GID"
     update_toml_field "$CONFIG_FILE" "global" "docker_gid" "$DOCKER_GID"
     update_toml_field "$CONFIG_FILE" "global" "tz" "\"$SYSTEM_TZ\""
     update_toml_field "$CONFIG_FILE" "global" "host_root" "\"$REPO_ROOT\""
 
-    echo -e "${GREEN}✅ config.toml actualizado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, DOCKER_GID=$DOCKER_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
+    echo -e "${GREEN}✅ config.toml updated: PUID=$CURRENT_UID, PGID=$CURRENT_GID, DOCKER_GID=$DOCKER_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
 
-    # Detectar IP LAN del host
+    # Detect host LAN IP
     LAN_IP=""
     if command -v ip >/dev/null 2>&1; then
         LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}')
     fi
     if [ -z "$LAN_IP" ] && command -v ipconfig >/dev/null 2>&1; then
-        # macOS: probar en0 (ethernet/wifi) y en1
+        # macOS: try en0 (ethernet/wifi) and en1
         LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
     fi
     if [ -z "$LAN_IP" ]; then
@@ -195,19 +195,19 @@ if [ -f "$CONFIG_FILE" ]; then
 
     if [ -n "$LAN_IP" ]; then
         update_toml_field "$CONFIG_FILE" "global" "host_ip" "\"$LAN_IP\""
-        echo -e "${GREEN}✅ IP del host detectada: $LAN_IP → global.host_ip${NC}"
+        echo -e "${GREEN}✅ Host IP detected: $LAN_IP → global.host_ip${NC}"
     else
-        echo -e "${YELLOW}⚠️  No se pudo detectar la IP del host. Añade manualmente a config.toml:${NC}"
+        echo -e "${YELLOW}⚠️  Could not detect host IP. Add it manually to config.toml:${NC}"
         echo "       [global]"
         echo "       host_ip = \"192.168.X.X\""
     fi
 else
-    echo -e "${YELLOW}⚠️  config.toml no existe${NC}"
+    echo -e "${YELLOW}⚠️  config.toml not found${NC}"
 fi
 
-# Instalar tab completion según el shell del usuario
+# Install tab completion for the user's shell
 echo ""
-echo "⌨️  Configurando tab completion..."
+echo "⌨️  Setting up tab completion..."
 CURRENT_SHELL="$(basename "${SHELL:-bash}")"
 
 if [ "$CURRENT_SHELL" = "zsh" ]; then
@@ -230,24 +230,24 @@ _hms() {
 
 _hms
 COMPLETION_EOF
-    echo -e "${GREEN}✅ Tab completion instalado en $COMPLETION_FILE${NC}"
+    echo -e "${GREEN}✅ Tab completion installed at $COMPLETION_FILE${NC}"
 
     ZSHRC="$HOME/.zshrc"
     FPATH_LINE='fpath=(~/.zsh/completions $fpath)'
     COMPINIT_LINE='autoload -Uz compinit && compinit'
     if [ -f "$ZSHRC" ] && grep -qF "$FPATH_LINE" "$ZSHRC"; then
-        echo -e "${GREEN}✅ fpath ya configurado en ~/.zshrc${NC}"
+        echo -e "${GREEN}✅ fpath already configured in ~/.zshrc${NC}"
     else
-        echo -e "${YELLOW}⚠️  Añade esto a tu ~/.zshrc para activar el autocompletado:${NC}"
+        echo -e "${YELLOW}⚠️  Add this to your ~/.zshrc to enable tab completion:${NC}"
         echo ""
         echo "    $FPATH_LINE"
         echo "    $COMPINIT_LINE"
         echo ""
-        echo "    Luego ejecuta: exec zsh"
+        echo "    Then run: exec zsh"
     fi
 
 else
-    # bash (default en Ubuntu)
+    # bash (default on Ubuntu)
     BASH_COMPLETIONS_DIR="$HOME/.bash_completion.d"
     COMPLETION_FILE="$BASH_COMPLETIONS_DIR/hms"
     mkdir -p "$BASH_COMPLETIONS_DIR"
@@ -262,30 +262,30 @@ _hms() {
 
 complete -F _hms hms
 COMPLETION_EOF
-    echo -e "${GREEN}✅ Tab completion instalado en $COMPLETION_FILE${NC}"
+    echo -e "${GREEN}✅ Tab completion installed at $COMPLETION_FILE${NC}"
 
     BASHRC="$HOME/.bashrc"
     SOURCE_LINE="source $COMPLETION_FILE"
     if [ -f "$BASHRC" ] && grep -qF "$COMPLETION_FILE" "$BASHRC"; then
-        echo -e "${GREEN}✅ completion ya configurado en ~/.bashrc${NC}"
+        echo -e "${GREEN}✅ Completion already configured in ~/.bashrc${NC}"
     else
         echo "$SOURCE_LINE" >> "$BASHRC"
-        echo -e "${GREEN}✅ Añadido source a ~/.bashrc${NC}"
-        echo -e "${YELLOW}ℹ️  Ejecuta 'source ~/.bashrc' o abre una nueva terminal para activarlo${NC}"
+        echo -e "${GREEN}✅ Added source line to ~/.bashrc${NC}"
+        echo -e "${YELLOW}ℹ️  Run 'source ~/.bashrc' or open a new terminal to activate it${NC}"
     fi
 fi
 
-# Finalizar
+# Done
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Instalación completada${NC}"
+echo -e "${GREEN}✅ Installation complete${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "Siguiente paso:"
-echo -e "  ${GREEN}hms start${NC}    # Inicia el contenedor HMS"
+echo "Next step:"
+echo -e "  ${GREEN}hms start${NC}    # Start the HMS container"
 echo ""
-echo "Después podrás usar:"
-echo "  hms list          # Listar stacks disponibles"
-echo "  hms <stack> up    # Levantar un stack"
-echo "  hms stop          # Detener HMS"
+echo "Then you can use:"
+echo "  hms list          # List available stacks"
+echo "  hms <stack> up    # Start a stack"
+echo "  hms stop          # Stop HMS"
 echo ""

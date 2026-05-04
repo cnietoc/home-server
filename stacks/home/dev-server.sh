@@ -1,43 +1,43 @@
 #!/bin/bash
 
-# Script para probar el dashboard localmente
-# Útil para desarrollo y debugging
+# Script to run the dashboard locally
+# Useful for development and debugging
 
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-echo "🏠 Iniciando Dashboard del Home Server en modo desarrollo"
+echo "🏠 Starting Home Server Dashboard in development mode"
 echo ""
 
-# Verificar si Node.js está instalado
+# Check if Node.js is installed
 if ! command -v node >/dev/null 2>&1; then
-    echo "❌ Node.js no está instalado"
-    echo "   Instálalo desde: https://nodejs.org/"
+    echo "❌ Node.js is not installed"
+    echo "   Install it from: https://nodejs.org/"
     exit 1
 fi
 
-# Verificar si npm está disponible
+# Check if npm is available
 if ! command -v npm >/dev/null 2>&1; then
-    echo "❌ npm no está disponible"
+    echo "❌ npm is not available"
     exit 1
 fi
 
-# Instalar dependencias si no existen
+# Install dependencies if not present
 if [[ ! -d "node_modules" ]]; then
-    echo "📦 Instalando dependencias..."
+    echo "📦 Installing dependencies..."
     npm install
 fi
 
-# Variables de entorno para desarrollo local
+# Environment variables for local development
 export NODE_ENV=development
 export PORT=3000
 
-echo "🚀 Iniciando servidor en modo desarrollo..."
+echo "🚀 Starting server in development mode..."
 echo "   📍 URL: http://localhost:3000"
-echo "   🔧 Modo: desarrollo"
-echo "   ⏹️  Ctrl+C para detener"
+echo "   🔧 Mode: development"
+echo "   ⏹️  Ctrl+C to stop"
 echo ""
 
-# Iniciar servidor
+# Start server
 npm run dev 2>/dev/null || npm start

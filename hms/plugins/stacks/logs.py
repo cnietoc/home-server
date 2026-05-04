@@ -4,13 +4,11 @@ Display logs from a stack using docker compose logs.
 Supports passing all docker compose logs arguments (-f, --until, etc).
 """
 
-import logging
 from typing import List
 
 from hms.core.plugin import StackPlugin, EmptyStackBehavior
+from hms.lib import ui
 from hms.lib.docker import docker_manager
-
-logger = logging.getLogger(__name__)
 
 
 class LogsPlugin(StackPlugin):
@@ -59,7 +57,7 @@ SUPPORTED OPTIONS:
             result = docker_manager.stack_logs(stack_name, args)
             return result
         except Exception as e:
-            logger.error(f"❌ Error retrieving logs for stack '{stack_name}': {e}")
+            ui.err(f"Error retrieving logs for stack '{stack_name}': {e}")
             return 1
 
 

@@ -1,66 +1,66 @@
 """
 Plugin: system update-dns
-Actualiza registros DNS de Cloudflare para el dominio base.
+Updates Cloudflare DNS records for the base domain.
 """
 
 import logging
 from typing import List, Optional
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 from hms.lib.cloudflare import CloudflareClient, CloudflareError, get_cloudflare_client
 
 logger = logging.getLogger(__name__)
 
 
 class UpdateDNSPlugin(GlobalPlugin):
-    """Actualizar registros DNS en Cloudflare."""
+    """Update DNS records in Cloudflare."""
 
     def get_name(self) -> str:
         return "update-dns"
 
     def get_description(self) -> str:
-        return "Actualizar registros DNS en Cloudflare"
+        return "Update DNS records in Cloudflare"
 
     def get_help(self) -> str:
         return """
-Update DNS - Actualizar registros DNS en Cloudflare
+Update DNS - Update DNS records in Cloudflare
 
 USAGE:
   hms system update-dns [OPTIONS]
 
 DESCRIPTION:
-  Actualiza registros DNS A (raíz y wildcard) en Cloudflare para apuntar a la IP
-  pública actual del servidor. Detecta automáticamente la IP si no se especifica.
+  Updates DNS A records (root and wildcard) in Cloudflare to point to the
+  server's current public IP. Auto-detects the IP if not specified.
 
 OPTIONS:
-  --ip IP              Usar IP específica (por defecto: detectar automáticamente)
-  --domain DOMAIN      Dominio específico (por defecto: usar BASE_DOMAIN)
-  --dry-run           Solo mostrar qué cambios se harían, sin aplicarlos
-  --force             Forzar actualización aunque la IP no haya cambiado
-  --list              Listar registros DNS actuales
-  -v, --verbose       Mostrar información detallada
-  -h, --help          Mostrar esta ayuda
+  --ip IP              Use a specific IP (default: auto-detect)
+  --domain DOMAIN      Specific domain (default: use BASE_DOMAIN)
+  --dry-run           Only show what changes would be made, without applying them
+  --force             Force update even if the IP has not changed
+  --list              List current DNS records
+  -v, --verbose       Show detailed information
+  -h, --help          Show this help
 
 EXAMPLES:
-  hms system update-dns                    # Detectar IP y actualizar DNS
-  hms system update-dns --ip 192.168.1.100 # Usar IP específica
-  hms system update-dns --dry-run          # Ver qué cambios se harían
-  hms system update-dns --list             # Ver registros DNS actuales
-  hms system update-dns --force            # Forzar actualización
+  hms system update-dns                    # Auto-detect IP and update DNS
+  hms system update-dns --ip 192.168.1.100 # Use a specific IP
+  hms system update-dns --dry-run          # Preview what changes would be made
+  hms system update-dns --list             # View current DNS records
+  hms system update-dns --force            # Force update
 
 CONFIGURATION:
-  Requiere estar configurados:
-  - CLOUDFLARE_DNS_API_TOKEN en config/private/cloudflare.env
-  - BASE_DOMAIN en config/private/common.env
+  Required:
+  - CLOUDFLARE_DNS_API_TOKEN in config/private/cloudflare.env
+  - BASE_DOMAIN in config/private/common.env
 
-REGISTROS QUE SE CREAN/ACTUALIZAN:
-  - @ (dominio raíz)         → IP del servidor
-  - * (wildcard)             → IP del servidor
+RECORDS CREATED/UPDATED:
+  - @ (root domain)    → server IP
+  - * (wildcard)       → server IP
 """
 
     def run(self, args: List[str]) -> int:
         """Execute plugin."""
-        # Parsear argumentos
         target_ip: Optional[str] = None
         target_domain: Optional[str] = None
         dry_run = False
@@ -73,17 +73,17 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
             arg = args[i]
 
             if arg == "--help" or arg == "-h":
-                logger.info(self.get_help())
+                print(self.get_help())
                 return 0
             elif arg == "--ip":
                 if i + 1 >= len(args):
-                    logger.error("❌ --ip requiere un valor")
+                    ui.err("--ip requires a value")
                     return 1
                 target_ip = args[i + 1]
                 i += 2
             elif arg == "--domain":
                 if i + 1 >= len(args):
-                    logger.error("❌ --domain requiere un valor")
+                    ui.err("--domain requires a value")
                     return 1
                 target_domain = args[i + 1]
                 i += 2
@@ -100,18 +100,15 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
                 verbose = True
                 i += 1
             else:
-                logger.error(f"❌ Argumento desconocido: {arg}")
+                ui.err(f"Unknown argument: {arg}")
                 return 1
 
         try:
-            # Obtener cliente de Cloudflare
             client = get_cloudflare_client()
 
-            # Si se solicita solo listar registros
             if list_only:
                 return self._list_records(client)
 
-            # Ejecutar actualización
             return self._update_dns(
                 client,
                 target_ip=target_ip,
@@ -122,35 +119,37 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
             )
 
         except CloudflareError as e:
-            logger.error(f"❌ Error: {e}")
+            ui.err(f"Error: {e}")
+            logger.error("update-dns CloudflareError: %s", e)
             return 1
-        except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}", e)
+        except Exception:
+            ui.err("Unexpected error in update-dns")
+            logger.exception("update-dns unexpected error")
             return 1
 
     def _list_records(self, client: CloudflareClient) -> int:
-        """Listar registros DNS actuales."""
+        """List current DNS records."""
         try:
-            logger.info(f"📋 Registros DNS para {client.base_domain}:")
-            logger.info("")
+            ui.info(f"📋 DNS records for {client.base_domain}:")
+            ui.info("")
 
             records = client.list_records("A")
             if not records:
-                logger.info("  (sin registros A)")
+                ui.info("  (no A records)")
             else:
                 for record in records:
                     name = record.get("name", "?")
                     content = record.get("content", "?")
                     ttl = record.get("ttl", "?")
                     proxied = "✅ Proxied" if record.get("proxied") else "❌ DNS Only"
+                    ui.info(f"  {name:<30} {content:<15} (TTL: {ttl}, {proxied})")
 
-                    logger.info(f"  {name:<30} {content:<15} (TTL: {ttl}, {proxied})")
-
-            logger.info("")
+            ui.info("")
             return 0
 
         except CloudflareError as e:
-            logger.error(f"❌ Error listando registros: {e}")
+            ui.err(f"Error listing records: {e}")
+            logger.error("list_records CloudflareError: %s", e)
             return 1
 
     def _update_dns(
@@ -162,38 +161,33 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
         force: bool = False,
         verbose: bool = False,
     ) -> int:
-        """Actualizar registros DNS."""
+        """Update DNS records."""
         try:
-
-            # Detectar IP si no se especificó
             if not target_ip:
                 target_ip = client.get_public_ip()
             else:
-                logger.info(f"🎯 Usando IP especificada: {target_ip}")
+                ui.info(f"🎯 Usando IP especificada: {target_ip}")
 
-            # Validar dominio
             if target_domain:
-                logger.info(f"🎯 Usando dominio especificado: {target_domain}")
-                # Actualizar cliente con nuevo dominio si es diferente
+                ui.info(f"🎯 Usando dominio especificado: {target_domain}")
                 if target_domain != client.base_domain:
                     client = CloudflareClient(client.api_token, target_domain)
             else:
                 target_domain = client.base_domain
 
-            logger.info(f"🌐 Dominio objetivo: {target_domain}")
-            logger.info(f"📍 IP objetivo: {target_ip}")
+            ui.info(f"🌐 Target domain: {target_domain}")
+            ui.info(f"📍 Target IP: {target_ip}")
 
             if dry_run:
-                logger.info("🔥 Modo DRY-RUN: No se aplicarán cambios reales")
+                ui.info("🔥 DRY-RUN mode: no real changes will be applied")
 
-            # Actualizar registros @ y *
             records_to_update = ["@", "*"]
             results = []
             success_count = 0
 
-            logger.info("")
-            logger.info("🚀 Actualizando registros DNS...")
-            logger.info("")
+            ui.info("")
+            ui.info("🚀 Updating DNS records...")
+            ui.info("")
 
             for record_name in records_to_update:
                 try:
@@ -211,36 +205,34 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
                         success_count += 1
 
                 except CloudflareError as e:
-                    logger.error(f"❌ Error actualizando {record_name}: {e}")
+                    ui.err(f"Error updating {record_name}: {e}")
+                    logger.error("update_record '%s' failed: %s", record_name, e)
                     results.append({
                         "status": "error",
                         "name": record_name,
                         "message": str(e),
                     })
 
-            # Guardar estado
-            logger.info("")
-            logger.info(f"📊 Resultado: {success_count}/{len(records_to_update)} registros procesados")
+            ui.info("")
+            ui.info(f"📊 Result: {success_count}/{len(records_to_update)} records processed")
 
             if success_count == len(records_to_update):
-                status = "success" if not dry_run else "dry_run"
-                message = "DNS actualizado correctamente" if not dry_run else "Cambios listos para aplicar"
-                logger.info(f"🎉 {message}")
-                logger.info("")
-                logger.info(f"🌐 Servicios accesibles en:")
-                logger.info(f"   https://{target_domain}")
-                logger.info(f"   https://*. {target_domain}")
+                message = "DNS updated successfully" if not dry_run else "Changes ready to apply"
+                ui.ok(message)
+                ui.info("")
+                ui.info(f"🌐 Services accessible at:")
+                ui.info(f"   https://{target_domain}")
+                ui.info(f"   https://*.{target_domain}")
             else:
-                status = "error"
-                message = "Algunos registros tuvieron problemas"
-                logger.warning(f"⚠️  {message}")
+                ui.warn("Some records encountered problems")
 
             return 0 if success_count == len(records_to_update) else 1
 
         except CloudflareError as e:
-            logger.error(f"❌ Error: {e}")
+            ui.err(f"Error: {e}")
+            logger.error("_update_dns CloudflareError: %s", e)
             return 1
-        except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}")
+        except Exception:
+            ui.err("Unexpected error in _update_dns")
+            logger.exception("_update_dns unexpected error")
             return 1
-

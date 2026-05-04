@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# HMS uninstaller wrapper - ejecuta el comando uninstall desde commands/
-# Este script se mantiene para compatibilidad de ejecución directa: ./uninstall.sh
+# HMS uninstaller wrapper - delegates to commands/uninstall
+# Kept for direct execution compatibility: ./uninstall.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNINSTALL_CMD="$SCRIPT_DIR/hms/bin/commands/uninstall"
 
-# Verificar que existe el comando uninstall
+# Verify the uninstall command exists
 if [ ! -f "$UNINSTALL_CMD" ]; then
-    echo "❌ No se encontró $UNINSTALL_CMD"
+    echo "❌ Uninstall command not found: $UNINSTALL_CMD"
     exit 1
 fi
 
-# Delegar la ejecución al comando uninstall, pasando todos los argumentos
+# Delegate to the uninstall command, forwarding all arguments
 exec "$UNINSTALL_CMD" "$@"
-

@@ -7,7 +7,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Función de logging con colores
 log() {
     echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $*"
 }
@@ -24,17 +23,17 @@ info() {
     echo -e "${BLUE}[$(date '+%H:%M:%S')] ℹ️${NC} $*"
 }
 
-# === ARGUMENTOS: usar configuración o parámetros ===
+# === ARGUMENTS ===
 if [[ $# -gt 0 ]]; then
     GITHUB_USERS=("$@")
-    log "Usando usuarios de GitHub desde argumentos: ${GITHUB_USERS[*]}"
+    log "Using GitHub users from arguments: ${GITHUB_USERS[*]}"
 else
-    error "Especifica usuarios de GitHub:"
-    info "Como argumentos: $0 <github_user1> [github_user2 ...]"
+    error "Specify GitHub users:"
+    info "As arguments: $0 <github_user1> [github_user2 ...]"
     exit 1
 fi
 
-LOCAL_USER="$(whoami)"       # Usuario local que ejecuta el script
+LOCAL_USER="$(whoami)"       # Local user running the script
 SSH_DIR="$HOME/.ssh"
 AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
 TMP_KEYS="/tmp/github_keys_tmp_$$"
@@ -44,66 +43,66 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# === INSTALAR SERVIDOR SSH SI NO ESTÁ INSTALADO ===
+# === INSTALL SSH SERVER IF NOT INSTALLED ===
 if ! dpkg -s openssh-server >/dev/null 2>&1; then
-    log "openssh-server no está instalado. Instalando..."
+    log "openssh-server is not installed. Installing..."
     sudo apt update && sudo apt install -y openssh-server
-    log "✅ openssh-server instalado."
+    log "✅ openssh-server installed."
 else
-    log "openssh-server ya está instalado."
+    log "openssh-server is already installed."
 fi
 
-# === CREAR DIRECTORIO .ssh ===
-log "Creando directorio $SSH_DIR si no existe..."
+# === CREATE .ssh DIRECTORY ===
+log "Creating directory $SSH_DIR if it does not exist..."
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 chown "$LOCAL_USER":"$LOCAL_USER" "$SSH_DIR"
 
-# === DESCARGAR Y UNIR CLAVES PÚBLICAS DE GITHUB ===
+# === DOWNLOAD AND MERGE GITHUB PUBLIC KEYS ===
 true > "$TMP_KEYS"
-ACTIVE_USERS=()  # Usuarios que aportan claves válidas
+ACTIVE_USERS=()  # Users that provide valid keys
 
 for GH_USER in "${GITHUB_USERS[@]}"; do
-    log "Descargando claves de GitHub: $GH_USER"
+    log "Downloading GitHub keys for: $GH_USER"
     if curl -fsSL "https://github.com/$GH_USER.keys" >> "$TMP_KEYS"; then
         if [[ -s "$TMP_KEYS" ]]; then
             echo "" >> "$TMP_KEYS"
             ACTIVE_USERS+=("$GH_USER")
         fi
     else
-        warn "No se pudieron obtener claves de $GH_USER, se salta."
+        warn "Could not fetch keys for $GH_USER, skipping."
     fi
 done
 
 if [[ ${#ACTIVE_USERS[@]} -eq 0 ]]; then
-    error "No se descargó ninguna clave pública válida, abortando."
+    error "No valid public keys downloaded, aborting."
     rm -f "$TMP_KEYS"
     exit 1
 fi
 
-# === ELIMINAR duplicados y actualizar authorized_keys ===
+# === DEDUPLICATE AND UPDATE authorized_keys ===
 sort -u "$TMP_KEYS" -o "$TMP_KEYS"
 
 if [[ ! -f "$AUTHORIZED_KEYS" ]] || ! cmp -s "$TMP_KEYS" "$AUTHORIZED_KEYS"; then
     cp "$TMP_KEYS" "$AUTHORIZED_KEYS"
     chmod 600 "$AUTHORIZED_KEYS"
     chown "$LOCAL_USER":"$LOCAL_USER" "$AUTHORIZED_KEYS"
-    log "✅ authorized_keys actualizado con claves válidas."
+    log "✅ authorized_keys updated with valid keys."
 else
-    log "Las claves no han cambiado, no se actualiza authorized_keys."
+    log "Keys have not changed, authorized_keys not updated."
 fi
 rm -f "$TMP_KEYS"
 
-# === CONFIGURACIÓN DE SSHD IDÓMPOTENTE ===
+# === IDEMPOTENT SSHD CONFIGURATION ===
 SSHD_CONFIG="/etc/ssh/sshd_config"
 BACKUP_CONFIG="/etc/ssh/sshd_config.backup"
 
 if [[ ! -f "$BACKUP_CONFIG" ]]; then
-    log "Haciendo copia de seguridad de $SSHD_CONFIG..."
+    log "Backing up $SSHD_CONFIG..."
     sudo cp "$SSHD_CONFIG" "$BACKUP_CONFIG"
 fi
 
-log "Configurando SSH para aceptar solo autenticación por clave pública..."
+log "Configuring SSH to accept only public key authentication..."
 
 ensure_sshd_config() {
     local key="$1"
@@ -116,7 +115,6 @@ ensure_sshd_config() {
     fi
 }
 
-# Ajustes principales
 ensure_sshd_config "PasswordAuthentication" "no" "$SSHD_CONFIG"
 ensure_sshd_config "ChallengeResponseAuthentication" "no" "$SSHD_CONFIG"
 ensure_sshd_config "UsePAM" "no" "$SSHD_CONFIG"
@@ -125,32 +123,32 @@ ensure_sshd_config "PubkeyAuthentication" "yes" "$SSHD_CONFIG"
 ensure_sshd_config "AuthorizedKeysFile" ".ssh/authorized_keys" "$SSHD_CONFIG"
 ensure_sshd_config "PermitEmptyPasswords" "no" "$SSHD_CONFIG"
 
-# Validar configuración antes de aplicar
+# Validate configuration before applying
 TEMP_CONFIG="/tmp/sshd_config_test_$$"
 sudo cp "$SSHD_CONFIG" "$TEMP_CONFIG"
 if sudo sshd -t -f "$TEMP_CONFIG"; then
-    log "✅ Configuración SSH validada correctamente."
+    log "✅ SSH configuration validated."
     sudo rm -f "$TEMP_CONFIG"
 else
-    error "Error en configuración SSH, restaurando backup..."
+    error "SSH configuration error, restoring backup..."
     sudo cp "$BACKUP_CONFIG" "$SSHD_CONFIG"
     sudo rm -f "$TEMP_CONFIG"
     exit 1
 fi
 
-# === REINICIAR SSH ===
-log "Recargando servicio SSH..."
+# === RESTART SSH ===
+log "Restarting SSH service..."
 sudo systemctl restart ssh || sudo service ssh restart
 
-# === VERIFICAR ESTADO ===
+# === VERIFY STATUS ===
 if sudo systemctl is-active ssh >/dev/null 2>&1; then
-    log "✅ SSH está activo y funcionando."
+    log "✅ SSH is active and running."
 else
-    warn "SSH puede no estar funcionando correctamente."
+    warn "SSH may not be functioning correctly."
 fi
 
-# === RESUMEN FINAL ===
-log "✅ Configuración completada."
-log "Usuario local que accede por SSH: $LOCAL_USER"
-log "Usuarios de GitHub con claves válidas en authorized_keys: ${ACTIVE_USERS[*]}"
-log "Solo autenticación por clave pública habilitada."
+# === FINAL SUMMARY ===
+log "✅ Configuration complete."
+log "Local user with SSH access: $LOCAL_USER"
+log "GitHub users with valid keys in authorized_keys: ${ACTIVE_USERS[*]}"
+log "Only public key authentication is enabled."

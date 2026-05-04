@@ -93,3 +93,15 @@ When adding a new config field, always update all three places:
 1. `config.default.toml` — add the field with a sensible default or empty string (never `__REQUIRED__` unless truly mandatory)
 2. `config.example.toml` — add the field with a placeholder and a short comment explaining the format
 3. `docs/installation.md` — document it in the relevant section (mandatory vs optional)
+
+## Logging vs UI Output
+
+HMS separates user-facing output from diagnostic logging:
+
+| What | How | Goes to |
+|------|-----|---------|
+| Message for the user | `ui.info/ok/warn/err` (`hms/lib/ui.py`) | stdout/stderr, always visible |
+| Internal diagnostic | `logger.info/debug` | `logs/hms.log` only — not shown in console |
+| Error the user should see | `logger.warning/error/exception` | `logs/hms.log` + stderr (colored) |
+
+Rule of thumb: if a message **must** be seen when the user runs a command, use `ui.*`. If it's internal progress or diagnostic detail, use `logger.*`.

@@ -1,11 +1,11 @@
 """
-hms.lib.host_runner — ejecuta comandos del CLI en un contenedor efímero
-clonado del daemon HMS pero con network_mode=host.
+hms.lib.host_runner — runs CLI commands in an ephemeral container cloned
+from the HMS daemon but with network_mode=host.
 
-Útil para operaciones que necesitan ver la LAN como un proceso del host:
-- UPnP IGD (router rechaza peticiones desde IPs de bridge de Docker)
-- mDNS / SSDP / cualquier discovery basado en multicast
-- Ping/traceroute a equipos de la LAN
+Useful for operations that need to see the LAN as a host process:
+- UPnP IGD (router rejects requests from Docker bridge IPs)
+- mDNS / SSDP / any multicast-based discovery
+- Ping/traceroute to LAN devices
 """
 
 import json
@@ -24,26 +24,26 @@ class HostRunnerError(Exception):
 
 
 def is_host_runner() -> bool:
-    """True si este proceso ya corre dentro de un efímero host-mode."""
+    """True if this process is already running inside a host-mode ephemeral container."""
     return bool(os.environ.get(HOST_RUNNER_ENV))
 
 
 def run_hms_in_host_network(cli_args: list[str]) -> int:
     """
-    Lanza `python -m hms <cli_args>` en un contenedor efímero clonado del daemon
-    pero con --network=host. Devuelve el exit code. Streamea stdout/stderr al
-    proceso llamante.
+    Launches `python -m hms <cli_args>` in an ephemeral container cloned from the
+    daemon but with --network=host. Returns the exit code. Streams stdout/stderr to
+    the calling process.
 
-    Mismo primitivo para todos los call-sites:
+    Same primitive for all call-sites:
 
-      # Desde un helper (siempre spawn, sin guard):
+      # From a helper (always spawn, no guard):
       run_hms_in_host_network(["system", "refresh-port-forwards", "--stack", "terraria"])
 
-      # Desde el plugin (con guard anti-recursión):
+      # From the plugin (with anti-recursion guard):
       def run(self, args):
           if not is_host_runner():
               return run_hms_in_host_network(["system", "refresh-port-forwards", *args])
-          # ...trabajo in-process garantizado en host network...
+          # ...in-process work guaranteed on host network...
     """
     try:
         raw = subprocess.run(
@@ -52,11 +52,11 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         ).stdout
     except subprocess.CalledProcessError as e:
         raise HostRunnerError(
-            f"No se pudo inspeccionar el contenedor '{DAEMON_CONTAINER}': {e.stderr.strip()}"
+            f"Could not inspect container '{DAEMON_CONTAINER}': {e.stderr.strip()}"
         ) from e
 
     info = json.loads(raw)[0]
-    image = info["Image"]  # sha256:... exacto del daemon vivo — sin riesgo de version-skew
+    image = info["Image"]  # sha256:... exact digest from the live daemon — no version-skew risk
     user = info["Config"].get("User", "")
     group_add = info["HostConfig"].get("GroupAdd") or []
 
@@ -74,6 +74,7 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         *[arg for g in group_add for arg in ("--group-add", str(g))],
         *volume_args,
         "-e", f"{HOST_RUNNER_ENV}=1",
+        "-e", "HMS_LOG_TAG=host",
         image,
         "python", "-m", "hms", *cli_args,
     ]

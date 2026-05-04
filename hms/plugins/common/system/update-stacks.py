@@ -1,11 +1,12 @@
 """
 Plugin: system update-stacks
-Actualiza todos los stacks habilitados (excepto infra) que estén corriendo.
+Updates all enabled stacks (except infra) that are currently running.
 """
 
 import logging
 
 from hms.core.plugin import GlobalPlugin
+from hms.lib import ui
 from hms.lib.config import config_manager
 from hms.lib.stacks import stack_metadata
 
@@ -22,14 +23,14 @@ class UpdateStacksPlugin(GlobalPlugin):
 
     def get_help(self) -> str:
         return """
-update-stacks - Actualizar todos los stacks habilitados
+update-stacks - Update all enabled stacks
 
 USAGE:
   hms system update-stacks
 
 DESCRIPTION:
-  Descarga las últimas imágenes de todos los stacks habilitados (excepto infra)
-  y recrea los containers que estaban corriendo.
+  Pulls the latest images for all enabled stacks (except infra)
+  and recreates the containers that were running.
 """
 
     def run(self, args: list) -> int:
@@ -41,10 +42,10 @@ DESCRIPTION:
         ]
 
         if not stacks:
-            logger.info("ℹ️  No hay stacks habilitados para actualizar")
+            ui.info("ℹ️  No enabled stacks to update")
             return 0
 
-        logger.info(f"🔄 Actualizando {len(stacks)} stack(s): {', '.join(stacks)}")
+        ui.info(f"🔄 Updating {len(stacks)} stack(s): {', '.join(stacks)}")
 
         updater = UpdatePlugin()
         failed = []
@@ -55,7 +56,8 @@ DESCRIPTION:
                 failed.append(stack)
 
         if failed:
-            logger.warning(f"⚠️  Fallaron: {', '.join(failed)}")
+            ui.warn(f"Failed: {', '.join(failed)}")
+            logger.warning("update-stacks: failed %s", ", ".join(failed))
             return 1
 
         return 0
