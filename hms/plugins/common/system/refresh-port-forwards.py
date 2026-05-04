@@ -141,7 +141,7 @@ EJEMPLOS:
 
     def _reconcile(self, client, cfg: dict, dry_run: bool, prune: bool, verbose: bool) -> int:
         from hms.lib.config import config_manager
-        from hms.lib.router import RouterError, RouterConflictError, get_desired_mappings
+        from hms.lib.router import get_desired_mappings, reconcile_port_forwards
 
         exclude = cfg.get("exclude_stacks", [])
         desired = get_desired_mappings(exclude_stacks=exclude)
@@ -169,76 +169,15 @@ EJEMPLOS:
             logger.info("🔥 Modo DRY-RUN: no se aplicarán cambios")
             logger.info("")
 
-        # Obtener mapeos actuales (para --prune y para log)
-        try:
-            current = client.list_mappings()
-        except Exception:
-            current = []
-
-        if current:
-            logger.info(f"📋 Mapeos activos en el router ({len(current)}):")
-            for m in current:
-                port = m.get("ext_port", "?")
-                proto = m.get("protocol", "?").lower()
-                dest = f"{m.get('int_client', '?')}:{m.get('int_port', '?')}"
-                desc = m.get("description", "")
-                lease_time = m.get("lease_time", 0)
-                lease_str = f"{lease_time}s" if lease_time else "permanente"
-                logger.info(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
-            logger.info("")
-        else:
-            logger.info("📋 Sin mapeos activos en el router")
-            logger.info("")
-
-        current_keys = {
-            (m["ext_port"], m["protocol"].lower())
-            for m in current
-        }
-
-        desired_keys = {(pm.port, pm.protocol) for pm in desired}
-
-        added = 0
-        failed = 0
-
-        logger.info(f"🔄 Reconciliando {len(desired)} port-forward(s)...")
-        logger.info("")
-
-        for pm in desired:
-            exists = (pm.port, pm.protocol) in current_keys
-            action = "🔄 refresh" if exists else "➕ añadir"
-            logger.info(f"  {action}  {pm.port}/{pm.protocol}  →  {lan_ip}  [{pm.stack}]")
-
-            if not dry_run:
-                try:
-                    client.add_mapping(pm, lan_ip, lease)
-                    added += 1
-                except RouterConflictError as e:
-                    logger.info(f"    ℹ️  {e}")
-                    added += 1
-                except Exception as e:
-                    logger.warning(f"    ⚠️  {pm.port}/{pm.protocol}: {e}")
-                    failed += 1
-            else:
-                added += 1
-
-        if prune:
-            stale_keys = current_keys - desired_keys
-            if stale_keys:
-                logger.info("")
-                logger.info(f"🧹 Eliminando {len(stale_keys)} mapeo(s) obsoleto(s)...")
-                for port, proto in stale_keys:
-                    logger.info(f"  🗑️  {port}/{proto}")
-                    if not dry_run:
-                        try:
-                            client.delete_mapping(port, proto)
-                        except RouterError as e:
-                            logger.warning(f"    ⚠️  {e}")
+        processed, failed = reconcile_port_forwards(
+            desired, client, lan_ip, lease, dry_run=dry_run, prune=prune
+        )
 
         logger.info("")
         if failed == 0:
             status = "dry-run" if dry_run else "OK"
-            logger.info(f"✅ {added}/{len(desired)} port-forwards procesados [{status}]")
+            logger.info(f"✅ {processed}/{len(desired)} port-forwards procesados [{status}]")
         else:
-            logger.warning(f"⚠️  {added}/{len(desired)} procesados, {failed} fallaron")
+            logger.warning(f"⚠️  {processed}/{len(desired)} procesados, {failed} fallaron")
 
         return 0 if failed == 0 else 1
