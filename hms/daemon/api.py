@@ -1,7 +1,7 @@
 """
-Mini API REST para el daemon HMS.
-Expone endpoints bajo /api y mantiene legacy para compatibilidad.
-Integra el scheduler APScheduler en el ciclo de vida de FastAPI.
+Minimal REST API for the HMS daemon.
+Exposes endpoints under /api and keeps legacy endpoints for compatibility.
+Integrates the APScheduler scheduler into the FastAPI lifespan.
 """
 
 import asyncio
@@ -28,7 +28,7 @@ from hms.lib.config import config_manager
 
 logger = logging.getLogger(__name__)
 
-# Variables globales para tracking
+# Global variables for tracking
 _start_time = time.time()
 _cache = {"dashboard": {"ts": 0.0, "data": None}, "metrics": {"ts": 0.0, "data": None}}
 _CACHE_TTL_SECONDS = int(os.environ.get("HMS_DASHBOARD_TTL", "10"))
@@ -47,7 +47,7 @@ def _build_startup_message(jobs: list) -> str:
     if enabled:
         lines.append(f"📦 Stacks ({len(enabled)}): {' · '.join(enabled)}")
 
-    lines.append(f"📋 {len(jobs)} job(s) activos")
+    lines.append(f"📋 {len(jobs)} active job(s)")
 
     return "\n".join(lines)
 
@@ -55,37 +55,37 @@ def _build_startup_message(jobs: list) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Gestión del ciclo de vida de la aplicación.
-    Inicia el scheduler al arrancar y lo detiene al cerrar.
+    Application lifespan management.
+    Starts the scheduler on startup and stops it on shutdown.
     """
     # Startup
-    logger.info("⏱️  Iniciando scheduler...")
+    logger.info("⏱️  Starting scheduler...")
     start_scheduler()
 
-    # Mostrar jobs configurados
+    # Show configured jobs
     jobs = get_jobs_status()
-    logger.info(f"📋 Scheduler iniciado con {len(jobs)} job(s)")
+    logger.info(f"📋 Scheduler started with {len(jobs)} job(s)")
     for job in jobs:
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
-    notify("🚀 HMS arrancó", _build_startup_message(jobs))
+    notify("🚀 HMS started", _build_startup_message(jobs))
 
     yield
 
     # Shutdown
-    logger.info("🛑 Deteniendo scheduler...")
+    logger.info("🛑 Stopping scheduler...")
     uptime = _format_uptime(int(time.time() - _start_time))
-    notify("🛑 HMS se detuvo", f"⏱️ Uptime: {uptime}")
+    notify("🛑 HMS stopped", f"⏱️ Uptime: {uptime}")
     stop_scheduler()
-    logger.info("✅ Scheduler detenido")
+    logger.info("✅ Scheduler stopped")
 
 
-# Crear app FastAPI con lifespan
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="HMS Daemon API",
-    description="API interna del daemon HMS para healthcheck",
+    description="Internal HMS daemon API for healthcheck",
     version="0.1.0",
-    docs_url=None,  # Deshabilitar docs en producción
+    docs_url=None,  # Disable docs in production
     redoc_url=None,
     lifespan=lifespan,
 )
@@ -94,8 +94,8 @@ app = FastAPI(
 @app.get("/health")
 async def health() -> JSONResponse:
     """
-    Endpoint de healthcheck.
-    Verifica que el scheduler está corriendo y devuelve estado básico.
+    Healthcheck endpoint.
+    Verifies the scheduler is running and returns basic status.
     """
     try:
         scheduler_running = check_scheduler_running()
@@ -108,11 +108,11 @@ async def health() -> JSONResponse:
                     "status": "unhealthy",
                     "scheduler_running": False,
                     "uptime_seconds": uptime,
-                    "message": "Scheduler no está corriendo"
+                    "message": "Scheduler is not running"
                 }
             )
 
-        # Contar jobs activos
+        # Count active jobs
         jobs = get_jobs_status()
         jobs_count = len([j for j in jobs if not j["id"].startswith("__internal_")])
 
@@ -126,7 +126,7 @@ async def health() -> JSONResponse:
         )
 
     except Exception as e:
-        logger.error(f"❌ Error en healthcheck: {e}", exc_info=True)
+        logger.error(f"❌ Error in healthcheck: {e}", exc_info=True)
         return JSONResponse(
             status_code=503,
             content={
@@ -375,8 +375,8 @@ async def metrics() -> JSONResponse:
     try:
         data = await _fetch_cadvisor_metrics()
     except Exception as e:
-        logger.warning(f"cAdvisor no disponible: {e}")
-        return JSONResponse(status_code=503, content={"error": "cAdvisor no disponible"})
+        logger.warning(f"cAdvisor unavailable: {e}")
+        return JSONResponse(status_code=503, content={"error": "cAdvisor unavailable"})
 
     _cache["metrics"] = {"ts": now, "data": data}
     return JSONResponse(content=data)
@@ -398,8 +398,8 @@ async def root() -> JSONResponse:
 @app.post("/reload")
 async def reload_jobs() -> JSONResponse:
     """
-    Recargar jobs del scheduler.
-    Útil para recargar configuración sin reiniciar el daemon.
+    Reload scheduler jobs.
+    Useful for reloading configuration without restarting the daemon.
     """
     try:
         from hms.daemon.scheduler import reload_scheduler
@@ -410,12 +410,12 @@ async def reload_jobs() -> JSONResponse:
         return JSONResponse(
             content={
                 "status": "success",
-                "message": "Jobs recargados",
+                "message": "Jobs reloaded",
                 "jobs_count": len(jobs),
             }
         )
     except Exception as e:
-        logger.error(f"❌ Error recargando jobs: {e}", exc_info=True)
+        logger.error(f"❌ Error reloading jobs: {e}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={
@@ -437,40 +437,40 @@ _PROTECTED_STACKS = {"infra", "home"}
 @app.post("/api/stacks/{name}/up")
 async def stack_up_endpoint(name: str) -> JSONResponse:
     if not stack_metadata.stack_exists(name):
-        raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
+        raise HTTPException(status_code=404, detail=f"Stack '{name}' not found")
     try:
-        logger.info(f"🟢 Web: levantando stack '{name}'")
+        logger.info(f"🟢 Web: starting stack '{name}'")
         if not config_manager.is_stack_enabled(name):
             config_manager.enable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_up, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
-        logger.info(f"✅ Web: stack '{name}' levantado")
-        notify("🟢 Stack arrancado", f"{name} (web)")
+        logger.info(f"✅ Web: stack '{name}' started")
+        notify("🟢 Stack started", f"{name} (web)")
         return JSONResponse(content={"status": "ok", "stack": name, "action": "up"})
     except Exception as e:
-        notify("❌ Error al arrancar stack", f"{name} (web): {e}")
-        logger.exception(f"❌ Web: error levantando stack '{name}'")
+        notify("❌ Error starting stack", f"{name} (web): {e}")
+        logger.exception(f"❌ Web: error starting stack '{name}'")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/stacks/{name}/down")
 async def stack_down_endpoint(name: str) -> JSONResponse:
     if not stack_metadata.stack_exists(name):
-        raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
+        raise HTTPException(status_code=404, detail=f"Stack '{name}' not found")
     if name in _PROTECTED_STACKS:
-        raise HTTPException(status_code=403, detail=f"Stack '{name}' está protegido")
+        raise HTTPException(status_code=403, detail=f"Stack '{name}' is protected")
     try:
-        logger.info(f"🔴 Web: parando stack '{name}'")
+        logger.info(f"🔴 Web: stopping stack '{name}'")
         if config_manager.is_stack_enabled(name):
             config_manager.disable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_down, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
-        logger.info(f"✅ Web: stack '{name}' parado")
-        notify("🔴 Stack parado", f"{name} (web)")
+        logger.info(f"✅ Web: stack '{name}' stopped")
+        notify("🔴 Stack stopped", f"{name} (web)")
         return JSONResponse(content={"status": "ok", "stack": name, "action": "down"})
     except Exception as e:
-        notify("❌ Error al parar stack", f"{name} (web): {e}")
-        logger.exception(f"❌ Web: error parando stack '{name}'")
+        notify("❌ Error stopping stack", f"{name} (web): {e}")
+        logger.exception(f"❌ Web: error stopping stack '{name}'")
         raise HTTPException(status_code=500, detail=str(e))

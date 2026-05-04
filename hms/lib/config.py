@@ -1,12 +1,12 @@
 """
-Gestor de configuración TOML para HMS.
+TOML configuration manager for HMS.
 
-Proporciona:
-- Carga de config.toml como fuente única de verdad
-- Valores por defecto desde config.default.toml
-- Inyección dinámica de variables de entorno
-- Aislamiento de configuración por stack
-- Detección y validación de variables faltantes
+Provides:
+- Loading config.toml as the single source of truth
+- Default values from config.default.toml
+- Dynamic environment variable injection
+- Per-stack configuration isolation
+- Detection and validation of missing variables
 """
 
 import logging
@@ -47,7 +47,7 @@ class JobTrigger:
 
     @property
     def value(self) -> str:
-        """Devuelve el valor principal de configuración según el tipo de trigger."""
+        """Returns the primary configuration value for the trigger type."""
         return {
             "interval": self.config.get("interval"),
             "cron": self.config.get("cron"),
@@ -66,22 +66,22 @@ class JobDefinition:
 
 
 class TomlConfigManager:
-    """Gestor de configuración TOML con soporte para defaults y validación."""
+    """TOML configuration manager with defaults and validation support."""
 
     def __init__(self):
         self._config_path = get_config_root() / "config.toml"
         self._default_config_path = get_config_root() / "config.default.toml"
         if not self._config_path.exists():
-            # Crear config.toml vacío si no existe
+            # Create an empty config.toml if it doesn't exist
             self._config_path.touch()
 
     def load_env_config(self):
         """
-        Carga la configuración y cambia el UID/GID y timezone del proceso Python.
+        Loads configuration and changes the UID/GID and timezone of the Python process.
 
-        - Cambia el UID/GID real del proceso (requiere permisos o gosu)
-        - Establece el timezone del proceso
-        - Actualiza variables de entorno
+        - Changes the real UID/GID of the process (requires permissions or gosu)
+        - Sets the process timezone
+        - Updates environment variables
         """
         config = self._load_config()
         global_config = config.get("global", {})
@@ -92,47 +92,46 @@ class TomlConfigManager:
 
         import os
 
-        # 1. Cambiar timezone del proceso
+        # 1. Change the process timezone
         os.environ["TZ"] = str(tz)
         try:
             import time
-            time.tzset()  # Aplicar el cambio de timezone
+            time.tzset()  # Apply the timezone change
         except Exception as e:
-            logger.warning(f"No se pudo cambiar timezone: {e}")
+            logger.warning(f"Could not change timezone: {e}")
 
-        # 2. Cambiar UID/GID del proceso (solo si somos root o tenemos permisos)
+        # 2. Change the process UID/GID (only if we are root or have permissions)
         try:
             current_uid = os.getuid()
             current_gid = os.getgid()
 
-            # Solo intentar cambiar si somos root (uid=0) y los valores son diferentes
+            # Only attempt to change if we are root (uid=0) and values differ
             if current_uid == 0 and (current_uid != puid or current_gid != pgid):
-                # Primero cambiar GID, luego UID (en ese orden por seguridad)
+                # Change GID first, then UID (order matters for security)
                 os.setgid(pgid)
                 os.setuid(puid)
-                logger.debug(f"UID/GID cambiado a: {puid}:{pgid}")
+                logger.debug(f"UID/GID changed to: {puid}:{pgid}")
             elif current_uid != puid or current_gid != pgid:
                 logger.debug(
-                    f"No se puede cambiar UID/GID (no somos root). Actual: {current_uid}:{current_gid}, Deseado: {puid}:{pgid}")
+                    f"Cannot change UID/GID (not root). Current: {current_uid}:{current_gid}, Desired: {puid}:{pgid}")
         except AttributeError:
-            # getuid/setuid no disponible en Windows
-            logger.debug("Cambio de UID/GID no disponible en esta plataforma")
+            # getuid/setuid not available on Windows
+            logger.debug("UID/GID change not available on this platform")
         except Exception as e:
-            logger.warning(f"No se pudo cambiar UID/GID: {e}")
+            logger.warning(f"Could not change UID/GID: {e}")
 
-        # 3. Establecer variables de entorno (para subprocesos)
+        # 3. Set environment variables (for subprocesses)
         os.environ["PUID"] = str(puid)
         os.environ["PGID"] = str(pgid)
 
     def get_config_value(self, key: str, default: Optional[str] = None) -> str:
         """
-        Obtiene el valor de configuración para una clave dada,
-        considerando el stack si se proporciona.
+        Returns the configuration value for a given key.
 
-        :param key: Clave de configuración (p.ej. "database.host")
-        :param default: Valor por defecto si la clave no existe
-        :return: Valor de configuración
-        :raises KeyError: Si la clave no existe en la configuración
+        :param key: Configuration key (e.g. "database.host")
+        :param default: Default value if the key does not exist
+        :return: Configuration value
+        :raises KeyError: If the key does not exist in the configuration
         """
         config = self._load_config()
         keys = key.split(".")
@@ -144,20 +143,19 @@ class TomlConfigManager:
                 break
 
         if value == "__REQUIRED__":
-            raise KeyError(f"La clave de configuración requerida '{key}' no está establecida.")
+            raise KeyError(f"Required configuration key '{key}' is not set.")
         if value is None:
             if default is not None:
                 return default
             else:
-                raise KeyError(f"La clave de configuración '{key}' no existe.")
+                raise KeyError(f"Configuration key '{key}' does not exist.")
         return value
 
     def _load_config(self) -> Dict:
         """
-        Carga la configuración desde config.toml y aplica defaults.
+        Loads configuration from config.toml and applies defaults.
 
-        :param stack: Nombre del stack (opcional)
-        :return: Diccionario de configuración
+        :return: Configuration dictionary
         """
         default_config = self._load_toml_file(self._default_config_path)
         user_config = self._load_toml_file(self._config_path)
@@ -168,15 +166,15 @@ class TomlConfigManager:
         return default_config
 
     def _load_toml_file(self, path: Path) -> Dict:
-        """Carga un archivo TOML y devuelve su contenido como diccionario."""
+        """Loads a TOML file and returns its contents as a dictionary."""
         if not path.exists():
-            logger.warning(f"Archivo de configuración '{path}' no encontrado.")
+            logger.warning(f"Configuration file '{path}' not found.")
             return {}
         with path.open("rb") as f:
             return tomllib.load(f)
 
     def _merge_dicts(self, default_config: Dict, user_config: Dict) -> Dict:
-        """Fusiona dos diccionarios, con user_config teniendo prioridad."""
+        """Merges two dictionaries, with user_config taking priority."""
         for key, value in user_config.items():
             if (
                     key in default_config
@@ -189,25 +187,25 @@ class TomlConfigManager:
         return default_config
 
     def _save_config(self, config: Dict):
-        """Guarda el diccionario de configuración en config.toml."""
+        """Saves the configuration dictionary to config.toml."""
         toml_content = tomlkit.dumps(tomlkit.parse(tomlkit.dumps(config)))
         with self._config_path.open("w", encoding="utf-8") as f:
             f.write(toml_content)
 
     def _find_missing_required_keys(self, default_config: Dict, user_config: Dict, prefix: str = "") -> List[str]:
         """
-        Encuentra claves marcadas como requeridas en default_config que faltan en user_config.
+        Finds keys marked as required in default_config that are missing from user_config.
 
-        :param default_config: Configuración por defecto
-        :param user_config: Configuración del usuario
-        :param prefix: Prefijo para claves anidadas
-        :return: Lista de claves faltantes
+        :param default_config: Default configuration
+        :param user_config: User configuration
+        :param prefix: Prefix for nested keys
+        :return: List of missing keys
         """
         missing_keys = []
         for key, value in default_config.items():
             full_key = f"{prefix}.{key}" if prefix else key
             if isinstance(value, dict):
-                # Verificar recursivamente en sub-diccionarios
+                # Recursively check sub-dictionaries
                 missing_keys.extend(
                     self._find_missing_required_keys(
                         value,
@@ -216,7 +214,7 @@ class TomlConfigManager:
                     )
                 )
             else:
-                # Verificar si la clave es requerida y falta en user_config
+                # Check if the key is required and missing from user_config
                 if (
                         isinstance(value, str)
                         and value.__eq__("__REQUIRED__")
@@ -228,13 +226,13 @@ class TomlConfigManager:
 
     def _add_missing_keys_to_config(self, missing_keys: List[str], user_config: Dict):
         """
-        Añade claves faltantes a user_config dejándolas como __REQUIRED__.
+        Adds missing keys to user_config leaving them as __REQUIRED__.
 
-        :param missing_keys: Lista de claves faltantes
-        :param user_config: Configuración del usuario (a modificar)
+        :param missing_keys: List of missing keys
+        :param user_config: User configuration (to be modified)
         """
-        logger.debug(f"Añadiendo claves faltantes a la configuración: {missing_keys}")
-        logger.debug(f"Configuración antes de añadir claves faltantes: {_redact(user_config)}")
+        logger.debug(f"Adding missing keys to configuration: {missing_keys}")
+        logger.debug(f"Configuration before adding missing keys: {_redact(user_config)}")
         for key in missing_keys:
             keys = key.split(".")
             current_level = user_config
@@ -242,40 +240,40 @@ class TomlConfigManager:
                 if k not in current_level or not isinstance(current_level[k], dict):
                     current_level[k] = {}
                 current_level = current_level[k]
-            # Añadir la clave faltante como __REQUIRED__
+            # Add the missing key as __REQUIRED__
             current_level[keys[-1]] = "__REQUIRED__"
-        logger.debug(f"Configuración después de añadir claves faltantes: {_redact(user_config)}")
+        logger.debug(f"Configuration after adding missing keys: {_redact(user_config)}")
 
     def _find_still_required_keys(self, config: Dict, prefix: str = "") -> List[str]:
         """
-        Encuentra claves que siguen marcadas como __REQUIRED__ en la configuración.
+        Finds keys that are still marked as __REQUIRED__ in the configuration.
 
-        :param config: Diccionario de configuración a analizar
-        :param prefix: Prefijo para claves anidadas
-        :return: Lista de claves que siguen siendo requeridas
+        :param config: Configuration dictionary to analyse
+        :param prefix: Prefix for nested keys
+        :return: List of keys that are still required
         """
         still_required = []
         for key, value in config.items():
             full_key = f"{prefix}.{key}" if prefix else key
             if isinstance(value, dict):
-                # Verificar recursivamente en sub-diccionarios
+                # Recursively check sub-dictionaries
                 still_required.extend(
                     self._find_still_required_keys(value, prefix=full_key)
                 )
             else:
-                # Verificar si la clave sigue siendo __REQUIRED__
+                # Check if the key is still __REQUIRED__
                 if isinstance(value, str) and value == "__REQUIRED__":
                     still_required.append(full_key)
         return still_required
 
     def check_missing_global_config(self) -> List[str]:
         """
-        Crea entradas faltantes en config.toml basadas en config.default.toml
-        para claves marcadas como requeridas.
+        Creates missing entries in config.toml based on config.default.toml
+        for keys marked as required.
 
-        También devuelve las claves que siguen marcadas como requeridas en config.toml.
+        Also returns keys that are still marked as required in config.toml.
 
-        :return: Lista de claves que siguen siendo requeridas
+        :return: List of keys that are still required
         """
         default_config = self._load_toml_file(self._default_config_path)
         user_config = self._load_toml_file(self._config_path)
@@ -292,7 +290,7 @@ class TomlConfigManager:
             self._add_missing_keys_to_config(missing_keys, user_config)
             self._save_config(user_config)
 
-        # Detectar claves que siguen siendo requeridas después de las adiciones
+        # Detect keys that are still required after the additions
         updated_config = self._load_toml_file(self._config_path)
         still_required_keys = self._find_still_required_keys(updated_config)
         still_required_keys = [k for k in still_required_keys if not is_non_global_key(k)]
@@ -301,10 +299,10 @@ class TomlConfigManager:
 
     def check_missing_stack_config(self, stack_name: str) -> List[str]:
         """
-        Verifica claves requeridas faltantes para un stack específico.
+        Checks for missing required keys for a specific stack.
 
-        :param stack_name: Nombre del stack
-        :return: Lista de claves que siguen siendo requeridas para el stack
+        :param stack_name: Stack name
+        :return: List of keys that are still required for the stack
         """
         default_config = self._load_toml_file(self._default_config_path)
         user_config = self._load_toml_file(self._config_path)
@@ -329,7 +327,7 @@ class TomlConfigManager:
             )
             self._save_config(user_config)
 
-        # Detectar claves que siguen siendo requeridas después de las adiciones
+        # Detect keys that are still required after the additions
         updated_config = self._load_toml_file(self._config_path)
         updated_stack_config = updated_config.get(stack_name, {})
         still_required_keys = self._find_still_required_keys(
@@ -341,13 +339,13 @@ class TomlConfigManager:
 
     def get_global_config(self) -> Dict[str, Any]:
         """
-        Obtiene la configuración global desde config.toml.
+        Returns the global configuration from config.toml.
 
-        :return: Diccionario con la configuración global
+        :return: Dictionary with the global configuration
         """
         config = self._load_config()
 
-        # Quitamos de la configuración algunas claves específicas de backups y shares
+        # Remove certain backup- and share-specific keys from the configuration
         result = config.get("global", {}).copy()
         if "backups" in result:
             del result["backups"]
@@ -357,9 +355,9 @@ class TomlConfigManager:
 
     def get_global_backup_config(self) -> Dict[str, Any]:
         """
-        Obtiene la configuración global de backups desde config.toml.
+        Returns the global backup configuration from config.toml.
 
-        :return: Diccionario con la configuración global de backups
+        :return: Dictionary with the global backup configuration
         """
         config = self._load_config()
 
@@ -367,10 +365,10 @@ class TomlConfigManager:
 
     def get_stack_config(self, stack_name: str) -> Dict[str, Any]:
         """
-        Obtiene la configuración específica de un stack.
+        Returns the specific configuration for a stack.
 
-        :param stack_name: Nombre del stack
-        :return: Diccionario con la configuración del stack
+        :param stack_name: Stack name
+        :return: Dictionary with the stack configuration
         """
         config = self._load_config()
 
@@ -383,10 +381,10 @@ class TomlConfigManager:
 
     def get_stack_backup_config(self, stack_name: str) -> Dict[str, Any]:
         """
-        Obtiene la configuración específica de un stack relacionada con backups.
+        Returns the backup-related configuration for a specific stack.
 
-        :param stack_name: Nombre del stack
-        :return: Diccionario con la configuración del stack de backups
+        :param stack_name: Stack name
+        :return: Dictionary with the stack backup configuration
         """
         config = self._load_config()
 
@@ -394,16 +392,16 @@ class TomlConfigManager:
 
     def is_stack_enabled(self, stack_name: str) -> bool:
         """
-        Verifica si un stack está habilitado en la configuración.
-        El stack 'infra' siempre está habilitado por defecto.
+        Checks whether a stack is enabled in the configuration.
+        The 'infra' stack is always enabled by default.
 
-        :param stack_name: Nombre del stack
-        :return: True si está habilitado, False en caso contrario
+        :param stack_name: Stack name
+        :return: True if enabled, False otherwise
         """
-        # Stack infra siempre está activo por defecto
+        # The infra stack is always active by default
         if stack_name == "infra":
             stack_config = self.get_stack_config(stack_name)
-            # Permitir deshabilitar infra explícitamente si alguien lo necesita
+            # Allow explicitly disabling infra if needed
             return stack_config.get("enabled", True)
 
         stack_config = self.get_stack_config(stack_name)
@@ -411,9 +409,9 @@ class TomlConfigManager:
 
     def enable_stack(self, stack_name: str):
         """
-        Habilita un stack en la configuración.
+        Enables a stack in the configuration.
 
-        :param stack_name: Nombre del stack
+        :param stack_name: Stack name
         """
         config = self._load_toml_file(self._config_path)
 
@@ -429,9 +427,9 @@ class TomlConfigManager:
 
     def disable_stack(self, stack_name: str):
         """
-        Deshabilita un stack en la configuración.
+        Disables a stack in the configuration.
 
-        :param stack_name: Nombre del stack
+        :param stack_name: Stack name
         """
         config = self._load_toml_file(self._config_path)
 
@@ -447,15 +445,15 @@ class TomlConfigManager:
         self._save_config(config)
 
     def get_router_config(self) -> Dict[str, Any]:
-        """Obtiene la sección [router] de config.toml (con defaults aplicados)."""
+        """Returns the [router] section of config.toml (with defaults applied)."""
         config = self._load_config()
         return config.get("router", {})
 
     def get_job_definitions(self) -> List[JobDefinition]:
         """
-        Nueva API: devuelve lista de JobDefinition desde `[jobs.<name>]`.
-        Cada trigger puede ser objeto o lista de objetos.
-        No altera el flujo actual; solo expone la estructura tipada.
+        New API: returns a list of JobDefinition from `[jobs.<name>]`.
+        Each trigger can be an object or a list of objects.
+        Does not alter the current flow; only exposes the typed structure.
         """
         config = self._load_config()
         jobs_cfg = config.get("jobs", {}) or {}
@@ -463,12 +461,12 @@ class TomlConfigManager:
         result: List[JobDefinition] = []
         for name, cfg in jobs_cfg.items():
             if not isinstance(cfg, dict):
-                logger.warning(f"Job '{name}' ignorado: config no es un objeto")
+                logger.warning(f"Job '{name}' ignored: config is not an object")
                 continue
 
             plugin = cfg.get("plugin")
             if not plugin:
-                logger.warning(f"Job '{name}' ignorado: falta 'plugin'")
+                logger.warning(f"Job '{name}' ignored: missing 'plugin'")
                 continue
 
             raw_triggers = cfg.get("triggers") or []
@@ -478,11 +476,11 @@ class TomlConfigManager:
             triggers: List[JobTrigger] = []
             for trig in raw_triggers:
                 if not isinstance(trig, dict):
-                    logger.warning(f"Trigger inválido en job '{name}': {trig}")
+                    logger.warning(f"Invalid trigger in job '{name}': {trig}")
                     continue
                 trig_type = trig.get("type")
                 if not trig_type:
-                    logger.warning(f"Trigger sin 'type' en job '{name}': {trig}")
+                    logger.warning(f"Trigger missing 'type' in job '{name}': {trig}")
                     continue
                 trig_config = {k: v for k, v in trig.items() if k != "type"}
                 triggers.append(JobTrigger(type=trig_type, config=trig_config))

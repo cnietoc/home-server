@@ -1,6 +1,6 @@
 """
 Plugin: system logs
-Ver logs de HMS (daemon y CLI) en tiempo real o snapshot.
+View HMS logs (daemon and CLI) in real time or as a snapshot.
 """
 
 import subprocess
@@ -14,40 +14,40 @@ LOG_FILE = "hms.log"
 
 
 class LogsPlugin(GlobalPlugin):
-    """Ver logs del daemon/CLI de HMS."""
+    """View HMS daemon/CLI logs."""
 
     def get_name(self) -> str:
         return "logs"
 
     def get_description(self) -> str:
-        return "Ver logs de HMS"
+        return "View HMS logs"
 
     def get_help(self) -> str:
         return f"""
-logs - Ver logs de HMS
+logs - View HMS logs
 
 USAGE:
   hms system logs [OPTIONS]
 
 DESCRIPTION:
-  Muestra el contenido de {LOG_FILE} (logs unificados de daemon y CLI).
-  Usa --grep para filtrar por patrón, o filtra por origen con:
-    --grep "\\[daemon\\]"   → solo logs del daemon
-    --grep "\\[cli\\]"      → solo logs del CLI
+  Displays the contents of {LOG_FILE} (unified daemon and CLI logs).
+  Use --grep to filter by pattern, or filter by source with:
+    --grep "\\[daemon\\]"   → daemon logs only
+    --grep "\\[cli\\]"      → CLI logs only
 
 OPTIONS:
-  -n, --lines N       Número de líneas a mostrar (por defecto: 50)
-  -f, --follow        Seguir en tiempo real (como tail -f)
-  --grep PATTERN      Filtrar líneas por patrón (regex)
-  -h, --help          Mostrar esta ayuda
+  -n, --lines N       Number of lines to show (default: 50)
+  -f, --follow        Follow in real time (like tail -f)
+  --grep PATTERN      Filter lines by pattern (regex)
+  -h, --help          Show this help
 
 EXAMPLES:
-  hms system logs                          # Últimas 50 líneas
-  hms system logs -n 200                   # Últimas 200 líneas
-  hms system logs -f                       # Follow en tiempo real
-  hms system logs -f --grep "ERROR"        # Follow solo errores
-  hms system logs -f --grep "\\[cli\\]"    # Follow solo CLI
-  hms system logs --grep "backup"          # Buscar menciones de backup
+  hms system logs                          # Last 50 lines
+  hms system logs -n 200                   # Last 200 lines
+  hms system logs -f                       # Follow in real time
+  hms system logs -f --grep "ERROR"        # Follow errors only
+  hms system logs -f --grep "\\[cli\\]"    # Follow CLI only
+  hms system logs --grep "backup"          # Search for backup mentions
 """
 
     def run(self, args: List[str]) -> int:
@@ -63,12 +63,12 @@ EXAMPLES:
                 return 0
             elif arg in ("-n", "--lines"):
                 if i + 1 >= len(args):
-                    ui.err("--lines requiere un valor numérico")
+                    ui.err("--lines requires a numeric value")
                     return 1
                 try:
                     lines = int(args[i + 1])
                 except ValueError:
-                    ui.err(f"--lines: valor inválido '{args[i + 1]}'")
+                    ui.err(f"--lines: invalid value '{args[i + 1]}'")
                     return 1
                 i += 2
             elif arg in ("-f", "--follow"):
@@ -76,17 +76,17 @@ EXAMPLES:
                 i += 1
             elif arg == "--grep":
                 if i + 1 >= len(args):
-                    ui.err("--grep requiere un patrón")
+                    ui.err("--grep requires a pattern")
                     return 1
                 grep_pattern = args[i + 1]
                 i += 2
             else:
-                ui.err(f"Argumento desconocido: {arg}")
+                ui.err(f"Unknown argument: {arg}")
                 return 1
 
         log_path = get_logs_root() / LOG_FILE
         if not log_path.exists():
-            ui.err(f"No hay logs todavía: {log_path}")
+            ui.err(f"No logs yet: {log_path}")
             return 1
 
         tail_cmd = ["tail", f"-n{lines}"]

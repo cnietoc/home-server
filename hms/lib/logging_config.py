@@ -1,7 +1,7 @@
-"""Configuración centralizada de logging para HMS.
+"""Centralised logging configuration for HMS.
 
-Proporciona logging a consola y a archivo con rotación automática.
-Usa el módulo estándar logging de Python.
+Provides logging to console and to file with automatic rotation.
+Uses Python's standard logging module.
 """
 
 import logging
@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 class _SimpleColoredFormatter(logging.Formatter):
-    """Formatter simple para consola: sólo mensaje, con color por nivel (WARNING+)."""
+    """Simple console formatter: message only, with colour by level (WARNING+)."""
 
     LEVEL_COLOR = {
         "DEBUG": "\033[36m",      # Cyan
@@ -30,7 +30,7 @@ class _SimpleColoredFormatter(logging.Formatter):
 
 
 class ColoredFormatter(logging.Formatter):
-    """Formatter con colores ANSI para consola — mantenido por compatibilidad (no usado en CLI)."""
+    """ANSI-coloured formatter for console — kept for compatibility (not used in CLI)."""
 
     COLORS = {
         'DEBUG': '\033[36m',
@@ -55,7 +55,7 @@ class ColoredFormatter(logging.Formatter):
 
 
 class _TagFilter(logging.Filter):
-    """Inyecta un campo 'tag' en cada registro para identificar el proceso."""
+    """Injects a 'tag' field into each log record to identify the process."""
 
     def __init__(self, tag: str):
         super().__init__()
@@ -73,15 +73,15 @@ def setup_logging(
     rotator: bool = False,
     tag: str = "",
 ) -> logging.Logger:
-    """Configura logging centralizado en el root logger.
+    """Configures centralised logging on the root logger.
 
     Args:
-        log_file: Ruta del archivo de log. Si es None, no escribe a archivo.
-        level: Nivel de logging.
-        console: Si True, loguea en consola con colores.
-        rotator: Si True, usa RotatingFileHandler (el daemon rota).
-                 Si False, usa WatchedFileHandler (el CLI sólo append, sigue inode).
-        tag: Etiqueta de proceso que aparece en cada línea del log ("[daemon]", "[cli]").
+        log_file: Path to the log file. If None, does not write to file.
+        level: Logging level.
+        console: If True, logs to console with colours.
+        rotator: If True, uses RotatingFileHandler (daemon rotates).
+                 If False, uses WatchedFileHandler (CLI append-only, follows inode).
+        tag: Process label that appears on each log line ("[daemon]", "[cli]").
     """
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -90,7 +90,7 @@ def setup_logging(
     fmt = "%(asctime)s [%(levelname)-7s]%(tag_prefix)s %(message)s"
     date_fmt = "%Y-%m-%d %H:%M:%S"
 
-    # Tag alineado a la derecha, anchura del más largo ("daemon" = 6), con separador pipe
+    # Tag right-aligned, width of the longest value ("daemon" = 6), with pipe separator
     _TAG_WIDTH = 6
     tag_prefix = f" {tag.rjust(_TAG_WIDTH)} |" if tag else ""
 
@@ -106,8 +106,8 @@ def setup_logging(
 
     if console:
         console_handler = logging.StreamHandler(sys.stderr)
-        # INFO/DEBUG van sólo a fichero; consola muestra WARNING+ con formato simple.
-        # Excepción: en modo DEBUG (vía -vv) se baja el nivel para depuración interactiva.
+        # INFO/DEBUG go to file only; console shows WARNING+ with simple format.
+        # Exception: in DEBUG mode (via -vv) the level is lowered for interactive debugging.
         console_level = level if level <= logging.DEBUG else logging.WARNING
         console_handler.setLevel(console_level)
         console_handler.setFormatter(_SimpleColoredFormatter())
@@ -124,7 +124,7 @@ def setup_logging(
                 encoding="utf-8",
             )
         else:
-            # WatchedFileHandler: sólo append, detecta cambio de inode tras rollover
+            # WatchedFileHandler: append-only, detects inode change after rollover
             file_handler = logging.handlers.WatchedFileHandler(
                 log_file,
                 encoding="utf-8",

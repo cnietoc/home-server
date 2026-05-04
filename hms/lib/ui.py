@@ -1,11 +1,11 @@
 """
-hms.lib.ui — output visible al usuario en el CLI.
+hms.lib.ui — user-visible output in the CLI.
 
-Separado del logger para que el feedback al usuario no dependa del log_level.
-Usar en plugins para mensajes de estado, resultados y errores visibles en terminal.
-Usar logger.* para diagnósticos y registros en hms.log.
+Separated from the logger so that user feedback does not depend on log_level.
+Use in plugins for status messages, results, and errors visible in the terminal.
+Use logger.* for diagnostics and records written to hms.log.
 
-En contexto de daemon (HMS_DAEMON=1) redirige a logger para no contaminar docker logs.
+In daemon context (HMS_DAEMON=1) redirects to logger to avoid polluting docker logs.
 """
 
 import logging

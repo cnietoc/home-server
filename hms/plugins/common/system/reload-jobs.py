@@ -1,6 +1,6 @@
 """
 Plugin: system reload-jobs
-Recarga los jobs del scheduler HMS desde la configuración actual.
+Reloads HMS scheduler jobs from the current configuration.
 """
 
 import logging
@@ -13,27 +13,27 @@ logger = logging.getLogger(__name__)
 
 
 class ReloadJobsPlugin(GlobalPlugin):
-    """Recarga los jobs del scheduler HMS desde la configuración actual."""
+    """Reloads HMS scheduler jobs from the current configuration."""
 
     def get_name(self) -> str:
         return "reload-jobs"
 
     def get_description(self) -> str:
-        return "Recarga los jobs del scheduler HMS desde la configuración actual"
+        return "Reload HMS scheduler jobs from the current configuration"
 
     def get_help(self) -> str:
         return """
-Reload Jobs - Recarga los jobs del scheduler HMS desde la configuración actual
+Reload Jobs - Reload HMS scheduler jobs from the current configuration
 
 USAGE:
   hms system reload-jobs
 
 DESCRIPTION:
-  Recarga los jobs del scheduler HMS basándose en la configuración actual. Esto es útil para aplicar cambios en la configuración
-  de jobs sin necesidad de reiniciar el servidor HMS.
+  Reloads HMS scheduler jobs based on the current configuration. Useful for applying
+  job configuration changes without restarting the HMS server.
 
 EXAMPLES:
-  hms system reload-jobs                    # Recarga los jobs del scheduler HMS
+  hms system reload-jobs                    # Reload HMS scheduler jobs
 """
 
     def run(self, args: List[str]) -> int:
@@ -46,12 +46,12 @@ EXAMPLES:
                 data = response.json()
                 logger.debug("Response data: %s", data)
                 jobs_count = data.get("jobs_count", 0)
-                ui.ok(f"Jobs recargados exitosamente. Total de jobs: {jobs_count}")
+                ui.ok(f"Jobs reloaded successfully. Total jobs: {jobs_count}")
                 return 0
             else:
-                ui.err(f"Error recargando jobs. Código de estado: {response.status_code}")
+                ui.err(f"Error reloading jobs. Status code: {response.status_code}")
                 logger.error("reload-jobs: HTTP %d — %s", response.status_code, response.text)
                 return 1
         except Exception:
-            logger.exception("❌ Excepción al recargar jobs")
+            logger.exception("❌ Exception while reloading jobs")
             return 1

@@ -1,6 +1,6 @@
 """
-Scheduler para tareas automáticas del sistema.
-Usa APScheduler para ejecutar jobs periódicos directamente como plugins del CLI.
+Scheduler for automated system tasks.
+Uses APScheduler to run periodic jobs directly as CLI plugins.
 """
 
 import logging
@@ -22,20 +22,20 @@ from hms.lib.stacks import stack_metadata
 
 logger = logging.getLogger(__name__)
 
-# Control de startup vs reload
+# Startup vs reload control flag
 _is_startup = True
 
 
 def _build_trigger(config: Dict[str, Any]):
     """
-    Construir trigger cron o interval.
+    Build a cron or interval trigger.
 
-    Soporta:
+    Supports:
     - Cron: {"type": "cron", "expression": "0 */6 * * *"}
-    - Interval natural: {"type": "interval", "interval": "30m"} o {"interval": "2h"}
-    - Interval legacy: {"minutes": 30, "hours": 2, "seconds": 45}
+    - Natural interval: {"type": "interval", "interval": "30m"} or {"interval": "2h"}
+    - Legacy interval: {"minutes": 30, "hours": 2, "seconds": 45}
 
-    Default: 30m si no se especifica.
+    Default: 30m if not specified.
     """
     trigger = config.get("trigger", {})
     ttype = trigger.get("type", "interval")
@@ -43,40 +43,40 @@ def _build_trigger(config: Dict[str, Any]):
     if ttype == "cron":
         expr = trigger.get("expression")
         if not expr:
-            raise ValueError("Cron trigger sin 'expression'")
+            raise ValueError("Cron trigger missing 'expression'")
         return CronTrigger.from_crontab(expr)
 
-    # Parseo de interval
-    # 1. Intentar intervalo natural (nueva forma)
+    # Interval parsing
+    # 1. Try natural interval (new form)
     interval_str = trigger.get("interval")
     if interval_str:
         seconds = parse_interval(interval_str)
         if seconds is None:
-            raise ValueError(f"Intervalo inválido: {interval_str}")
+            raise ValueError(f"Invalid interval: {interval_str}")
         return IntervalTrigger(seconds=seconds)
 
-    # 2. Intentar forma legacy (minutos, horas, segundos)
+    # 2. Try legacy form (minutes, hours, seconds)
     minutes = trigger.get("minutes")
     hours = trigger.get("hours")
     seconds = trigger.get("seconds")
     if any([minutes, hours, seconds]):
         return IntervalTrigger(minutes=minutes or 0, hours=hours or 0, seconds=seconds or 0)
 
-    # 3. Default: 30 minutos
+    # 3. Default: 30 minutes
     return IntervalTrigger(minutes=30)
 
 
 def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
     """
-    Ejecutar un plugin del CLI directamente (sin subprocess).
+    Run a CLI plugin directly (without subprocess).
 
     Args:
-        job_id: ID del job (para logging)
-        plugin_spec: Especificación del plugin (ej: "system:update-dns")
-        args: Argumentos adicionales para pasar al plugin
+        job_id: Job ID (for logging)
+        plugin_spec: Plugin specification (e.g. "system:update-dns")
+        args: Additional arguments to pass to the plugin
 
     Returns:
-        Código de salida del plugin (0 = éxito)
+        Plugin exit code (0 = success)
     """
     if args is None:
         args = []
@@ -85,7 +85,7 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
     try:
         loader = get_plugin_loader()
 
-        # Resolver path del plugin
+        # Resolve plugin path
         if ":" in plugin_spec:
             parts = plugin_spec.split(":", 1)
             cat, cmd = parts
@@ -94,11 +94,11 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
                 if cmd in globals_plugins[cat]:
                     plugin_path = globals_plugins[cat][cmd]
                 else:
-                    raise ValueError(f"Subcomando no encontrado: {cmd}")
+                    raise ValueError(f"Subcommand not found: {cmd}")
             else:
-                raise ValueError(f"Categoría no encontrada: {cat}")
+                raise ValueError(f"Category not found: {cat}")
         else:
-            # Intentar primero en stacks, luego en globals
+            # Try stacks first, then globals
             stacks_plugins = loader.discover_stacks()
             globals_plugins = loader.discover_globals()
 
@@ -107,12 +107,12 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
             elif plugin_spec in globals_plugins and isinstance(globals_plugins[plugin_spec], str):
                 plugin_path = globals_plugins[plugin_spec]
             else:
-                raise ValueError(f"Plugin no encontrado: {plugin_spec}")
+                raise ValueError(f"Plugin not found: {plugin_spec}")
 
-        # Cargar y ejecutar
+        # Load and execute
         plugin = loader.load(plugin_path)
         if not plugin:
-            raise ValueError(f"No se pudo cargar: {plugin_spec}")
+            raise ValueError(f"Could not load: {plugin_spec}")
 
         if isinstance(plugin, StackPlugin):
             available = stack_metadata.list_stacks()
@@ -127,15 +127,15 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
         duration = time.time() - start
 
         if result != 0:
-            logger.warning(f"⚠️  Job {job_id} falló ({plugin_spec}) en {format_interval(int(duration))}")
-            notify("❌ HMS: job fallido", f"{job_id}\nPlugin: {plugin_spec}")
+            logger.warning(f"⚠️  Job {job_id} failed ({plugin_spec}) in {format_interval(int(duration))}")
+            notify("❌ HMS: job failed", f"{job_id}\nPlugin: {plugin_spec}")
         else:
-            logger.info(f"✅ Job {job_id} ok ({plugin_spec}) en {format_interval(int(duration))}")
+            logger.info(f"✅ Job {job_id} ok ({plugin_spec}) in {format_interval(int(duration))}")
         return result
     except Exception as e:
         duration = time.time() - start
-        logger.error(f"❌ Error ejecutando job {job_id} ({plugin_spec}): {e}")
-        notify("❌ HMS: job fallido", f"{job_id}\nError: {e}")
+        logger.error(f"❌ Error running job {job_id} ({plugin_spec}): {e}")
+        notify("❌ HMS: job failed", f"{job_id}\nError: {e}")
         return 1
 
 
@@ -144,19 +144,19 @@ def _load_jobs(scheduler: BackgroundScheduler):
 
     current_jobs = scheduler.get_jobs()
 
-    logger.debug("Actualmente hay %d job(s) en el scheduler: %s", len(current_jobs), [job.id for job in current_jobs])
+    logger.debug("Currently %d job(s) in the scheduler: %s", len(current_jobs), [job.id for job in current_jobs])
     global _is_startup
 
     for job_definition in job_definitions:
 
         enabled = job_definition.enabled
         if not enabled:
-            logger.info(f"⏸️ Job {job_definition.name} deshabilitado")
+            logger.info(f"⏸️ Job {job_definition.name} disabled")
             continue
 
         plugin_spec = job_definition.plugin
         if not plugin_spec:
-            logger.warning(f"⚠️ Job {job_definition.name} sin plugin, skipeado")
+            logger.warning(f"⚠️ Job {job_definition.name} has no plugin, skipping")
             continue
 
         args = job_definition.args
@@ -164,14 +164,14 @@ def _load_jobs(scheduler: BackgroundScheduler):
         triggers = job_definition.triggers or {}
 
         if not triggers:
-            logger.warning(f"⚠️ Job {job_definition.name} sin triggers, skipeado")
+            logger.warning(f"⚠️ Job {job_definition.name} has no triggers, skipping")
             continue
 
         for trigger in triggers:
             skip = False
             if not trigger.value:
                 logger.warning(
-                    f"❌ Trigger inválido para job {job_definition.name}: tipo '{trigger.type}' sin valor: {trigger.config}")
+                    f"❌ Invalid trigger for job {job_definition.name}: type '{trigger.type}' has no value: {trigger.config}")
                 continue
             if trigger.type == "startup":
                 seconds = parse_interval(trigger.value)
@@ -184,7 +184,7 @@ def _load_jobs(scheduler: BackgroundScheduler):
                 seconds = parse_interval(trigger.value)
                 if seconds is None:
                     logger.warning(
-                        f"❌ Trigger inválido para job {job_definition.name}: intervalo inválido: {trigger.value}")
+                        f"❌ Invalid trigger for job {job_definition.name}: invalid interval: {trigger.value}")
                     continue
                 job_id = f"{job_definition.name}-interval-{seconds}s"
                 trigger = IntervalTrigger(seconds=seconds)
@@ -193,10 +193,10 @@ def _load_jobs(scheduler: BackgroundScheduler):
                 try:
                     trigger = CronTrigger.from_crontab(trigger.value)
                 except Exception as e:
-                    logger.warning(f"❌ Trigger inválido para job {job_definition.name}: {e}")
+                    logger.warning(f"❌ Invalid trigger for job {job_definition.name}: {e}")
                     continue
             else:
-                logger.warning(f"❌ Trigger inválido para job {job_definition.name}: tipo desconocido: {type}")
+                logger.warning(f"❌ Invalid trigger for job {job_definition.name}: unknown type: {type}")
                 continue
             if not skip:
                 scheduler.add_job(
@@ -211,24 +211,24 @@ def _load_jobs(scheduler: BackgroundScheduler):
 
             current_jobs = [job for job in current_jobs if job.id != job_id]
 
-    logger.debug("Quedan %d job(s) sin definir: %s", len(current_jobs), [job.id for job in current_jobs])
+    logger.debug("Remaining %d undefined job(s): %s", len(current_jobs), [job.id for job in current_jobs])
 
-    # Remover jobs que ya no están en la configuración
+    # Remove jobs that are no longer in the configuration
     for job in current_jobs:
         scheduler.remove_job(job.id)
-        logger.info(f"🗑️ Job {job.id} eliminado (ya no está en configuración)")
+        logger.info(f"🗑️ Job {job.id} removed (no longer in configuration)")
 
     _is_startup = False
 
 
-# Instancia global del scheduler
+# Global scheduler instance
 _scheduler: Optional[BackgroundScheduler] = None
 
 
 def _get_scheduler() -> BackgroundScheduler:
     """
-    Obtener instancia global del scheduler.
-    Inicializa con jobs configurados si es la primera vez.
+    Get the global scheduler instance.
+    Initialises with configured jobs on first call.
     """
     global _scheduler
 
@@ -238,39 +238,39 @@ def _get_scheduler() -> BackgroundScheduler:
             max_instances=1,
         )
         _load_jobs(_scheduler)
-        logger.info("📝 Scheduler configurado con jobs")
+        logger.info("📝 Scheduler configured with jobs")
 
     return _scheduler
 
 
 def reload_scheduler():
-    """Recargar jobs desde state y reconfigurar scheduler (sin ejecutar startup_triggers)."""
+    """Reload jobs from state and reconfigure the scheduler (without running startup triggers)."""
     scheduler = _get_scheduler()
     _load_jobs(scheduler)
-    logger.info(f"🔄 Scheduler recargado ({len(scheduler.get_jobs())} job(s))")
+    logger.info(f"🔄 Scheduler reloaded ({len(scheduler.get_jobs())} job(s))")
 
 
 def start_scheduler() -> None:
-    """Iniciar scheduler."""
+    """Start the scheduler."""
     scheduler = _get_scheduler()
     if not scheduler.running:
         scheduler.start()
-        logger.info(f"🚀 Scheduler iniciado con {len(scheduler.get_jobs())} job(s)")
+        logger.info(f"🚀 Scheduler started with {len(scheduler.get_jobs())} job(s)")
     else:
-        logger.debug("Scheduler ya está corriendo")
+        logger.debug("Scheduler is already running")
 
 
 def stop_scheduler() -> None:
-    """Detener scheduler."""
+    """Stop the scheduler."""
     global _scheduler
     if _scheduler and _scheduler.running:
         _scheduler.shutdown(wait=True)
-        logger.info("🛑 Scheduler detenido")
+        logger.info("🛑 Scheduler stopped")
         _scheduler = None
 
 
 def get_jobs_status() -> list:
-    """Obtener estado de todos los jobs."""
+    """Get the status of all jobs."""
     scheduler = _get_scheduler()
     return [
         {
@@ -284,6 +284,6 @@ def get_jobs_status() -> list:
 
 
 def check_scheduler_running() -> bool:
-    """Verificar si el scheduler está corriendo."""
+    """Check whether the scheduler is running."""
     scheduler = _get_scheduler()
     return scheduler.running

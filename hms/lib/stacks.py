@@ -254,8 +254,8 @@ class StackMetadata:
 
     def get_public_ports(self, stack_name: str) -> list["PortMapping"]:
         """
-        Lee x-hms.public_ports del compose y devuelve lista de PortMapping.
-        Sustituye variables ${VAR} usando las vars del stack (MAYÚSCULAS).
+        Read x-hms.public_ports from the compose file and return a list of PortMapping.
+        Substitutes ${VAR} variables using the stack vars (UPPERCASE).
         """
         from hms.lib.router import PortMapping
 
@@ -273,16 +273,16 @@ class StackMetadata:
             protocol = str(entry.get("protocol", "tcp")).lower()
             description = str(entry.get("description", ""))
 
-            # Sustituye ${VAR} usando las vars del stack
+            # Substitute ${VAR} using the stack vars
             raw_port = string.Template(raw_port).safe_substitute(env_vars)
             try:
                 port = int(raw_port)
             except ValueError:
-                logger.warning(f"Stack '{stack_name}': puerto inválido '{raw_port}', omitiendo")
+                logger.warning(f"Stack '{stack_name}': invalid port '{raw_port}', skipping")
                 continue
 
             if protocol not in ("tcp", "udp"):
-                logger.warning(f"Stack '{stack_name}': protocolo '{protocol}' desconocido, omitiendo")
+                logger.warning(f"Stack '{stack_name}': unknown protocol '{protocol}', skipping")
                 continue
 
             result.append(PortMapping(
@@ -295,15 +295,15 @@ class StackMetadata:
 
     def _flatten(self, d: dict, parent_key: str = '') -> dict[str, str]:
         """
-        Aplana un diccionario jerárquico en un diccionario plano con claves unidas por separador.
+        Flatten a hierarchical dictionary into a flat dictionary with keys joined by separator.
 
-        Ejemplo:
+        Example:
             {'infra': {'cloudflare': {'email': 'test@example.com'}}}
             -> {'cloudflare_email': 'test@example.com'}
 
-        :param d: Diccionario a aplanar
-        :param parent_key: Clave padre para recursión
-        :return: Diccionario aplanado
+        :param d: Dictionary to flatten
+        :param parent_key: Parent key for recursion
+        :return: Flattened dictionary
         """
         items = []
         for k, v in d.items():
@@ -318,16 +318,16 @@ class StackMetadata:
 
     def get_stack_vars(self, stack_name: str) -> dict[str, str]:
         """
-        Obtiene variables de la configuración del stack desde config.toml.
-        Combina variables globales y variables específicas del stack.
-        Aplana la estructura jerárquica en variables con prefijos unidos por guiones bajos.
+        Obtain stack configuration variables from config.toml.
+        Combines global variables and stack-specific variables.
+        Flattens the hierarchical structure into variables with underscore-joined prefixes.
 
-        :param stack_name: Nombre del stack
-        :return: Diccionario con variables de entorno
+        :param stack_name: Name of the stack
+        :return: Dictionary of environment variables
         """
         from hms.lib.config import config_manager
 
-        # 1. Variables dinámicas de HMS
+        # 1. Dynamic HMS variables
         env_vars = {
             "STACK_PREFIX": f"hms-{stack_name}",
             "STACK_DATA": get_host_data_dir(stack_name),
@@ -335,17 +335,17 @@ class StackMetadata:
             "HMS_STACK_DATA": get_data_root() / stack_name
         }
 
-        # 2. Variables globales desde config.toml (aplanadas)
+        # 2. Global variables from config.toml (flattened)
         global_config = config_manager.get_global_config()
         flattened_global = self._flatten(global_config)
         for key, value in flattened_global.items():
             env_vars[key.upper()] = str(value)
 
-        # 3. Variables específicas del stack desde config.toml (aplanadas)
+        # 3. Stack-specific variables from config.toml (flattened)
         stack_config = config_manager.get_stack_config(stack_name)
         flattened_stack = self._flatten(stack_config)
         for key, value in flattened_stack.items():
-            if key != "enabled":  # Excluir la propiedad enabled
+            if key != "enabled":  # Exclude the enabled property
                 env_vars[key.upper()] = str(value)
 
         logger.debug(f"Stack '{stack_name}' environment variables: {env_vars}")

@@ -56,7 +56,7 @@ DESCRIPTION:
 
         if not was_running:
             ui.ok(f"Images updated for '{stack_name}' (stack was stopped, not restarted)")
-            notify(f"⬆️ HMS: {stack_name} actualizado", "Nuevas imágenes descargadas (stack parado, no reiniciado)")
+            notify(f"⬆️ HMS: {stack_name} updated", "New images downloaded (stack was stopped, not restarted)")
             return 0
 
         ui.info(f"🔄 Recreating containers for '{stack_name}'...")
@@ -71,11 +71,11 @@ DESCRIPTION:
         healthy = docker_manager.wait_for_healthy(stack_name)
         if healthy:
             ui.ok(f"Stack '{stack_name}' updated and healthy")
-            notify(f"⬆️ HMS: {stack_name} actualizado", "Nuevas imágenes desplegadas ✅")
+            notify(f"⬆️ HMS: {stack_name} updated", "New images deployed ✅")
         else:
             ui.warn(f"Stack '{stack_name}' updated but health check failed or timed out")
             logger.warning("Healthcheck failed/timeout after update of '%s'", stack_name)
-            notify(f"⬆️ HMS: {stack_name} actualizado", "Imágenes desplegadas ⚠️ health check fallido")
+            notify(f"⬆️ HMS: {stack_name} updated", "Images deployed ⚠️ health check failed")
 
         from hms.lib.router import apply_port_forwards_for_stack
         apply_port_forwards_for_stack(stack_name)

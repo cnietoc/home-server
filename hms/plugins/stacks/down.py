@@ -54,12 +54,12 @@ DESCRIPTION:
 
             if result == 0:
                 ui.ok(f"Stack '{stack_name}' stopped successfully")
-                notify("🔴 Stack parado", stack_name)
+                notify("🔴 Stack stopped", stack_name)
                 remove_port_forwards_for_stack(stack_name)
             else:
                 ui.err(f"Failed to stop stack '{stack_name}'")
                 logger.error(f"stack_down failed for '{stack_name}' (exit {result})")
-                notify("❌ Error al parar stack", stack_name)
+                notify("❌ Error stopping stack", stack_name)
         else:
             ui.info(f"ℹ️  Stack '{stack_name}' is not running, nothing to stop.")
             result = docker_manager.stack_down(stack_name)

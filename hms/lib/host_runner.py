@@ -1,11 +1,11 @@
 """
-hms.lib.host_runner — ejecuta comandos del CLI en un contenedor efímero
-clonado del daemon HMS pero con network_mode=host.
+hms.lib.host_runner — runs CLI commands in an ephemeral container cloned
+from the HMS daemon but with network_mode=host.
 
-Útil para operaciones que necesitan ver la LAN como un proceso del host:
-- UPnP IGD (router rechaza peticiones desde IPs de bridge de Docker)
-- mDNS / SSDP / cualquier discovery basado en multicast
-- Ping/traceroute a equipos de la LAN
+Useful for operations that need to see the LAN as a host process:
+- UPnP IGD (router rejects requests from Docker bridge IPs)
+- mDNS / SSDP / any multicast-based discovery
+- Ping/traceroute to LAN devices
 """
 
 import json
@@ -24,7 +24,7 @@ class HostRunnerError(Exception):
 
 
 def is_host_runner() -> bool:
-    """True si este proceso ya corre dentro de un efímero host-mode."""
+    """True if this process is already running inside a host-mode ephemeral container."""
     return bool(os.environ.get(HOST_RUNNER_ENV))
 
 
@@ -52,7 +52,7 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         ).stdout
     except subprocess.CalledProcessError as e:
         raise HostRunnerError(
-            f"No se pudo inspeccionar el contenedor '{DAEMON_CONTAINER}': {e.stderr.strip()}"
+            f"Could not inspect container '{DAEMON_CONTAINER}': {e.stderr.strip()}"
         ) from e
 
     info = json.loads(raw)[0]

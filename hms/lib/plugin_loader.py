@@ -1,5 +1,5 @@
 """
-Cargador unificado de plugins para CLI y scheduler.
+Unified plugin loader for CLI and scheduler.
 """
 
 import importlib.util
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class PluginLoader:
-    """Singleton para cargar y cachear plugins."""
+    """Singleton for loading and caching plugins."""
 
     _instance = None
     _cache: Dict[str, BasePlugin] = {}
@@ -33,19 +33,19 @@ class PluginLoader:
 
     def load(self, plugin_path: str) -> Optional[BasePlugin]:
         """
-        Carga un plugin desde un archivo Python.
-        Utiliza cache automático.
+        Load a plugin from a Python file.
+        Uses automatic caching.
 
         Args:
-            plugin_path: Ruta al archivo del plugin
+            plugin_path: Path to the plugin file
 
         Returns:
-            Instancia del plugin o None si falla
+            Plugin instance or None if loading fails
         """
         if isinstance(plugin_path, Path):
             plugin_path = str(plugin_path)
 
-        # Retornar del cache si existe
+        # Return from cache if present
         if plugin_path in self._cache:
             return self._cache[plugin_path]
 
@@ -57,7 +57,7 @@ class PluginLoader:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            # Encontrar clase concreta de plugin
+            # Find concrete plugin class
             for name, obj in inspect.getmembers(module):
                 if (inspect.isclass(obj) and
                     issubclass(obj, BasePlugin) and
@@ -68,17 +68,17 @@ class PluginLoader:
 
             return None
         except Exception as e:
-            logger.error(f"Error cargando plugin desde {plugin_path}: {e}")
+            logger.error(f"Error loading plugin from {plugin_path}: {e}")
             return None
 
     def discover_stacks(self) -> Dict[str, str]:
-        """Descubre plugins de acciones de stack. {nombre: path}"""
+        """Discover stack action plugins. {name: path}"""
         return self._scan_dir(self.hms_root / "plugins" / "stacks")
 
     def discover_globals(self) -> Dict[str, any]:
         """
-        Descubre plugins globales.
-        Retorna: {comando: path} o {comando: {subcomando: path}}
+        Discover global plugins.
+        Returns: {command: path} or {command: {subcommand: path}}
         """
         common_dir = self.hms_root / "plugins" / "common"
         commands = {}
@@ -86,12 +86,12 @@ class PluginLoader:
         if not common_dir.exists():
             return commands
 
-        # Comandos directos (archivos .py)
+        # Direct commands (.py files)
         for py_file in common_dir.glob("*.py"):
             if not py_file.name.startswith("_"):
                 commands[py_file.stem] = str(py_file)
 
-        # Comandos con categoría (directorios)
+        # Commands with category (directories)
         for category_dir in common_dir.iterdir():
             if category_dir.is_dir() and not category_dir.name.startswith("_"):
                 subcommands = self._scan_dir(category_dir)
@@ -101,7 +101,7 @@ class PluginLoader:
         return commands
 
     def _scan_dir(self, directory: Path) -> Dict[str, str]:
-        """Escanea directorio y retorna {nombre: path}"""
+        """Scan directory and return {name: path}"""
         plugins = {}
         if directory.exists():
             for py_file in directory.glob("*.py"):
@@ -111,5 +111,5 @@ class PluginLoader:
 
 
 def get_plugin_loader() -> PluginLoader:
-    """Obtener instancia singleton."""
+    """Return the singleton instance."""
     return PluginLoader()

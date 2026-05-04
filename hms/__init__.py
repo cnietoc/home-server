@@ -1,6 +1,6 @@
 """
 HMS (Home Server Management System)
-Herramienta de gestión centralizada para home server containerizado.
+Centralized management tool for a containerized home server.
 """
 
 __version__ = "0.1.0"

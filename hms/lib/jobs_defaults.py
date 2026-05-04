@@ -1,12 +1,12 @@
 """
-Definición de jobs por defecto para el scheduler HMS.
-Cada job incluye especificación del plugin, trigger y estado inicial.
+Default job definitions for the HMS scheduler.
+Each job includes the plugin specification, trigger, and initial state.
 """
 
 from copy import deepcopy
 from typing import Dict, Any
 
-# Definición base de jobs por defecto
+# Base definition of default jobs
 DEFAULT_JOBS: Dict[str, Dict[str, Any]] = {
     "update-dns": {
         "enabled": True,
@@ -20,13 +20,13 @@ DEFAULT_JOBS: Dict[str, Dict[str, Any]] = {
         },
         "args": [],
         "meta": {
-            "description": "Actualizar DNS en Cloudflare",
+            "description": "Update DNS records in Cloudflare",
         },
     },
 }
 
 
 def get_default_jobs() -> Dict[str, Dict[str, Any]]:
-    """Obtener una copia de los jobs por defecto para evitar mutaciones accidentales."""
+    """Return a deep copy of the default jobs to avoid accidental mutations."""
     return deepcopy(DEFAULT_JOBS)
 

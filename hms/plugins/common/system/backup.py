@@ -1,8 +1,8 @@
 """
 Plugin: system backup
-Crea backups comprimidos de los datos de todos los stacks y configuración.
-Los datos se leen/escriben via un contenedor Docker root para manejar ficheros
-propiedad de root creados por otros contenedores.
+Creates compressed backups of all stack data and configuration.
+Data is read/written via a root Docker container to handle files
+owned by root that were created by other containers.
 """
 
 import fnmatch
@@ -71,7 +71,7 @@ def _fmt_size(b: int) -> str:
 
 
 class BackupPlugin(GlobalPlugin):
-    """Crear backups comprimidos de stacks e infra."""
+    """Create compressed backups of stacks and infra."""
 
     def __init__(self):
         super().__init__()
@@ -84,52 +84,52 @@ class BackupPlugin(GlobalPlugin):
         return "backup"
 
     def get_description(self) -> str:
-        return "Crear backups comprimidos de stacks e infra"
+        return "Create compressed backups of stacks and infra"
 
     def get_help(self) -> str:
         return """
-Backup - Crear y restaurar backups comprimidos de stacks e infra
+Backup - Create and restore compressed backups of stacks and infra
 
 USAGE:
   hms system backup [COMMAND] [OPTIONS]
 
 COMMANDS:
-  create  (default)   Crear nuevos backups
-  restore             Restaurar desde un backup anterior
-  list                Listar todos los backups disponibles
+  create  (default)   Create new backups
+  restore             Restore from a previous backup
+  list                List all available backups
 
 CREATE OPTIONS:
-  --dry-run           Solo mostrar qué se backuparía sin ejecutar
-  --stack STACK       Hacer backup solo de un stack específico (excluyendo hms)
-  --hms-only          Solo hacer backup de "hms" (infra + config)
-  --force             Ignorar enabled=false y min_interval en [stack.backups]
-  --no-rotate         No eliminar backups antiguos después de crear los nuevos
-  -h, --help          Mostrar esta ayuda
+  --dry-run           Only show what would be backed up, without executing
+  --stack STACK       Back up only a specific stack (excluding hms)
+  --hms-only          Back up only "hms" (infra + config)
+  --force             Ignore enabled=false and min_interval in [stack.backups]
+  --no-rotate         Do not delete old backups after creating new ones
+  -h, --help          Show this help
 
 RESTORE OPTIONS:
-  --file FILE         Archivo backup a restaurar (ej: hms_20240219-143000.tar.gz)
-  --dry-run           Solo mostrar qué se restauraría sin ejecutar
-  -h, --help          Mostrar esta ayuda
+  --file FILE         Backup file to restore (e.g. hms_20240219-143000.tar.gz)
+  --dry-run           Only show what would be restored, without executing
+  -h, --help          Show this help
 
 EXAMPLES - CREATE:
-  hms system backup                        # Backup de todos los stacks + hms
-  hms system backup create --stack media   # Solo backup de stack media
-  hms system backup --hms-only             # Solo backup de hms
-  hms system backup --dry-run              # Ver qué se backuparía
+  hms system backup                        # Back up all stacks + hms
+  hms system backup create --stack media   # Back up only the media stack
+  hms system backup --hms-only             # Back up only hms
+  hms system backup --dry-run              # Preview what would be backed up
 
 EXAMPLES - RESTORE:
-  hms system backup list                   # Listar backups disponibles
-  hms system backup restore --file hms_20240219-143000.tar.gz    # Restaurar backup
-  hms system backup restore --file media_20240219-143000.tar.gz  # Restaurar stack
-  hms system backup restore --file hms_20240219-143000.tar.gz --dry-run  # Simular
+  hms system backup list                   # List available backups
+  hms system backup restore --file hms_20240219-143000.tar.gz    # Restore backup
+  hms system backup restore --file media_20240219-143000.tar.gz  # Restore stack
+  hms system backup restore --file hms_20240219-143000.tar.gz --dry-run  # Dry run
 
 CONFIGURATION:
   [global.backups]
-    max_backups = 5                  # Máximo de backups por grupo (hms, stack)
+    max_backups = 5                  # Maximum backups per group (hms, stack)
 
   [stacks.<stack>.backups]
-    enabled = true                   # Habilitar/deshabilitar backup (default: true)
-    exclude = ["path/pattern"]        # Patterns a excluir (globales)
+    enabled = true                   # Enable/disable backup (default: true)
+    exclude = ["path/pattern"]        # Patterns to exclude (glob-style)
 """
 
     def run(self, args: List[str]) -> int:
@@ -146,17 +146,17 @@ CONFIGURATION:
         elif command == "list":
             return self._run_list(args)
         else:
-            ui.err(f"Comando desconocido: {command}")
+            ui.err(f"Unknown command: {command}")
             print(self.get_help())
             return 1
 
     # ─── Helpers Docker ──────────────────────────────────────────────────────
 
     def _get_host_data_root(self) -> str:
-        """Ruta en el HOST al directorio data/ (necesaria para montar volúmenes Docker)."""
+        """Path on the HOST to the data/ directory (needed to mount Docker volumes)."""
         host_root = config_manager.get_config_value("global.host_root", "")
         if not host_root:
-            raise RuntimeError("global.host_root no está configurado")
+            raise RuntimeError("global.host_root is not configured")
         return os.path.join(host_root, "data")
 
     def _backup_dir_via_docker(
@@ -167,9 +167,9 @@ CONFIGURATION:
         dest_tar: tarfile.TarFile,
     ) -> dict:
         """
-        Crea un tar del directorio data/{stack_name}/ usando un contenedor Alpine root.
-        Streams la salida directamente a dest_tar para evitar bufferizar todo en memoria.
-        Devuelve un dict con stats: files, bytes, top_files.
+        Create a tar of data/{stack_name}/ using a root Alpine container.
+        Streams the output directly to dest_tar to avoid buffering everything in memory.
+        Returns a dict with stats: files, bytes, top_files.
         """
         # Exact paths without wildcards → Docker --exclude so large dirs never cross the pipe.
         # Everything is also checked Python-side with gitignore semantics (correct glob/depth).
@@ -209,7 +209,7 @@ CONFIGURATION:
             proc.stdout.close()
             _, stderr = proc.communicate()
             if proc.returncode != 0:
-                raise RuntimeError(f"Docker tar falló: {stderr.decode().strip()}")
+                raise RuntimeError(f"Docker tar failed: {stderr.decode().strip()}")
 
         all_files.sort(reverse=True)
         return {"files": files, "bytes": total_bytes, "top_files": all_files[:5]}
@@ -221,9 +221,9 @@ CONFIGURATION:
         host_data_root: str,
     ) -> int:
         """
-        Restaura los miembros data/* del backup usando un contenedor Alpine root.
-        Preserva owner, permisos y timestamps originales.
-        Devuelve el número de ficheros restaurados.
+        Restore the data/* members of a backup using a root Alpine container.
+        Preserves original owner, permissions, and timestamps.
+        Returns the number of restored files.
         """
         import io
 
@@ -252,7 +252,7 @@ CONFIGURATION:
 
         if result.returncode != 0:
             raise RuntimeError(
-                f"Docker restore falló (exit {result.returncode}): {result.stderr.decode().strip()}"
+                f"Docker restore failed (exit {result.returncode}): {result.stderr.decode().strip()}"
             )
 
         return count
@@ -271,17 +271,17 @@ CONFIGURATION:
     # ─── List ─────────────────────────────────────────────────────────────────
 
     def _run_list(self, args: List[str]) -> int:
-        """Listar todos los backups disponibles."""
+        """List all available backups."""
         if not self.backup_root.exists():
-            ui.err("Directorio de backups no existe")
+            ui.err("Backup directory does not exist")
             return 1
 
         backup_files = sorted(self.backup_root.glob("*.tar.gz"), reverse=True)
         if not backup_files:
-            ui.info("ℹ️  No hay backups disponibles")
+            ui.info("ℹ️  No backups available")
             return 0
 
-        ui.info(f"📦 Total de backups encontrados: {len(backup_files)}\n")
+        ui.info(f"📦 Total backups found: {len(backup_files)}\n")
 
         backup_groups: Dict[str, List[Path]] = {}
         for backup_file in backup_files:
@@ -303,7 +303,7 @@ CONFIGURATION:
     # ─── Restore ──────────────────────────────────────────────────────────────
 
     def _run_restore(self, args: List[str]) -> int:
-        """Restaurar desde un backup."""
+        """Restore from a backup."""
         backup_file: Optional[str] = None
         dry_run = False
 
@@ -315,7 +315,7 @@ CONFIGURATION:
                 return 0
             elif arg == "--file":
                 if i + 1 >= len(args):
-                    ui.err("--file requiere un valor")
+                    ui.err("--file requires a value")
                     return 1
                 backup_file = args[i + 1]
                 i += 2
@@ -323,39 +323,39 @@ CONFIGURATION:
                 dry_run = True
                 i += 1
             else:
-                ui.warn(f"Argumento desconocido: {arg}")
+                ui.warn(f"Unknown argument: {arg}")
                 i += 1
 
         if not backup_file:
-            ui.err("Se requiere --file con nombre del backup")
-            ui.info("\nPara listar backups disponibles:\n  hms system backup list")
+            ui.err("--file with the backup name is required")
+            ui.info("\nTo list available backups:\n  hms system backup list")
             return 1
 
         backup_path = self.backup_root / backup_file
         if not backup_path.exists():
-            ui.err(f"Backup no encontrado: {backup_file}")
+            ui.err(f"Backup not found: {backup_file}")
             return 1
 
-        ui.info(f"🔄 Restaurando backup: {backup_file}")
+        ui.info(f"🔄 Restoring backup: {backup_file}")
 
         try:
             result = self._restore_backup(backup_path, dry_run)
             if result != 0 and not dry_run:
                 from hms.lib.notify import send as notify
-                notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
+                notify("❌ HMS: restore failed", f"Backup: {backup_file}")
             return result
         except Exception:
             logger.exception("restore_backup failed for '%s'", backup_file)
-            ui.err("Error durante restauración")
+            ui.err("Error during restore")
             if not dry_run:
                 from hms.lib.notify import send as notify
-                notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
+                notify("❌ HMS: restore failed", f"Backup: {backup_file}")
             return 1
 
     def _restore_backup(self, backup_path: Path, dry_run: bool = False) -> int:
-        """Restaura un backup. Datos via Docker (root), config.toml via Python."""
+        """Restore a backup. Data via Docker (root), config.toml via Python."""
         backup_name = backup_path.stem.rsplit("_", 1)[0]
-        ui.info(f"\n📋 Analizando backup: {backup_name}")
+        ui.info(f"\n📋 Analysing backup: {backup_name}")
 
         with tarfile.open(backup_path, "r:gz") as tar:
             members = tar.getmembers()
@@ -380,9 +380,9 @@ CONFIGURATION:
             config_member = next((m for m in members if m.name == "config.toml"), None)
 
             if dry_run:
-                ui.info("\n[DRY-RUN] Se restauraría:")
+                ui.info("\n[DRY-RUN] Would restore:")
                 if has_config:
-                    ui.info("   → config.toml (config actual se guardaría como config.toml.bak)")
+                    ui.info("   → config.toml (current config would be saved as config.toml.bak)")
                 dir_counts: Dict[str, int] = {}
                 for m in data_members:
                     if not m.isdir():
@@ -391,38 +391,38 @@ CONFIGURATION:
                 for dir_path, count in sorted(dir_counts.items()):
                     ui.info(f"   → {dir_path}/ ({count} archivos)")
                 if stack_targets:
-                    ui.info(f"\n[DRY-RUN] Se detendría temporalmente: {', '.join(stack_targets)}")
+                    ui.info(f"\n[DRY-RUN] Would temporarily stop: {', '.join(stack_targets)}")
                 return 0
 
             host_data_root = self._get_host_data_root()
 
-            # Detener stacks antes de restaurar
+            # Stop stacks before restoring
             stopped: Dict[str, bool] = {}
             for stack_name in stack_targets:
                 was_running = self._stop_stack_for_operation(stack_name)
                 if was_running is None:
-                    ui.err(f"No se pudo detener '{stack_name}' para restauración")
+                    ui.err(f"Could not stop '{stack_name}' for restore")
                     for prev_stack, prev_running in stopped.items():
                         self._start_stack_after_operation(prev_stack, prev_running)
                     return 1
                 stopped[stack_name] = was_running
 
             try:
-                # Restaurar datos via Docker (maneja ficheros root)
+                # Restore data via Docker (handles root-owned files)
                 if data_members:
-                    ui.info("\n🐳 Restaurando datos via Docker...")
+                    ui.info("\n🐳 Restoring data via Docker...")
                     restored_count = self._restore_data_via_docker(tar, data_members, host_data_root)
-                    ui.info(f"   ✅ {restored_count} archivos restaurados")
+                    ui.info(f"   ✅ {restored_count} files restored")
 
                 if config_member:
                     target_path = self.project_root / "config.toml"
                     if target_path.exists():
                         shutil.copy2(target_path, self.project_root / "config.toml.bak")
-                        ui.info("   💾 Config actual guardado como config.toml.bak")
+                        ui.info("   💾 Current config saved as config.toml.bak")
                     self._extract_member_to(tar, config_member, target_path)
-                    ui.info("   ✅ Restaurado: config.toml")
+                    ui.info("   ✅ Restored: config.toml")
 
-                ui.ok("Restauración completada")
+                ui.ok("Restore completed")
                 return 0
 
             finally:
@@ -474,7 +474,7 @@ CONFIGURATION:
         return False
 
     def _run_create(self, args: List[str]) -> int:
-        """Crear nuevos backups."""
+        """Create new backups."""
         dry_run = False
         specific_stack: Optional[str] = None
         hms_only = False
@@ -489,7 +489,7 @@ CONFIGURATION:
                 return 0
             elif arg == "--stack":
                 if i + 1 >= len(args):
-                    ui.err("--stack requiere un valor")
+                    ui.err("--stack requires a value")
                     return 1
                 specific_stack = args[i + 1]
                 i += 2
@@ -506,28 +506,28 @@ CONFIGURATION:
                 no_rotate = True
                 i += 1
             else:
-                ui.warn(f"Argumento desconocido: {arg}")
+                ui.warn(f"Unknown argument: {arg}")
                 i += 1
 
-        ui.info("🔄 Iniciando backup...")
+        ui.info("🔄 Starting backup...")
 
         exit_code = 0
         timestamps = []
 
         try:
             if not specific_stack or specific_stack == "hms":
-                ui.info("\n📦 Creando backup de 'hms' (infra + config)...")
+                ui.info("\n📦 Creating backup of 'hms' (infra + config)...")
                 min_h = self._min_backup_interval_h()
                 hours = self._hours_since_last_backup("hms")
                 if hours is not None and hours < min_h and not force:
-                    ui.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                    ui.info(f"   ⏭️  Skipping (last backup {hours:.1f}h ago, minimum {min_h:.0f}h)")
                 elif dry_run:
-                    ui.info("   [DRY-RUN] Se crearía: backups/hms_*.tar.gz")
-                    ui.info("   [DRY-RUN] Se detendría temporalmente: infra")
+                    ui.info("   [DRY-RUN] Would create: backups/hms_*.tar.gz")
+                    ui.info("   [DRY-RUN] Would temporarily stop: infra")
                 else:
                     infra_was_running = self._stop_stack_for_operation("infra")
                     if infra_was_running is None:
-                        ui.err("No se pudo detener 'infra' para backup")
+                        ui.err("Could not stop 'infra' for backup")
                         exit_code = 1
                     else:
                         try:
@@ -537,7 +537,7 @@ CONFIGURATION:
                                 timestamps.append(("hms", timestamp))
                                 self._log_backup_stats("hms", timestamp, stats)
                             else:
-                                ui.err("Falló crear backup de 'hms'")
+                                ui.err("Failed to create 'hms' backup")
                                 exit_code = 1
                         finally:
                             if self._start_stack_after_operation("infra", infra_was_running) != 0:
@@ -554,35 +554,35 @@ CONFIGURATION:
                     backup_config = config_manager.get_stack_backup_config(stack_name)
                     enabled = backup_config.get("enabled", True)
                     if not enabled and not force:
-                        ui.info(f"⏭️  Saltando stack '{stack_name}' (deshabilitado en config)")
+                        ui.info(f"⏭️  Skipping stack '{stack_name}' (disabled in config)")
                         continue
 
                     if not (self.data_root / stack_name).exists():
-                        ui.info(f"⏭️  Saltando stack '{stack_name}' (data/ no existe)")
+                        ui.info(f"⏭️  Skipping stack '{stack_name}' (data/ does not exist)")
                         continue
 
-                    ui.info(f"\n📦 Creando backup de stack '{stack_name}'...")
+                    ui.info(f"\n📦 Creating backup of stack '{stack_name}'...")
 
                     last_backup = self._last_backup_path(stack_name)
                     if last_backup is not None and not force:
                         hours = (datetime.now() - datetime.fromtimestamp(last_backup.stat().st_mtime)).total_seconds() / 3600
                         if hours < min_h:
-                            ui.info(f"   ⏭️  Saltando (último backup hace {hours:.1f}h, mínimo {min_h:.0f}h)")
+                            ui.info(f"   ⏭️  Skipping (last backup {hours:.1f}h ago, minimum {min_h:.0f}h)")
                             continue
                         if not self._data_changed_since_backup(stack_name, last_backup):
-                            ui.info(f"   ⏭️  Saltando (sin cambios desde el último backup)")
+                            ui.info(f"   ⏭️  Skipping (no changes since last backup)")
                             continue
 
                     if dry_run:
-                        ui.info(f"   [DRY-RUN] Se crearía: backups/{stack_name}_*.tar.gz")
-                        ui.info(f"   [DRY-RUN] Se detendría temporalmente: {stack_name}")
+                        ui.info(f"   [DRY-RUN] Would create: backups/{stack_name}_*.tar.gz")
+                        ui.info(f"   [DRY-RUN] Would temporarily stop: {stack_name}")
                         exclude_patterns = backup_config.get("exclude", [])
                         if exclude_patterns:
                             logger.debug("   [DRY-RUN] Excluyendo: %s", exclude_patterns)
                     else:
                         was_running = self._stop_stack_for_operation(stack_name)
                         if was_running is None:
-                            ui.err(f"No se pudo detener '{stack_name}' para backup")
+                            ui.err(f"Could not stop '{stack_name}' for backup")
                             exit_code = 1
                             continue
                         try:
@@ -592,30 +592,30 @@ CONFIGURATION:
                                 timestamps.append((stack_name, timestamp))
                                 self._log_backup_stats(stack_name, timestamp, stats)
                             else:
-                                ui.err(f"Falló crear backup de '{stack_name}'")
+                                ui.err(f"Failed to create backup for '{stack_name}'")
                                 exit_code = 1
                         finally:
                             if self._start_stack_after_operation(stack_name, was_running) != 0:
                                 exit_code = 1
 
             if not dry_run and not no_rotate:
-                ui.info("\n🔄 Rotando backups antiguos...")
+                ui.info("\n🔄 Rotating old backups...")
                 self._rotate_backups()
 
             if dry_run:
-                ui.ok("[DRY-RUN] Simulación completada (sin cambios reales)")
+                ui.ok("[DRY-RUN] Simulation completed (no real changes)")
             else:
-                ui.ok(f"Backup completado. {len(timestamps)} backup(s) creado(s)")
+                ui.ok(f"Backup completed. {len(timestamps)} backup(s) created")
 
         except Exception:
             logger.exception("backup failed")
-            ui.err("Error durante backup")
+            ui.err("Error during backup")
             return 1
 
         return exit_code
 
     def _create_hms_backup(self) -> Optional[tuple]:
-        """Backup de infra (via Docker) + config.toml (via Python). Devuelve (timestamp, stats)."""
+        """Backup of infra (via Docker) + config.toml (via Python). Returns (timestamp, stats)."""
         try:
             host_data_root = self._get_host_data_root()
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -634,7 +634,7 @@ CONFIGURATION:
                     stats["bytes"] += dir_stats["bytes"]
                     stats["top_files"].extend(dir_stats["top_files"])
                 else:
-                    ui.warn("data/infra/ no existe, saltando")
+                    ui.warn("data/infra/ does not exist, skipping")
 
                 if config_file.exists():
                     try:
@@ -644,7 +644,7 @@ CONFIGURATION:
                         stats["bytes"] += cfg_size
                         stats["top_files"].append((cfg_size, "config.toml"))
                     except (PermissionError, OSError) as e:
-                        ui.warn(f"No se pudo incluir 'config.toml': {e}")
+                        ui.warn(f"Could not include 'config.toml': {e}")
 
                 self._add_manifest_to_tar(tar, self._create_manifest("hms", []))
 
@@ -654,11 +654,11 @@ CONFIGURATION:
             return timestamp, stats
 
         except Exception:
-            logger.exception("   Error creando backup de hms")
+            logger.exception("   Error creating hms backup")
             return None
 
     def _create_stack_backup(self, stack_name: str) -> Optional[tuple]:
-        """Backup de un stack via Docker. Devuelve (timestamp, stats)."""
+        """Backup of a stack via Docker. Returns (timestamp, stats)."""
         try:
             host_data_root = self._get_host_data_root()
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -676,7 +676,7 @@ CONFIGURATION:
             return timestamp, stats
 
         except Exception:
-            logger.exception(f"   Error creando backup de {stack_name}")
+            logger.exception(f"   Error creating backup for {stack_name}")
             return None
 
     def _log_backup_stats(self, name: str, timestamp: str, stats: dict) -> None:
@@ -685,10 +685,10 @@ CONFIGURATION:
         compressed = stats.get("compressed_bytes", 0)
         top_files = stats.get("top_files", [])
 
-        ui.ok(f"Backup de '{name}' completado: {name}_{timestamp}.tar.gz")
-        ui.info(f"   {files} fichero(s)  ·  {_fmt_size(raw)} sin comprimir  →  {_fmt_size(compressed)} en disco")
+        ui.ok(f"Backup of '{name}' completed: {name}_{timestamp}.tar.gz")
+        ui.info(f"   {files} file(s)  ·  {_fmt_size(raw)} uncompressed  →  {_fmt_size(compressed)} on disk")
         if top_files:
-            ui.info("   Ficheros más grandes:")
+            ui.info("   Largest files:")
             for size, fname in top_files:
                 ui.info(f"     {_fmt_size(size):>10}  {fname}")
 
@@ -697,9 +697,9 @@ CONFIGURATION:
     def _create_manifest(self, name: str, exclude_patterns: List[str]) -> str:
         return f"""BACKUP MANIFEST
 ===============
-Nombre: {name}
-Fecha creación: {datetime.now().isoformat()}
-Patrón exclusión: {exclude_patterns if exclude_patterns else 'ninguno'}
+Name: {name}
+Creation date: {datetime.now().isoformat()}
+Exclusion patterns: {exclude_patterns if exclude_patterns else 'none'}
 """.strip()
 
     def _add_manifest_to_tar(self, tar: tarfile.TarFile, manifest_content: str):
@@ -729,28 +729,28 @@ Patrón exclusión: {exclude_patterns if exclude_patterns else 'ninguno'}
                     logger.info("rotated out: %s", backup_file.name)
 
         except Exception:
-            logger.exception("Error durante rotación de backups")
+            logger.exception("Error during backup rotation")
 
     # ─── Stack lifecycle ───────────────────────────────────────────────────────
 
     def _start_stack_after_operation(self, stack_name: str, was_running: bool) -> int:
         if not was_running:
             return 0
-        ui.info(f"🟢 Reiniciando stack '{stack_name}'...")
+        ui.info(f"🟢 Restarting stack '{stack_name}'...")
         result = docker_manager.stack_up(stack_name)
         if result == 0:
-            ui.ok(f"Stack '{stack_name}' reanudado")
+            ui.ok(f"Stack '{stack_name}' resumed")
         else:
-            ui.err(f"No se pudo reanudar '{stack_name}'")
+            ui.err(f"Could not resume '{stack_name}'")
         return result
 
     def _stop_stack_for_operation(self, stack_name: str) -> Optional[bool]:
         current_status = docker_manager.get_stack_status(stack_name)
         if current_status in ["running", "partial"]:
-            ui.info(f"🔴 Deteniendo stack '{stack_name}'...")
+            ui.info(f"🔴 Stopping stack '{stack_name}'...")
             result = docker_manager.stack_down(stack_name)
             if result != 0:
-                ui.err(f"Falló detener '{stack_name}'")
+                ui.err(f"Failed to stop '{stack_name}'")
                 return None
             return True
         return False

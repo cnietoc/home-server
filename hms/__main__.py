@@ -24,7 +24,7 @@ def main():
         handle_complete(sys.argv[2:])
         sys.exit(0)
 
-    # Consumir -v/-vv antes de parsear el resto de args
+    # Consume -v/-vv before parsing the rest of the args
     args = sys.argv[1:]
     if "-vv" in args:
         verbose = 2
@@ -35,7 +35,7 @@ def main():
     else:
         verbose = 0
 
-    # Resolver nivel de log: -vv > -v > HMS_LOG_LEVEL > config.toml
+    # Resolve log level: -vv > -v > HMS_LOG_LEVEL > config.toml
     base_level = config_manager.get_config_value("global.log_level").upper()
     env_level = os.environ.get("HMS_LOG_LEVEL", "").upper()
     if verbose >= 2:
@@ -59,7 +59,7 @@ def main():
     )
     config_manager.load_env_config()
 
-    cmd_str = " ".join(args) if args else "(sin args)"
+    cmd_str = " ".join(args) if args else "(no args)"
     _cli_event_logger.info("▶ CLI start: %s", cmd_str)
     t0 = time.monotonic()
     exit_code = 1

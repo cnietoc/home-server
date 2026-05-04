@@ -1,6 +1,6 @@
 """
 Plugin: system refresh-port-forwards
-Refresca mapeos de puertos en el router via UPnP IGD o NAT-PMP.
+Refreshes port mappings on the router via UPnP IGD or NAT-PMP.
 """
 
 import logging
@@ -13,50 +13,50 @@ logger = logging.getLogger(__name__)
 
 
 class RefreshPortForwardsPlugin(GlobalPlugin):
-    """Refrescar port-forwards UPnP/NAT-PMP en el router."""
+    """Refresh UPnP/NAT-PMP port-forwards on the router."""
 
     def get_name(self) -> str:
         return "refresh-port-forwards"
 
     def get_description(self) -> str:
-        return "Refrescar port-forwards UPnP/NAT-PMP en el router"
+        return "Refresh UPnP/NAT-PMP port-forwards on the router"
 
     def get_help(self) -> str:
         return """
-refresh-port-forwards - Refrescar port-forwards en el router
+refresh-port-forwards - Refresh port-forwards on the router
 
 USAGE:
   hms system refresh-port-forwards [OPTIONS]
 
 DESCRIPTION:
-  Reconcilia los mapeos de puertos del router con los declarados en
-  x-hms.public_ports de cada stack habilitado. Añade los que faltan y
-  refresca los existentes para renovar el lease UPnP.
+  Reconciles the router's port mappings with those declared in
+  x-hms.public_ports for each enabled stack. Adds missing entries and
+  refreshes existing ones to renew UPnP leases.
 
-  Este comando se ejecuta automáticamente al arrancar HMS y cada 30 min.
+  This command runs automatically at HMS startup and every 30 min.
 
 OPTIONS:
-  --dry-run     Solo mostrar qué cambios se harían, sin aplicarlos
-  --list        Listar mapeos activos en el router
-  --prune       Eliminar del router mapeos que ya no estén declarados
-  -v, --verbose Mostrar información detallada
-  -h, --help    Mostrar esta ayuda
+  --dry-run     Only show what changes would be made, without applying them
+  --list        List active mappings on the router
+  --prune       Remove from the router mappings that are no longer declared
+  -v, --verbose Show detailed information
+  -h, --help    Show this help
 
-CONFIGURACIÓN:
+CONFIGURATION:
   [global]
-  host_ip = "192.168.X.X"   # IP del host (requerido; se autoconfigura en `hms install`)
+  host_ip = "192.168.X.X"   # Host IP (required; auto-configured by `hms install`)
 
   [router]
   enabled        = true
   backend        = "upnp"   # "upnp" | "natpmp" | "none"
-  gateway_ip     = ""       # IP del router (vacío = autodetección)
-  lease_duration = "3600"   # segundos
+  gateway_ip     = ""       # Router IP (empty = auto-detect)
+  lease_duration = "3600"   # seconds
 
-EJEMPLOS:
-  hms system refresh-port-forwards              # Reconciliar
-  hms system refresh-port-forwards --list       # Ver estado del router
-  hms system refresh-port-forwards --dry-run    # Ver qué cambiaría
-  hms system refresh-port-forwards --prune      # Limpiar mapeos obsoletos
+EXAMPLES:
+  hms system refresh-port-forwards              # Reconcile
+  hms system refresh-port-forwards --list       # View router state
+  hms system refresh-port-forwards --dry-run    # Preview changes
+  hms system refresh-port-forwards --prune      # Remove stale mappings
 """
 
     def run(self, args: List[str]) -> int:
@@ -88,13 +88,13 @@ EJEMPLOS:
             elif arg == "--stack":
                 i += 1
                 if i >= len(args):
-                    ui.err("--stack requiere un argumento")
+                    ui.err("--stack requires an argument")
                     return 1
                 stack_name = args[i]
             elif arg == "--remove":
                 remove = True
             else:
-                ui.err(f"Argumento desconocido: {arg}")
+                ui.err(f"Unknown argument: {arg}")
                 return 1
             i += 1
 
@@ -114,7 +114,7 @@ EJEMPLOS:
 
         cfg = config_manager.get_router_config()
         if not cfg.get("enabled", True):
-            ui.info("ℹ️  Port-forwarding desactivado (router.enabled = false)")
+            ui.info("ℹ️  Port-forwarding disabled (router.enabled = false)")
             return 0
 
         try:
@@ -124,7 +124,7 @@ EJEMPLOS:
             logger.error("Router connect failed: %s", e)
             return 1
         except Exception:
-            ui.err("Error inesperado al conectar con el router")
+            ui.err("Unexpected error connecting to router")
             logger.exception("Router connect failed")
             return 1
 
@@ -137,21 +137,21 @@ EJEMPLOS:
         try:
             mappings = client.list_mappings()
         except Exception:
-            ui.err("No se pudieron listar los mapeos del router")
+            ui.err("Could not list router mappings")
             logger.exception("list_mappings failed")
             return 1
 
         if not mappings:
-            ui.info("ℹ️  No hay mapeos activos (o el backend no soporta enumeración)")
+            ui.info("ℹ️  No active mappings (or the backend does not support enumeration)")
             return 0
 
         try:
             ext_ip = client.get_external_ip()
-            ui.info(f"🌐 IP pública: {ext_ip}")
+            ui.info(f"🌐 Public IP: {ext_ip}")
         except Exception:
             pass
 
-        ui.info(f"📋 Mapeos activos en el router ({len(mappings)}):")
+        ui.info(f"📋 Active mappings on the router ({len(mappings)}):")
         ui.info("")
         for m in mappings:
             port = m.get("ext_port", "?")
@@ -173,12 +173,12 @@ EJEMPLOS:
         desired = get_desired_mappings(exclude_stacks=exclude)
 
         if not desired:
-            ui.info("ℹ️  Ningún stack tiene public_ports declarados")
+            ui.info("ℹ️  No stack has public_ports declared")
             return 0
 
         lan_ip = config_manager.get_global_config().get("host_ip", "")
         if not lan_ip:
-            ui.err("global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
+            ui.err("global.host_ip is not configured. Run `hms install` or add it to config.toml.")
             return 1
         lease = int(cfg.get("lease_duration", 3600))
 
@@ -192,7 +192,7 @@ EJEMPLOS:
             ui.info("")
 
         if dry_run:
-            ui.info("🔥 Modo DRY-RUN: no se aplicarán cambios")
+            ui.info("🔥 DRY-RUN mode: no changes will be applied")
             ui.info("")
 
         processed, failed = reconcile_port_forwards(

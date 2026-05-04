@@ -66,18 +66,18 @@ DESCRIPTION:
         if result != 0:
             ui.err(f"Failed to start stack '{stack_name}'")
             logger.error(f"stack_up failed for '{stack_name}' (exit {result})")
-            notify("❌ Error al arrancar stack", stack_name)
+            notify("❌ Error starting stack", stack_name)
             return result
 
         ui.info(f"⏳ Waiting for '{stack_name}' to be healthy...")
         healthy = docker_manager.wait_for_healthy(stack_name)
         if healthy:
             ui.ok(f"Stack '{stack_name}' is up and healthy")
-            notify("🟢 Stack arrancado", stack_name)
+            notify("🟢 Stack started", stack_name)
         else:
             ui.warn(f"Stack '{stack_name}' started but health check failed or timed out")
             logger.warning(f"Healthcheck failed/timeout for '{stack_name}'")
-            notify("⚠️ Stack arrancado (healthcheck fallido)", stack_name)
+            notify("⚠️ Stack started (healthcheck failed)", stack_name)
 
         apply_port_forwards_for_stack(stack_name)
 

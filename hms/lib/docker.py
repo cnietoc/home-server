@@ -1,6 +1,6 @@
 """
-Módulo para interactuar con Docker Compose.
-Gestión de ciclo de vida de stacks.
+Module for interacting with Docker Compose.
+Stack lifecycle management.
 """
 
 import json
@@ -18,20 +18,20 @@ logger = logging.getLogger(__name__)
 
 
 class DockerComposeManager:
-    """Gestor de operaciones Docker Compose."""
+    """Docker Compose operations manager."""
 
     def _format_docker_error(self, stderr: str) -> None:
         """
-        Formatea y muestra los errores de Docker Compose de forma legible.
+        Formats and displays Docker Compose errors in a readable way.
 
-        :param stderr: Salida de error de docker compose
+        :param stderr: Error output from docker compose
         """
         if not stderr:
             return
 
         lines = stderr.strip().split('\n')
 
-        # Agrupar warnings y errores
+        # Group warnings and errors
         warnings = []
         errors = []
         other = []
@@ -41,16 +41,16 @@ class DockerComposeManager:
             if not line:
                 continue
 
-            # Detectar warnings de variables no definidas
+            # Detect warnings about undefined variables
             if 'WARN' in line and 'variable is not set' in line:
-                # Extraer el nombre de la variable
+                # Extract the variable name
                 if 'The "' in line:
                     try:
-                        # Formato: msg="The \"VARIABLE_NAME\" variable is not set..."
+                        # Format: msg="The \"VARIABLE_NAME\" variable is not set..."
                         parts = line.split('The ')
                         if len(parts) > 1:
                             var_part = parts[1]
-                            # Buscar hasta " variable
+                            # Look for " variable
                             if '" variable' in var_part or '\\" variable' in var_part:
                                 var_name = var_part.split('" variable')[0].strip('"\\')
                                 warnings.append(var_name)
@@ -59,42 +59,42 @@ class DockerComposeManager:
                         else:
                             other.append(line)
                     except (IndexError, AttributeError):
-                        # Si falla el parsing, agregar la línea completa
+                        # If parsing fails, add the full line
                         other.append(line)
                 else:
                     other.append(line)
 
-        # Mostrar warnings agrupados
+        # Display grouped warnings
         if warnings:
             logger.warning(f"⚠️  Missing environment variables ({len(warnings)}):")
-            for var in warnings[:5]:  # Mostrar solo las primeras 5
+            for var in warnings[:5]:  # Show only the first 5
                 logger.warning(f"   - {var}")
             if len(warnings) > 5:
                 logger.warning(f"   ... and {len(warnings) - 5} more")
 
-        # Mostrar errores críticos
+        # Display critical errors
         if errors:
             logger.error("❌ Critical errors:")
             for error in errors:
-                # Limpiar el error de timestamps
+                # Strip timestamps from the error
                 clean_error = error
                 if 'time=' in clean_error:
                     clean_error = ' '.join([part for part in clean_error.split() if not part.startswith('time=')])
                 logger.error(f"   {clean_error}")
 
-        # Mostrar otras líneas importantes
+        # Display other important lines
         if other:
             for line in other:
                 logger.error(f"   {line}")
 
     def _run_predeploy(self, stack_name: str, stack_dir: Path, env: Dict[str, str]) -> int:
         """
-        Ejecuta el script pre-deploy si existe (pre-deploy.sh o pre-deploy.py).
+        Runs the pre-deploy script if it exists (pre-deploy.sh or pre-deploy.py).
 
-        :param stack_name: Nombre del stack
-        :param stack_dir: Directorio del stack
-        :param env: Variables de entorno
-        :return: Código de retorno (0 = éxito o no existe script)
+        :param stack_name: Stack name
+        :param stack_dir: Stack directory
+        :param env: Environment variables
+        :return: Return code (0 = success or no script found)
         """
         predeploy_sh = stack_dir / "pre-deploy.sh"
         predeploy_py = stack_dir / "pre-deploy.py"
@@ -115,7 +115,7 @@ class DockerComposeManager:
 
         if not script_to_run:
             logger.debug(f"No pre-deploy script found for stack '{stack_name}'")
-            return 0  # No hay script, continuar normalmente
+            return 0  # No script, continue normally
 
         try:
             result = subprocess.run(
@@ -130,7 +130,7 @@ class DockerComposeManager:
             if result.returncode == 0:
                 logger.debug(f"Pre-deploy script completed successfully")
                 if result.stdout:
-                    # Mostrar stdout del script
+                    # Display stdout from the script
                     for line in result.stdout.strip().split('\n'):
                         if line.strip():
                             logger.info(f"   {line}")
@@ -156,10 +156,10 @@ class DockerComposeManager:
 
     def _get_compose_file(self, stack_name: str) -> Optional[Path]:
         """
-        Encuentra el archivo compose.yml o docker-compose.yml.
+        Finds the compose.yml or docker-compose.yml file.
 
-        :param stack_name: Nombre del stack
-        :return: Path al archivo compose o None
+        :param stack_name: Stack name
+        :return: Path to the compose file or None
         """
         stack_dir = get_stack_dir(stack_name)
 
@@ -175,9 +175,9 @@ class DockerComposeManager:
 
     def get_stack_status(self, stack_name: str) -> str:
         """
-        Obtiene el estado de un stack.
+        Returns the status of a stack.
 
-        :param stack_name: Nombre del stack
+        :param stack_name: Stack name
         :return: 'running', 'stopped', 'partial', 'not-found'
         """
         compose_file = self._get_compose_file(stack_name)
@@ -200,11 +200,11 @@ class DockerComposeManager:
                 hidden=True
             )
 
-            # Parsear salida JSON
+            # Parse JSON output
             if not output:
                 return "stopped"
 
-            # Puede ser una lista de objetos JSON, uno por línea
+            # May be a list of JSON objects, one per line
             containers = []
             for line in output.split('\n'):
                 if line.strip():
@@ -216,7 +216,7 @@ class DockerComposeManager:
             if not containers:
                 return "stopped"
 
-            # Verificar estados
+            # Check states
             running_count = sum(1 for c in containers if c.get("State") == "running")
             total_count = len(containers)
 
@@ -236,10 +236,10 @@ class DockerComposeManager:
 
     def _get_stack_containers(self, stack_name: str) -> list[dict]:
         """
-        Obtiene la lista de contenedores para un stack.
+        Returns the list of containers for a stack.
 
-        :param stack_name: Nombre del stack
-        :return: Lista de diccionarios con información de los contenedores
+        :param stack_name: Stack name
+        :return: List of dictionaries with container information
         """
         compose_file = self._get_compose_file(stack_name)
         if not compose_file:
@@ -272,10 +272,10 @@ class DockerComposeManager:
 
     def get_stack_container_counts(self, stack_name: str) -> dict:
         """
-        Obtiene el conteo de contenedores por estado para un stack.
+        Returns the container count by state for a stack.
 
-        :param stack_name: Nombre del stack
-        :return: Diccionario con conteos de contenedores en ejecución, detenidos y total
+        :param stack_name: Stack name
+        :return: Dictionary with counts of running, stopped, and total containers
         """
         containers = self._get_stack_containers(stack_name)
         if not containers:
@@ -287,10 +287,10 @@ class DockerComposeManager:
 
     def get_stack_service_counts(self, stack_name: str) -> dict[str, dict]:
         """
-        Obtiene el conteo de contenedores por servicio para un stack.
+        Returns the container count per service for a stack.
 
-        :param stack_name: Nombre del stack
-        :return: Diccionario con conteos de contenedores por servicio
+        :param stack_name: Stack name
+        :return: Dictionary with container counts per service
         """
         containers = self._get_stack_containers(stack_name)
         if not containers:
@@ -321,13 +321,13 @@ class DockerComposeManager:
 
     def _exec(self, command: list, stack_name: str, env: Optional[dict], hidden: bool = False) -> Tuple[int, str]:
         """
-        Ejecuta un comando docker compose en el directorio del stack.
+        Executes a docker compose command in the stack directory.
 
-        :param command: Comando como lista
-        :param stack_name: Nombre del stack
-        :param env: Variables de entorno
-        :param hidden: Si es True, no muestra la salida por consola
-        :return: Salida estándar del comando
+        :param command: Command as a list
+        :param stack_name: Stack name
+        :param env: Environment variables
+        :param hidden: If True, do not print output to the console
+        :return: Standard output of the command
         """
         stack_dir = get_stack_dir(stack_name)
 
@@ -375,12 +375,11 @@ class DockerComposeManager:
 
     def stack_up(self, stack_name: str) -> int:
         """
-        Levanta un stack con docker compose up -d.
-        Detecta cambios automáticamente y solo recrea lo necesario.
+        Starts a stack with docker compose up -d.
+        Automatically detects changes and only recreates what is necessary.
 
-        :param stack_name: Nombre del stack
-        :param env_vars: Variables de entorno adicionales
-        :return: Código de retorno (0 = éxito)
+        :param stack_name: Stack name
+        :return: Return code (0 = success)
         """
         stack_dir = get_stack_dir(stack_name)
         compose_file = self._get_compose_file(stack_name)
@@ -390,20 +389,20 @@ class DockerComposeManager:
             return 1
 
         try:
-            # Preparar entorno
+            # Prepare environment
             import os
             env = os.environ.copy()
             env_vars = stack_metadata.get_stack_vars(stack_name)
             if env_vars:
                 env.update(env_vars)
 
-            # Ejecutar pre-deploy script si existe
+            # Run pre-deploy script if it exists
             predeploy_result = self._run_predeploy(stack_name, stack_dir, env)
             if predeploy_result != 0:
                 logger.error(f"Pre-deploy script failed for stack '{stack_name}'")
                 return predeploy_result
 
-            # Ejecutar docker compose up -d con salida en tiempo real
+            # Run docker compose up -d with real-time output
             logger.debug(f"Running: docker compose up -d in {stack_dir}")
 
             result, output = self._exec(
@@ -422,10 +421,10 @@ class DockerComposeManager:
 
     def stack_down(self, stack_name: str) -> int:
         """
-        Para un stack con docker compose down.
+        Stops a stack with docker compose down.
 
-        :param stack_name: Nombre del stack
-        :return: Código de retorno (0 = éxito)
+        :param stack_name: Stack name
+        :return: Return code (0 = success)
         """
         stack_dir = get_stack_dir(stack_name)
         compose_file = self._get_compose_file(stack_name)
@@ -434,7 +433,7 @@ class DockerComposeManager:
             return 1
 
         try:
-            # Ejecutar docker compose down con salida en tiempo real
+            # Run docker compose down with real-time output
             logger.debug(f"Running: docker compose down in {stack_dir}")
 
             env = os.environ.copy()
@@ -458,7 +457,7 @@ class DockerComposeManager:
             return 1
 
     def _get_stack_image_ids(self, stack_name: str, env: dict) -> dict:
-        """Obtiene {imagen: id} de las imágenes definidas en el compose del stack."""
+        """Returns {image: id} for images defined in the stack's compose file."""
         _, images_output = self._exec(
             ["docker", "compose", "config", "--images"],
             stack_name,
@@ -478,10 +477,10 @@ class DockerComposeManager:
 
     def stack_pull(self, stack_name: str) -> tuple[int, bool]:
         """
-        Descarga las últimas imágenes de un stack con docker compose pull.
+        Pulls the latest images for a stack with docker compose pull.
 
-        :param stack_name: Nombre del stack
-        :return: (exit_code, has_updates) — has_updates es True si se bajó alguna imagen nueva
+        :param stack_name: Stack name
+        :return: (exit_code, has_updates) — has_updates is True if any new image was downloaded
         """
         compose_file = self._get_compose_file(stack_name)
         if not compose_file:
@@ -514,12 +513,12 @@ class DockerComposeManager:
 
     def stack_logs(self, stack_name: str, args: list = None) -> int:
         """
-        Muestra los logs de un stack usando docker compose logs.
-        Soporta pasar todos los argumentos de docker compose logs.
+        Shows logs for a stack using docker compose logs.
+        Supports passing all docker compose logs arguments.
 
-        :param stack_name: Nombre del stack
-        :param args: Argumentos adicionales para docker compose logs (ej: ['-f', '--tail=100'])
-        :return: Código de retorno (0 = éxito)
+        :param stack_name: Stack name
+        :param args: Additional arguments for docker compose logs (e.g. ['-f', '--tail=100'])
+        :return: Return code (0 = success)
         """
         if args is None:
             args = []
@@ -532,13 +531,13 @@ class DockerComposeManager:
             return 1
 
         try:
-            # Preparar entorno
+            # Prepare environment
             env = os.environ.copy()
             env_vars = stack_metadata.get_stack_vars(stack_name)
             if env_vars:
                 env.update(env_vars)
 
-            # Construir comando: docker compose logs [args]
+            # Build command: docker compose logs [args]
             command = ["docker", "compose", "logs"] + args
 
             logger.debug(f"Running: {' '.join(command)} in {stack_dir}")

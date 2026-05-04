@@ -1,16 +1,16 @@
 """
-Gestión de port-forwarding automático en el router (UPnP IGD / NAT-PMP).
+Automatic port-forwarding management on the router (UPnP IGD / NAT-PMP).
 
-Expone:
-  - PortMapping           — descripción de un mapeo deseado
-  - RouterClient          — Protocol común a todos los backends
-  - UpnpClient            — Backend UPnP IGD (miniupnpc)
-  - NatpmpClient          — Backend NAT-PMP / PCP (libnatpmp, lazy-import)
-  - NoopClient            — Backend "none", no-op
-  - get_router_client()   — Factory que lee [router] de config
-  - detect_lan_ip()       — Detecta IP LAN del host
-  - apply_port_forwards_for_stack()  — Aplica forwards para un stack
-  - remove_port_forwards_for_stack() — Elimina forwards de un stack
+Exposes:
+  - PortMapping           — description of a desired mapping
+  - RouterClient          — Protocol common to all backends
+  - UpnpClient            — UPnP IGD backend (miniupnpc)
+  - NatpmpClient          — NAT-PMP / PCP backend (libnatpmp, lazy-import)
+  - NoopClient            — "none" backend, no-op
+  - get_router_client()   — Factory that reads [router] from config
+  - detect_lan_ip()       — Detects the host's LAN IP
+  - apply_port_forwards_for_stack()  — Applies forwards for a stack
+  - remove_port_forwards_for_stack() — Removes forwards for a stack
 """
 
 import logging
@@ -25,7 +25,7 @@ class RouterError(Exception):
 
 
 class RouterConflictError(RouterError):
-    """Puerto ya mapeado por una regla estática o cliente externo."""
+    """Port already mapped by a static rule or external client."""
     pass
 
 
@@ -39,19 +39,19 @@ class PortMapping(NamedTuple):
 @runtime_checkable
 class RouterClient(Protocol):
     def list_mappings(self) -> list[dict]:
-        """Devuelve mapeos activos del router (formato libre, para mostrar al usuario)."""
+        """Returns active mappings on the router (free format, for display to the user)."""
         ...
 
     def add_mapping(self, m: PortMapping, lan_ip: str, lease: int) -> None:
-        """Añade o refresca un mapeo. Idempotente si ya existe."""
+        """Adds or refreshes a mapping. Idempotent if it already exists."""
         ...
 
     def delete_mapping(self, port: int, protocol: str) -> bool:
-        """Elimina un mapeo si existe; no-op si no existe. Devuelve True si se eliminó."""
+        """Removes a mapping if it exists; no-op if it does not. Returns True if removed."""
         ...
 
     def get_external_ip(self) -> str:
-        """Devuelve la IP pública WAN del router."""
+        """Returns the router's public WAN IP."""
         ...
 
 
@@ -60,7 +60,7 @@ class RouterClient(Protocol):
 # ---------------------------------------------------------------------------
 
 class UpnpClient:
-    """Backend UPnP IGD usando miniupnpc."""
+    """UPnP IGD backend using miniupnpc."""
 
     def __init__(self, config: dict):
         self._lease = int(config.get("lease_duration", 3600))
@@ -74,16 +74,16 @@ class UpnpClient:
             import miniupnpc
         except ImportError:
             raise RouterError(
-                "miniupnpc no está instalado. Ejecuta: uv pip install miniupnpc"
+                "miniupnpc is not installed. Run: uv pip install miniupnpc"
             )
         u = miniupnpc.UPnP()
         u.discoverdelay = 500
         ndevices = u.discover()
         if ndevices == 0:
             raise RouterError(
-                "No se encontró ningún dispositivo UPnP IGD en la red. "
-                "Comprueba que UPnP esté habilitado en el router y que HMS tenga "
-                "acceso a la red local (usa network_mode: host si corre en Docker)."
+                "No UPnP IGD device found on the network. "
+                "Check that UPnP is enabled on the router and that HMS has "
+                "access to the local network (use network_mode: host if running in Docker)."
             )
         u.selectigd()
         self._upnp = u
@@ -126,8 +126,8 @@ class UpnpClient:
         except Exception as e:
             if str(e) == "ConflictInMappingEntry":
                 # Port already forwarded by a static/external rule — not an error
-                raise RouterConflictError(f"{m.port}/{proto} ya mapeado por regla externa") from e
-            raise RouterError(f"No se pudo añadir mapeo {m.port}/{proto}: {e}") from e
+                raise RouterConflictError(f"{m.port}/{proto} already mapped by external rule") from e
+            raise RouterError(f"Could not add mapping {m.port}/{proto}: {e}") from e
 
 
     def delete_mapping(self, port: int, protocol: str) -> bool:
@@ -142,7 +142,7 @@ class UpnpClient:
         except RouterError:
             raise
         except Exception as e:
-            raise RouterError(f"No se pudo eliminar mapeo {port}/{proto}: {e}") from e
+            raise RouterError(f"Could not delete mapping {port}/{proto}: {e}") from e
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ class UpnpClient:
 # ---------------------------------------------------------------------------
 
 class NatpmpClient:
-    """Backend NAT-PMP usando libnatpmp (lazy-import). Funciona sin SSDP multicast."""
+    """NAT-PMP backend using libnatpmp (lazy-import). Works without SSDP multicast."""
 
     def __init__(self, config: dict):
         self._lease = int(config.get("lease_duration", 3600))
@@ -159,11 +159,11 @@ class NatpmpClient:
     def _detect_gateway(self) -> str:
         if self._gateway_ip:
             return self._gateway_ip
-        # Detectar gateway por defecto
+        # Detect the default gateway
         gw = _detect_default_gateway()
         if not gw:
             raise RouterError(
-                "No se pudo detectar el gateway. Configura router.gateway_ip en config.toml."
+                "Could not detect the gateway. Set router.gateway_ip in config.toml."
             )
         return gw
 
@@ -171,20 +171,20 @@ class NatpmpClient:
         try:
             import natpmp
         except ImportError:
-            raise RouterError("libnatpmp no está instalado. Ejecuta: uv pip install libnatpmp")
+            raise RouterError("libnatpmp is not installed. Run: uv pip install libnatpmp")
         gw = self._detect_gateway()
         resp = natpmp.get_public_address(gateway=gw)
         return resp.public_address
 
     def list_mappings(self) -> list[dict]:
-        # NAT-PMP no soporta enumerar mapeos activos
+        # NAT-PMP does not support enumerating active mappings
         return []
 
     def add_mapping(self, m: PortMapping, lan_ip: str, lease: int) -> None:
         try:
             import natpmp
         except ImportError:
-            raise RouterError("libnatpmp no está instalado. Ejecuta: uv pip install libnatpmp")
+            raise RouterError("libnatpmp is not installed. Run: uv pip install libnatpmp")
         gw = self._detect_gateway()
         proto = natpmp.NATPMP_PROTOCOL_TCP if m.protocol == "tcp" else natpmp.NATPMP_PROTOCOL_UDP
         natpmp.map_port(proto, m.port, m.port, lease, gateway=gw)
@@ -194,10 +194,10 @@ class NatpmpClient:
         try:
             import natpmp
         except ImportError:
-            raise RouterError("libnatpmp no está instalado. Ejecuta: uv pip install libnatpmp")
+            raise RouterError("libnatpmp is not installed. Run: uv pip install libnatpmp")
         gw = self._detect_gateway()
         proto = natpmp.NATPMP_PROTOCOL_TCP if protocol == "tcp" else natpmp.NATPMP_PROTOCOL_UDP
-        # Lease de 0 elimina el mapeo en NAT-PMP; no hay forma de saber si existía
+        # Lease of 0 removes the mapping in NAT-PMP; no way to know if it existed
         natpmp.map_port(proto, port, 0, 0, gateway=gw)
         return True
 
@@ -207,7 +207,7 @@ class NatpmpClient:
 # ---------------------------------------------------------------------------
 
 class NoopClient:
-    """Backend vacío para router.backend = 'none' o router.enabled = false."""
+    """Empty backend for router.backend = 'none' or router.enabled = false."""
 
     def get_external_ip(self) -> str:
         return ""
@@ -228,7 +228,7 @@ class NoopClient:
 # ---------------------------------------------------------------------------
 
 def _is_docker_ip(ip: str) -> bool:
-    """Devuelve True si la IP está en el rango Docker (172.16.0.0/12)."""
+    """Returns True if the IP is in the Docker range (172.16.0.0/12)."""
     try:
         import ipaddress
         return ipaddress.ip_address(ip) in ipaddress.ip_network("172.16.0.0/12")
@@ -238,9 +238,9 @@ def _is_docker_ip(ip: str) -> bool:
 
 def detect_lan_ip(gateway: str = "8.8.8.8") -> str:
     """
-    Detecta la IP LAN del host usando el truco UDP estándar.
-    Lanza RouterError si detecta una IP de red Docker interna (172.16.0.0/12),
-    ya que HMS corre en Docker por defecto y no puede autodetectar la IP del host.
+    Detects the host's LAN IP using the standard UDP trick.
+    Raises RouterError if it detects an internal Docker network IP (172.16.0.0/12),
+    since HMS runs in Docker by default and cannot auto-detect the host IP.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((gateway, 80))
@@ -248,8 +248,8 @@ def detect_lan_ip(gateway: str = "8.8.8.8") -> str:
 
     if _is_docker_ip(ip):
         raise RouterError(
-            f"IP autodetectada ({ip}) es una red interna de Docker, no la LAN del host. "
-            "Añade la IP real del servidor a config.toml:\n\n"
+            f"Auto-detected IP ({ip}) is an internal Docker network, not the host LAN. "
+            "Add the real server IP to config.toml:\n\n"
             "  [router]\n"
             "  lan_ip = \"192.168.X.X\"\n"
         )
@@ -258,14 +258,14 @@ def detect_lan_ip(gateway: str = "8.8.8.8") -> str:
 
 
 def _detect_default_gateway() -> str:
-    """Intenta detectar la IP del gateway por defecto leyendo /proc/net/route."""
+    """Attempts to detect the default gateway IP by reading /proc/net/route."""
     try:
         with open("/proc/net/route") as f:
             for line in f:
                 fields = line.strip().split()
                 if fields[1] == "00000000" and fields[3] == "0003":  # default route
                     gw_hex = fields[2]
-                    # Formato little-endian hex
+                    # Little-endian hex format
                     gw_bytes = bytes.fromhex(gw_hex)
                     return socket.inet_ntoa(gw_bytes[::-1])
     except Exception:
@@ -291,7 +291,7 @@ def _detect_default_gateway() -> str:
 # ---------------------------------------------------------------------------
 
 def get_router_client() -> RouterClient:
-    """Crea el cliente de router según [router] de config.toml."""
+    """Creates the router client according to [router] in config.toml."""
     from hms.lib.config import config_manager
 
     cfg = config_manager.get_router_config()
@@ -306,7 +306,7 @@ def get_router_client() -> RouterClient:
     elif backend == "none":
         return NoopClient()
     else:
-        logger.warning(f"Backend de router desconocido: '{backend}', usando no-op")
+        logger.warning(f"Unknown router backend: '{backend}', using no-op")
         return NoopClient()
 
 
@@ -320,17 +320,17 @@ def _log_current_mappings(current_list: list[dict], out=None) -> None:
             logger.info(msg)
         (out or logger.info)(msg)
     if current_list:
-        _out(f"📋 Mapeos activos en el router ({len(current_list)}):")
+        _out(f"📋 Active mappings on the router ({len(current_list)}):")
         for m in current_list:
             port = m.get("ext_port", "?")
             proto = m.get("protocol", "?").lower()
             dest = f"{m.get('int_client', '?')}:{m.get('int_port', '?')}"
             desc = m.get("description", "")
             lease_time = m.get("lease_time", 0)
-            lease_str = f"{lease_time}s" if lease_time else "permanente"
+            lease_str = f"{lease_time}s" if lease_time else "permanent"
             _out(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
     else:
-        _out("📋 Sin mapeos activos en el router")
+        _out("📋 No active mappings on the router")
 
 
 def reconcile_port_forwards(
@@ -343,9 +343,9 @@ def reconcile_port_forwards(
     out=None,
 ) -> tuple[int, int]:
     """
-    Reconcilia los port-forwards deseados contra el estado actual del router.
-    Loguea los mapeos existentes, aplica los cambios y opcionalmente poda los obsoletos.
-    Devuelve (procesados, fallidos).
+    Reconciles the desired port-forwards against the current router state.
+    Logs existing mappings, applies changes, and optionally prunes stale ones.
+    Returns (processed, failed).
     """
     def _out(msg):
         if out is not None:
@@ -366,12 +366,12 @@ def reconcile_port_forwards(
     processed = 0
     failed = 0
 
-    _out(f"🔄 Reconciliando {len(desired)} port-forward(s)...")
+    _out(f"🔄 Reconciling {len(desired)} port-forward(s)...")
     _out("")
 
     for pm in desired:
         exists = (pm.port, pm.protocol) in current_keys
-        action = "🔄 refresh" if exists else "➕ añadir"
+        action = "🔄 refresh" if exists else "➕ add"
         _out(f"  {action}  {pm.port}/{pm.protocol}  →  {lan_ip}  [{pm.stack}]")
         if not dry_run:
             try:
@@ -391,7 +391,7 @@ def reconcile_port_forwards(
         stale_keys = current_keys - desired_keys
         if stale_keys:
             _out("")
-            _out(f"🧹 Eliminando {len(stale_keys)} mapeo(s) obsoleto(s)...")
+            _out(f"🧹 Removing {len(stale_keys)} stale mapping(s)...")
             for port, proto in stale_keys:
                 _out(f"  🗑️  {port}/{proto}")
                 if not dry_run:
@@ -405,7 +405,7 @@ def reconcile_port_forwards(
 
 
 def apply_port_forwards_for_stack(stack_name: str) -> None:
-    """Aplica port-forwards del router para un stack. Lanza efímero con host networking."""
+    """Applies router port-forwards for a stack. Launches an ephemeral container with host networking."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
     from hms.lib.host_runner import run_hms_in_host_network, HostRunnerError
@@ -414,7 +414,7 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
     if not cfg.get("enabled", True):
         return
     if stack_name in cfg.get("exclude_stacks", []):
-        logger.debug(f"Stack '{stack_name}' en exclude_stacks, omitiendo port-forwards")
+        logger.debug(f"Stack '{stack_name}' in exclude_stacks, skipping port-forwards")
         return
     if not stack_metadata.get_public_ports(stack_name):
         return
@@ -426,7 +426,7 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
 
 
 def remove_port_forwards_for_stack(stack_name: str) -> None:
-    """Elimina port-forwards del router para un stack. Lanza efímero con host networking."""
+    """Removes router port-forwards for a stack. Launches an ephemeral container with host networking."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
     from hms.lib.host_runner import run_hms_in_host_network, HostRunnerError
@@ -446,7 +446,7 @@ def remove_port_forwards_for_stack(stack_name: str) -> None:
 
 
 def _apply_ports_for_stack(stack_name: str) -> None:
-    """Aplica port-forwards in-process. Solo llamar con host networking activo."""
+    """Applies port-forwards in-process. Only call with host networking active."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
 
@@ -454,7 +454,7 @@ def _apply_ports_for_stack(stack_name: str) -> None:
     if not cfg.get("enabled", True):
         return
     if stack_name in cfg.get("exclude_stacks", []):
-        logger.debug(f"Stack '{stack_name}' en exclude_stacks, omitiendo port-forwards")
+        logger.debug(f"Stack '{stack_name}' in exclude_stacks, skipping port-forwards")
         return
 
     ports = stack_metadata.get_public_ports(stack_name)
@@ -463,7 +463,7 @@ def _apply_ports_for_stack(stack_name: str) -> None:
 
     lan_ip = config_manager.get_global_config().get("host_ip", "")
     if not lan_ip:
-        logger.warning("⚠️  Router: global.host_ip no configurado. Ejecuta `hms install` o añádelo a config.toml.")
+        logger.warning("⚠️  Router: global.host_ip not configured. Run `hms install` or add it to config.toml.")
         return
     lease = int(cfg.get("lease_duration", 3600))
 
@@ -477,7 +477,7 @@ def _apply_ports_for_stack(stack_name: str) -> None:
 
 
 def _remove_ports_for_stack(stack_name: str) -> None:
-    """Elimina port-forwards in-process. Solo llamar con host networking activo."""
+    """Removes port-forwards in-process. Only call with host networking active."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
 
@@ -500,13 +500,13 @@ def _remove_ports_for_stack(stack_name: str) -> None:
     for pm in ports:
         try:
             if client.delete_mapping(pm.port, pm.protocol):
-                logger.info(f"🔌 Router: eliminado {pm.port}/{pm.protocol} [{pm.stack}]")
+                logger.info(f"🔌 Router: removed {pm.port}/{pm.protocol} [{pm.stack}]")
         except RouterError as e:
-            logger.warning(f"⚠️  Router: no se pudo eliminar {pm.port}/{pm.protocol}: {e}")
+            logger.warning(f"⚠️  Router: could not remove {pm.port}/{pm.protocol}: {e}")
 
 
 def get_desired_mappings(exclude_stacks: list[str] | None = None) -> list[PortMapping]:
-    """Devuelve todos los PortMapping deseados para los stacks habilitados."""
+    """Returns all desired PortMappings for enabled stacks."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
 
