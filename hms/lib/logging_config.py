@@ -87,7 +87,7 @@ def setup_logging(
     root_logger.setLevel(level)
     root_logger.handlers = []
 
-    fmt = "%(asctime)s [%(levelname)s]%(tag_prefix)s %(message)s"
+    fmt = "%(asctime)s [%(levelname)-7s]%(tag_prefix)s %(message)s"
     date_fmt = "%Y-%m-%d %H:%M:%S"
 
     # Tag alineado a la derecha, anchura del más largo ("daemon" = 6), con separador pipe
