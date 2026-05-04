@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # ============================================================================
-# ONEDRIVE SYNC MANAGER - Script para setup y gestión de sincronización con OneDrive usando rclone y systemd
+# ONEDRIVE SYNC MANAGER - Setup and management of OneDrive sync via rclone and systemd
 # ============================================================================
 
-# Colores
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-# Variables globales
+# Global variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RCLONE_CONFIG_DIR="${HOME}/.config/rclone"
@@ -38,39 +38,39 @@ header() {
 }
 prompt() { echo -e "${MAGENTA}➜${NC} $*"; }
 
-# Verificar si el sistema es compatible (Ubuntu/Debian/Linux)
+# Verify the system is compatible (Ubuntu/Debian/Linux)
 check_system() {
     if [[ ! -f /etc/os-release ]]; then
-        error "No se puede determinar el sistema operativo"
+        error "Cannot determine the operating system"
         exit 1
     fi
 
     . /etc/os-release
-    log "✅ Sistema detectado: $PRETTY_NAME"
+    log "✅ System detected: $PRETTY_NAME"
 }
 
-# Verificar e instalar rclone si no está instalado
+# Check and install rclone if not installed
 install_rclone() {
     if command -v rclone >/dev/null 2>&1; then
         local version=$(rclone version 2>&1 | head -n1)
-        info "rclone ya está instalado: $version"
+        info "rclone is already installed: $version"
         return 0
     fi
 
-    header "Instalando rclone"
+    header "Installing rclone"
 
-    log "Descargando e instalando rclone..."
+    log "Downloading and installing rclone..."
     curl https://rclone.org/install.sh | sudo bash
 
     if command -v rclone >/dev/null 2>&1; then
-        success "rclone instalado correctamente"
+        success "rclone installed successfully"
     else
-        error "No se pudo instalar rclone"
+        error "Failed to install rclone"
         exit 1
     fi
 }
 
-# Verificar si ya existe una configuración de OneDrive
+# Check if an OneDrive remote already exists
 check_existing_remote() {
     if [[ -f "$RCLONE_CONFIG_FILE" ]] && rclone listremotes 2>/dev/null | grep -q "^${REMOTE_NAME}:"; then
         return 0
@@ -79,98 +79,98 @@ check_existing_remote() {
     fi
 }
 
-# Configurar remoto de OneDrive
+# Configure OneDrive remote
 configure_onedrive_remote() {
-    header "Configuración de OneDrive con rclone"
+    header "OneDrive configuration with rclone"
 
-    # Crear directorio de configuración si no existe
+    # Create config directory if it doesn't exist
     mkdir -p "$RCLONE_CONFIG_DIR"
 
     if check_existing_remote; then
-        warn "Ya existe un remoto llamado '$REMOTE_NAME'"
-        prompt "¿Deseas reconfigurarlo? (s/N): "
+        warn "A remote named '$REMOTE_NAME' already exists"
+        prompt "Reconfigure it? (y/N): "
         read -r response
-        if [[ ! "$response" =~ ^[Ss]$ ]]; then
-            info "Usando configuración existente"
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            info "Using existing configuration"
             return 0
         fi
 
-        log "Eliminando configuración existente..."
+        log "Removing existing configuration..."
         rclone config delete "$REMOTE_NAME" 2>/dev/null || true
     fi
 
     echo ""
-    log "🔧 Iniciando configuración interactiva de OneDrive..."
+    log "🔧 Starting interactive OneDrive configuration..."
     echo ""
-    info "INSTRUCCIONES:"
-    echo -e "  1. Selecciona 'n' para crear un nuevo remoto"
-    echo -e "  2. Nombre del remoto: ${GREEN}${REMOTE_NAME}${NC}"
-    echo -e "  3. Tipo de almacenamiento: busca '${GREEN}onedrive${NC}' o su número"
-    echo -e "  4. Client ID y Secret: déjalos ${GREEN}vacíos${NC} (presiona Enter)"
-    echo -e "  5. Región: selecciona '${GREEN}1${NC}' (Microsoft Cloud Global)"
-    echo -e "  6. Configuración avanzada: ${GREEN}No${NC}"
-    echo -e "  7. Autorización automática: ${GREEN}Sí${NC}"
-    echo -e "  8. Se abrirá un navegador para autorizar el acceso"
-    echo -e "  9. Tipo de configuración: ${GREEN}1${NC} (OneDrive Personal o Business)"
-    echo -e "  10. Confirma la selección y guarda"
+    info "INSTRUCTIONS:"
+    echo -e "  1. Select 'n' to create a new remote"
+    echo -e "  2. Remote name: ${GREEN}${REMOTE_NAME}${NC}"
+    echo -e "  3. Storage type: find '${GREEN}onedrive${NC}' or its number"
+    echo -e "  4. Client ID and Secret: leave ${GREEN}empty${NC} (press Enter)"
+    echo -e "  5. Region: select '${GREEN}1${NC}' (Microsoft Cloud Global)"
+    echo -e "  6. Advanced config: ${GREEN}No${NC}"
+    echo -e "  7. Auto auth: ${GREEN}Yes${NC}"
+    echo -e "  8. A browser will open to authorize access"
+    echo -e "  9. Config type: ${GREEN}1${NC} (OneDrive Personal or Business)"
+    echo -e "  10. Confirm selection and save"
     echo ""
-    warn "⚠️  Asegúrate de tener un navegador disponible para la autorización"
+    warn "⚠️  Make sure you have a browser available for authorization"
     echo ""
-    prompt "Presiona Enter para continuar..."
+    prompt "Press Enter to continue..."
     read -r
 
-    # Ejecutar configuración interactiva
+    # Run interactive configuration
     rclone config
 
-    # Verificar que se creó el remoto
+    # Verify the remote was created
     if check_existing_remote; then
-        success "Remoto '$REMOTE_NAME' configurado correctamente"
+        success "Remote '$REMOTE_NAME' configured successfully"
         return 0
     else
-        error "No se pudo configurar el remoto '$REMOTE_NAME'"
+        error "Failed to configure remote '$REMOTE_NAME'"
         exit 1
     fi
 }
 
-# Listar carpetas de OneDrive de forma interactiva
+# Interactively list OneDrive folders
 list_onedrive_folders() {
     local current_path="$1"
     local display_path="${current_path:-/}"
 
     echo ""
-    header "Navegando en OneDrive: $display_path"
+    header "Browsing OneDrive: $display_path"
 
-    log "Obteniendo lista de carpetas..."
+    log "Fetching folder list..."
 
-    # Obtener carpetas
+    # Get folders
     local folders=()
     while IFS= read -r line; do
         folders+=("$line")
     done < <(rclone lsd "${REMOTE_NAME}:${current_path}" 2>/dev/null | awk '{$1=$2=$3=$4=""; print substr($0,5)}' | sed 's/^[[:space:]]*//')
 
     if [[ ${#folders[@]} -eq 0 ]]; then
-        warn "No se encontraron subcarpetas en esta ubicación"
+        warn "No subfolders found at this location"
     else
         echo ""
-        info "Carpetas disponibles:"
+        info "Available folders:"
         for i in "${!folders[@]}"; do
             echo -e "  ${CYAN}$((i+1)).${NC} ${folders[$i]}"
         done
     fi
 
     echo ""
-    echo -e "Opciones:"
-    echo -e "  ${GREEN}[número]${NC} - Entrar en una carpeta"
-    echo -e "  ${GREEN}..${NC}       - Volver atrás"
-    echo -e "  ${GREEN}.${NC}        - Usar la carpeta actual"
-    echo -e "  ${GREEN}q${NC}        - Cancelar y salir"
+    echo -e "Options:"
+    echo -e "  ${GREEN}[number]${NC} - Enter a folder"
+    echo -e "  ${GREEN}..${NC}       - Go back"
+    echo -e "  ${GREEN}.${NC}        - Use current folder"
+    echo -e "  ${GREEN}q${NC}        - Cancel and exit"
     echo ""
-    prompt "Selección: "
+    prompt "Selection: "
     read -r selection
 
     case "$selection" in
         q|Q)
-            error "Configuración cancelada por el usuario"
+            error "Configuration cancelled by user"
             exit 0
             ;;
         .)
@@ -183,7 +183,7 @@ list_onedrive_folders() {
                 [[ "$parent_path" == "." ]] && parent_path=""
                 list_onedrive_folders "$parent_path"
             else
-                warn "Ya estás en la raíz"
+                warn "Already at root"
                 list_onedrive_folders "$current_path"
             fi
             ;;
@@ -193,67 +193,67 @@ list_onedrive_folders() {
                 local new_path="${current_path:+$current_path/}${selected_folder}"
                 list_onedrive_folders "$new_path"
             else
-                error "Selección inválida"
+                error "Invalid selection"
                 list_onedrive_folders "$current_path"
             fi
             ;;
     esac
 }
 
-# Navegación interactiva para seleccionar carpeta
+# Interactive folder selection
 select_onedrive_folder() {
-    header "Selección de carpeta de trabajo en OneDrive"
+    header "Select working folder in OneDrive"
 
     echo ""
-    info "Vamos a seleccionar la carpeta donde se sincronizarán los backups"
+    info "We will select the folder where backups will be synced"
     echo ""
 
-    # Verificar conectividad
-    log "Verificando conexión con OneDrive..."
+    # Verify connectivity
+    log "Verifying connection to OneDrive..."
     if ! rclone lsd "${REMOTE_NAME}:" >/dev/null 2>&1; then
-        error "No se pudo conectar con OneDrive. Verifica tu configuración."
+        error "Could not connect to OneDrive. Check your configuration."
         exit 1
     fi
-    success "Conexión con OneDrive verificada"
+    success "OneDrive connection verified"
 
-    # Iniciar navegación
+    # Start navigation
     list_onedrive_folders ""
 
     echo ""
-    success "Carpeta seleccionada: ${CYAN}${SELECTED_FOLDER:-/}${NC}"
+    success "Selected folder: ${CYAN}${SELECTED_FOLDER:-/}${NC}"
 
-    # Crear la estructura de carpetas en OneDrive si no existe
-    log "Verificando estructura de carpetas en OneDrive..."
+    # Create folder structure in OneDrive if it doesn't exist
+    log "Verifying folder structure in OneDrive..."
 
     local base_path="${SELECTED_FOLDER:+$SELECTED_FOLDER/}"
     rclone mkdir "${REMOTE_NAME}:${base_path}/backups" 2>/dev/null || true
     rclone mkdir "${REMOTE_NAME}:${base_path}/config" 2>/dev/null || true
 
-    success "Estructura de carpetas creada en OneDrive"
+    success "Folder structure created in OneDrive"
 
-    # Guardar la ruta seleccionada
+    # Save the selected path
     echo "$base_path" > "${PROJECT_ROOT}/.onedrive-path"
 }
 
-# Crear servicio systemd para sincronización de backups
+# Create systemd service for backup sync
 create_backup_sync_service() {
     local onedrive_path=$(cat "${PROJECT_ROOT}/.onedrive-path")
 
-    header "Creando servicio de sincronización de backups"
+    header "Creating backup sync service"
 
     mkdir -p "$SYSTEMD_USER_DIR"
 
-    # Crear archivo de servicio
+    # Create service file
     cat > "${SYSTEMD_USER_DIR}/home-server-backup-sync.service" <<EOF
 [Unit]
-Description=Home Server - Sincronización de Backups a OneDrive
+Description=Home Server - Backup Sync to OneDrive
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Prevenir ejecuciones simultáneas
-ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/backup-sync.lock ]; then echo "Sincronización ya en curso"; exit 1; fi'
+# Prevent concurrent runs
+ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/backup-sync.lock ]; then echo "Sync already in progress"; exit 1; fi'
 ExecStartPre=/bin/bash -c 'echo $$ > ${PROJECT_ROOT}/logs/backup-sync.lock'
 ExecStart=/usr/bin/rclone sync \\
     ${PROJECT_ROOT}/backups \\
@@ -279,10 +279,10 @@ ExecStopPost=/bin/bash -c 'rm -f ${PROJECT_ROOT}/logs/backup-sync.lock'
 WantedBy=default.target
 EOF
 
-    # Crear archivo timer
+    # Create timer file
     cat > "${SYSTEMD_USER_DIR}/home-server-backup-sync.timer" <<EOF
 [Unit]
-Description=Timer para sincronización de backups diaria a las 3 AM
+Description=Timer for daily backup sync to OneDrive at 3 AM
 Requires=home-server-backup-sync.service
 
 [Timer]
@@ -294,28 +294,28 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
-    success "Servicio de sincronización de backups creado"
+    success "Backup sync service created"
 }
 
-# Crear servicio systemd para sincronización de config
+# Create systemd service for config sync
 create_config_sync_service() {
     local onedrive_path=$(cat "${PROJECT_ROOT}/.onedrive-path")
 
-    header "Creando servicio de sincronización de configuración"
+    header "Creating config sync service"
 
     mkdir -p "$SYSTEMD_USER_DIR"
 
-    # Crear archivo de servicio
+    # Create service file
     cat > "${SYSTEMD_USER_DIR}/home-server-config-sync.service" <<EOF
 [Unit]
-Description=Home Server - Sincronización de config.toml a OneDrive
+Description=Home Server - config.toml Sync to OneDrive
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Prevenir ejecuciones simultáneas
-ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/config-sync.lock ]; then echo "Sincronización ya en curso"; exit 1; fi'
+# Prevent concurrent runs
+ExecStartPre=/bin/bash -c 'if [ -f ${PROJECT_ROOT}/logs/config-sync.lock ]; then echo "Sync already in progress"; exit 1; fi'
 ExecStartPre=/bin/bash -c 'echo $$ > ${PROJECT_ROOT}/logs/config-sync.lock'
 ExecStart=/usr/bin/rclone copyto \\
     ${PROJECT_ROOT}/config.toml \\
@@ -331,10 +331,10 @@ ExecStopPost=/bin/bash -c 'rm -f ${PROJECT_ROOT}/logs/config-sync.lock'
 WantedBy=default.target
 EOF
 
-    # Crear archivo timer
+    # Create timer file
     cat > "${SYSTEMD_USER_DIR}/home-server-config-sync.timer" <<EOF
 [Unit]
-Description=Timer para sincronización de config.toml cada hora
+Description=Timer for hourly config.toml sync to OneDrive
 Requires=home-server-config-sync.service
 
 [Timer]
@@ -346,170 +346,170 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
-    success "Servicio de sincronización de configuración creado"
+    success "Config sync service created"
 }
 
-# Habilitar e iniciar servicios systemd
+# Enable and start systemd services
 enable_systemd_services() {
-    header "Habilitando servicios systemd"
+    header "Enabling systemd services"
 
-    # Recargar systemd
-    log "Recargando configuración de systemd..."
+    # Reload systemd
+    log "Reloading systemd configuration..."
     systemctl --user daemon-reload
 
-    # Habilitar e iniciar timers
-    log "Habilitando timer de sincronización de backups..."
+    # Enable and start timers
+    log "Enabling backup sync timer..."
     systemctl --user enable home-server-backup-sync.timer
     systemctl --user start home-server-backup-sync.timer
 
-    log "Habilitando timer de sincronización de configuración..."
+    log "Enabling config sync timer..."
     systemctl --user enable home-server-config-sync.timer
     systemctl --user start home-server-config-sync.timer
 
-    # Habilitar lingering para que los servicios se ejecuten aunque no haya sesión
+    # Enable lingering so services run without an active session
     if loginctl show-user "$(whoami)" 2>/dev/null | grep -q "Linger=no"; then
-        log "Habilitando lingering para usuario $(whoami)..."
+        log "Enabling lingering for user $(whoami)..."
         sudo loginctl enable-linger "$(whoami)"
     fi
 
-    success "Servicios systemd habilitados y en ejecución"
+    success "systemd services enabled and running"
 }
 
-# Ejecutar sincronización inicial
+# Run initial sync
 run_initial_sync() {
-    header "Ejecutando sincronización inicial"
+    header "Running initial sync"
 
-    warn "Esto puede tardar varios minutos dependiendo del tamaño de tus backups..."
+    warn "This may take several minutes depending on the size of your backups..."
     echo ""
 
-    # Sincronizar backups
-    log "Sincronizando backups..."
+    # Sync backups
+    log "Syncing backups..."
     systemctl --user start home-server-backup-sync.service
 
-    # Esperar a que termine
+    # Wait for it to finish
     while systemctl --user is-active --quiet home-server-backup-sync.service; do
         sleep 2
     done
 
     if systemctl --user is-failed --quiet home-server-backup-sync.service; then
-        warn "La sincronización de backups tuvo problemas. Revisa los logs."
+        warn "Backup sync encountered problems. Check the logs."
     else
-        success "Backups sincronizados"
+        success "Backups synced"
     fi
 
-    # Sincronizar config
-    log "Sincronizando config.toml..."
+    # Sync config
+    log "Syncing config.toml..."
     systemctl --user start home-server-config-sync.service
 
-    # Esperar a que termine
+    # Wait for it to finish
     while systemctl --user is-active --quiet home-server-config-sync.service; do
         sleep 1
     done
 
     if systemctl --user is-failed --quiet home-server-config-sync.service; then
-        warn "La sincronización de configuración tuvo problemas. Revisa los logs."
+        warn "Config sync encountered problems. Check the logs."
     else
-        success "Configuración sincronizada"
+        success "Config synced"
     fi
 }
 
-# Mostrar información final
+# Show final information
 show_final_info() {
     local onedrive_path=$(cat "${PROJECT_ROOT}/.onedrive-path")
 
     echo ""
-    header "🎉 Configuración completada exitosamente"
+    header "🎉 Setup completed successfully"
     echo ""
 
-    success "Resumen de la configuración:"
+    success "Configuration summary:"
     echo ""
-    echo -e "  ${CYAN}Remoto rclone:${NC}        ${REMOTE_NAME}"
-    echo -e "  ${CYAN}Carpeta OneDrive:${NC}     ${onedrive_path}"
-    echo -e "  ${CYAN}Carpeta local backups:${NC} ${PROJECT_ROOT}/backups"
-    echo -e "  ${CYAN}Archivo config.toml:${NC}  ${PROJECT_ROOT}/config.toml"
-    echo ""
-
-    info "Servicios configurados:"
-    echo -e "  ${GREEN}✓${NC} home-server-backup-sync  - Sincroniza backups diariamente a las 3 AM"
-    echo -e "  ${GREEN}✓${NC} home-server-config-sync  - Sincroniza config.toml cada hora"
+    echo -e "  ${CYAN}rclone remote:${NC}         ${REMOTE_NAME}"
+    echo -e "  ${CYAN}OneDrive folder:${NC}       ${onedrive_path}"
+    echo -e "  ${CYAN}Local backups folder:${NC}  ${PROJECT_ROOT}/backups"
+    echo -e "  ${CYAN}config.toml file:${NC}      ${PROJECT_ROOT}/config.toml"
     echo ""
 
-    info "Comportamiento especial:"
-    echo -e "  ${GREEN}✓${NC} Si el PC está apagado a las 3 AM, el backup se ejecuta al arrancar"
-    echo -e "  ${GREEN}✓${NC} Los archivos borrados localmente se borran también en OneDrive"
-    echo -e "  ${GREEN}✓${NC} OneDrive mantiene papelera de reciclaje (30 días de recuperación)"
+    info "Configured services:"
+    echo -e "  ${GREEN}✓${NC} home-server-backup-sync  - Syncs backups daily at 3 AM"
+    echo -e "  ${GREEN}✓${NC} home-server-config-sync  - Syncs config.toml every hour"
     echo ""
 
-    info "Comandos útiles:"
+    info "Special behavior:"
+    echo -e "  ${GREEN}✓${NC} If the PC is off at 3 AM, the backup runs on next boot"
+    echo -e "  ${GREEN}✓${NC} Files deleted locally are also deleted from OneDrive"
+    echo -e "  ${GREEN}✓${NC} OneDrive keeps a recycle bin (30 days of recovery)"
     echo ""
-    echo -e "  ${CYAN}# Ver estado de los servicios${NC}"
+
+    info "Useful commands:"
+    echo ""
+    echo -e "  ${CYAN}# Check service status${NC}"
     echo "  systemctl --user status home-server-backup-sync.timer"
     echo "  systemctl --user status home-server-config-sync.timer"
     echo ""
-    echo -e "  ${CYAN}# Ver logs de sincronización${NC}"
+    echo -e "  ${CYAN}# View sync logs${NC}"
     echo "  journalctl --user -u home-server-backup-sync.service -f"
     echo "  journalctl --user -u home-server-config-sync.service -f"
     echo ""
-    echo -e "  ${CYAN}# Forzar sincronización inmediata${NC}"
+    echo -e "  ${CYAN}# Force immediate sync${NC}"
     echo "  systemctl --user start home-server-backup-sync.service"
     echo "  systemctl --user start home-server-config-sync.service"
     echo ""
-    echo -e "  ${CYAN}# Ver archivos en rclone${NC}"
+    echo -e "  ${CYAN}# View rclone log files${NC}"
     echo "  cat ${PROJECT_ROOT}/logs/rclone-backup-sync.log"
     echo "  cat ${PROJECT_ROOT}/logs/rclone-config-sync.log"
     echo ""
-    echo -e "  ${CYAN}# Deshabilitar sincronización${NC}"
+    echo -e "  ${CYAN}# Disable sync${NC}"
     echo "  systemctl --user stop home-server-backup-sync.timer"
     echo "  systemctl --user disable home-server-backup-sync.timer"
     echo ""
 
-    success "¡Todo listo! Tus backups y configuración se sincronizarán automáticamente con OneDrive."
+    success "All set! Your backups and config will sync automatically with OneDrive."
 }
 
 # ============================================================================
-# FUNCIONES DE GESTIÓN
+# MANAGEMENT FUNCTIONS
 # ============================================================================
 
-# Mostrar estado
+# Show status
 show_status() {
-    header "Estado de Sincronización OneDrive"
+    header "OneDrive Sync Status"
     echo ""
 
     local backup_timer_status=$(systemctl --user is-active ${BACKUP_SERVICE}.timer 2>/dev/null || echo "inactive")
     local config_timer_status=$(systemctl --user is-active ${CONFIG_SERVICE}.timer 2>/dev/null || echo "inactive")
 
-    echo -e "${BLUE}Servicios:${NC}"
+    echo -e "${BLUE}Services:${NC}"
     if [[ "$backup_timer_status" == "active" ]]; then
-        echo -e "  ${GREEN}●${NC} Backup sync: ${GREEN}activo${NC}"
+        echo -e "  ${GREEN}●${NC} Backup sync: ${GREEN}active${NC}"
     else
-        echo -e "  ${RED}●${NC} Backup sync: ${RED}inactivo${NC}"
+        echo -e "  ${RED}●${NC} Backup sync: ${RED}inactive${NC}"
     fi
 
     if [[ "$config_timer_status" == "active" ]]; then
-        echo -e "  ${GREEN}●${NC} Config sync: ${GREEN}activo${NC}"
+        echo -e "  ${GREEN}●${NC} Config sync: ${GREEN}active${NC}"
     else
-        echo -e "  ${RED}●${NC} Config sync: ${RED}inactivo${NC}"
+        echo -e "  ${RED}●${NC} Config sync: ${RED}inactive${NC}"
     fi
 
     echo ""
-    echo -e "${BLUE}Próximas ejecuciones:${NC}"
-    systemctl --user list-timers ${BACKUP_SERVICE}.timer ${CONFIG_SERVICE}.timer 2>/dev/null | grep -E "NEXT|home-server" || echo "  No programado"
+    echo -e "${BLUE}Next runs:${NC}"
+    systemctl --user list-timers ${BACKUP_SERVICE}.timer ${CONFIG_SERVICE}.timer 2>/dev/null | grep -E "NEXT|home-server" || echo "  Not scheduled"
 
     if [[ -f "${PROJECT_ROOT}/.onedrive-path" ]]; then
         local onedrive_path=$(cat "${PROJECT_ROOT}/.onedrive-path")
         echo ""
-        echo -e "${BLUE}Configuración:${NC}"
-        echo "  Ruta OneDrive: onedrive:${onedrive_path}"
-        echo "  Carpeta local: ${PROJECT_ROOT}/backups"
+        echo -e "${BLUE}Configuration:${NC}"
+        echo "  OneDrive path: onedrive:${onedrive_path}"
+        echo "  Local folder:  ${PROJECT_ROOT}/backups"
     fi
 }
 
-# Sincronizar ahora
+# Sync now
 sync_now() {
     local service=$1
     local name=$2
 
-    log "Sincronizando ${name}..."
+    log "Syncing ${name}..."
     systemctl --user start ${service}.service
 
     local timeout=300
@@ -525,36 +525,36 @@ sync_now() {
     echo ""
 
     if systemctl --user is-failed --quiet ${service}.service; then
-        error "Sincronización de ${name} falló"
+        error "${name} sync failed"
         journalctl --user -u ${service}.service -n 20 --no-pager
         return 1
     else
-        success "Sincronización de ${name} completada"
+        success "${name} sync complete"
         return 0
     fi
 }
 
-# Ver logs
+# Show logs
 show_logs() {
     local service=$1
     local lines=${2:-50}
 
-    header "Logs de ${service}"
+    header "Logs for ${service}"
     journalctl --user -u ${service}.service -n ${lines} --no-pager
 }
 
-# Logs en vivo
+# Follow logs live
 follow_logs() {
     local service=$1
-    header "Logs en vivo de ${service} (Ctrl+C para salir)"
+    header "Live logs for ${service} (Ctrl+C to exit)"
     journalctl --user -u ${service}.service -f
 }
 
-# Habilitar/deshabilitar servicios
+# Enable/disable services
 toggle_services() {
     local action=$1
 
-    log "${action^} servicios..."
+    log "${action^} services..."
     systemctl --user ${action} ${BACKUP_SERVICE}.timer
     systemctl --user ${action} ${CONFIG_SERVICE}.timer
 
@@ -563,155 +563,155 @@ toggle_services() {
         systemctl --user start ${CONFIG_SERVICE}.timer
     fi
 
-    success "Servicios ${action}dos"
+    success "Services ${action}d"
 }
 
-# Verificar salud
+# Health check
 check_health() {
-    header "Verificación de salud"
+    header "Health check"
     echo ""
 
     local errors=0
 
-    command -v rclone >/dev/null 2>&1 && success "rclone instalado" || { error "rclone no instalado"; ((errors++)); }
-    rclone listremotes 2>/dev/null | grep -q "^onedrive:" && success "OneDrive configurado" || { error "OneDrive no configurado"; ((errors++)); }
-    rclone about onedrive: >/dev/null 2>&1 && success "Conectividad OK" || { error "Sin conexión a OneDrive"; ((errors++)); }
-    systemctl --user list-unit-files | grep -q ${BACKUP_SERVICE} && success "Servicios instalados" || { error "Servicios no encontrados"; ((errors++)); }
-    [[ -d "${PROJECT_ROOT}/backups" ]] && success "Carpeta backups OK" || warn "Carpeta backups no encontrada"
-    [[ -f "${PROJECT_ROOT}/config.toml" ]] && success "config.toml OK" || warn "config.toml no encontrado"
+    command -v rclone >/dev/null 2>&1 && success "rclone installed" || { error "rclone not installed"; ((errors++)); }
+    rclone listremotes 2>/dev/null | grep -q "^onedrive:" && success "OneDrive configured" || { error "OneDrive not configured"; ((errors++)); }
+    rclone about onedrive: >/dev/null 2>&1 && success "Connectivity OK" || { error "No connection to OneDrive"; ((errors++)); }
+    systemctl --user list-unit-files | grep -q ${BACKUP_SERVICE} && success "Services installed" || { error "Services not found"; ((errors++)); }
+    [[ -d "${PROJECT_ROOT}/backups" ]] && success "Backups folder OK" || warn "Backups folder not found"
+    [[ -f "${PROJECT_ROOT}/config.toml" ]] && success "config.toml OK" || warn "config.toml not found"
 
     echo ""
-    [[ $errors -eq 0 ]] && success "✅ Sistema OK" || error "❌ ${errors} errores"
+    [[ $errors -eq 0 ]] && success "✅ System OK" || error "❌ ${errors} error(s)"
     return $errors
 }
 
-# Listar archivos en OneDrive
+# List files in OneDrive
 list_onedrive() {
-    [[ ! -f "${PROJECT_ROOT}/.onedrive-path" ]] && { error "OneDrive no configurado"; exit 1; }
+    [[ ! -f "${PROJECT_ROOT}/.onedrive-path" ]] && { error "OneDrive not configured"; exit 1; }
 
     local onedrive_path=$(cat "${PROJECT_ROOT}/.onedrive-path")
-    header "Contenido en OneDrive: ${onedrive_path}"
+    header "Contents in OneDrive: ${onedrive_path}"
 
     log "Backups:"
-    rclone ls onedrive:${onedrive_path}backups --max-depth 1 2>/dev/null || echo "  (vacío)"
+    rclone ls onedrive:${onedrive_path}backups --max-depth 1 2>/dev/null || echo "  (empty)"
 
     echo ""
     log "Config:"
-    rclone ls onedrive:${onedrive_path}config 2>/dev/null || echo "  (vacío)"
+    rclone ls onedrive:${onedrive_path}config 2>/dev/null || echo "  (empty)"
 }
 
-# Quitar sincronización completamente
+# Remove sync completely
 remove_sync() {
-    header "Desinstalando sincronización OneDrive"
+    header "Removing OneDrive sync"
     echo ""
 
-    warn "Esto eliminará:"
-    echo -e "  ${RED}●${NC} Servicios systemd (timers y services)"
-    echo -e "  ${RED}●${NC} Archivo de configuración de ruta OneDrive (.onedrive-path)"
-    echo -e "  ${RED}●${NC} Archivos de bloqueo"
+    warn "This will remove:"
+    echo -e "  ${RED}●${NC} systemd services (timers and services)"
+    echo -e "  ${RED}●${NC} OneDrive path config file (.onedrive-path)"
+    echo -e "  ${RED}●${NC} Lock files"
     echo ""
-    echo -e "  Los archivos en OneDrive y rclone.conf ${CYAN}se mantienen${NC}"
+    echo -e "  Files in OneDrive and rclone.conf ${CYAN}are kept${NC}"
     echo ""
 
-    prompt "¿Deseas continuar? (s/N): "
+    prompt "Continue? (y/N): "
     read -r response
-    if [[ ! "$response" =~ ^[Ss]$ ]]; then
-        info "Operación cancelada"
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        info "Operation cancelled"
         return 0
     fi
 
-    log "Deteniendo servicios..."
+    log "Stopping services..."
     systemctl --user stop ${BACKUP_SERVICE}.timer 2>/dev/null || true
     systemctl --user stop ${CONFIG_SERVICE}.timer 2>/dev/null || true
     systemctl --user stop ${BACKUP_SERVICE}.service 2>/dev/null || true
     systemctl --user stop ${CONFIG_SERVICE}.service 2>/dev/null || true
 
-    log "Deshabilitando servicios..."
+    log "Disabling services..."
     systemctl --user disable ${BACKUP_SERVICE}.timer 2>/dev/null || true
     systemctl --user disable ${CONFIG_SERVICE}.timer 2>/dev/null || true
     systemctl --user disable ${BACKUP_SERVICE}.service 2>/dev/null || true
     systemctl --user disable ${CONFIG_SERVICE}.service 2>/dev/null || true
 
-    log "Eliminando archivos de servicio..."
+    log "Removing service files..."
     rm -f "${SYSTEMD_USER_DIR}/${BACKUP_SERVICE}.service" 2>/dev/null || true
     rm -f "${SYSTEMD_USER_DIR}/${BACKUP_SERVICE}.timer" 2>/dev/null || true
     rm -f "${SYSTEMD_USER_DIR}/${CONFIG_SERVICE}.service" 2>/dev/null || true
     rm -f "${SYSTEMD_USER_DIR}/${CONFIG_SERVICE}.timer" 2>/dev/null || true
 
-    log "Recargando systemd..."
+    log "Reloading systemd..."
     systemctl --user daemon-reload
 
-    log "Eliminando archivo de configuración..."
+    log "Removing path config file..."
     rm -f "${PROJECT_ROOT}/.onedrive-path" 2>/dev/null || true
 
-    log "Eliminando archivos de bloqueo..."
+    log "Removing lock files..."
     rm -f "${PROJECT_ROOT}/logs/backup-sync.lock" 2>/dev/null || true
     rm -f "${PROJECT_ROOT}/logs/config-sync.lock" 2>/dev/null || true
 
     echo ""
-    success "✅ Sincronización desinstalada completamente"
+    success "✅ Sync removed completely"
     echo ""
-    info "Para reinstalar la sincronización, ejecuta:"
+    info "To reinstall sync, run:"
     echo -e "  ${CYAN}$0 setup${NC}"
     echo ""
-    info "Para reconfigurar desde cero:"
+    info "To reconfigure from scratch:"
     echo -e "  ${CYAN}$0 setup --force${NC}"
 }
 
-# Función de ayuda
+# Help
 show_help() {
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
-    echo -e "  OneDrive Sync Manager - Setup y Gestión todo-en-uno"
+    echo -e "  OneDrive Sync Manager - All-in-one setup and management"
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
     echo ""
-    echo -e "${GREEN}SETUP (Primera vez):${NC}"
-    echo -e "  $0 setup              Configuración completa interactiva"
-    echo -e "  $0 setup --force      Reconfigurar desde cero"
+    echo -e "${GREEN}SETUP (first time):${NC}"
+    echo -e "  $0 setup              Full interactive setup"
+    echo -e "  $0 setup --force      Reconfigure from scratch"
     echo ""
-    echo -e "${GREEN}GESTIÓN:${NC}"
-    echo -e "  $0 status             Estado de sincronización"
-    echo -e "  $0 sync               Sincronizar todo ahora"
-    echo -e "  $0 sync-backup        Sincronizar solo backups"
-    echo -e "  $0 sync-config        Sincronizar solo config.toml"
+    echo -e "${GREEN}MANAGEMENT:${NC}"
+    echo -e "  $0 status             Sync status"
+    echo -e "  $0 sync               Sync everything now"
+    echo -e "  $0 sync-backup        Sync backups only"
+    echo -e "  $0 sync-config        Sync config.toml only"
     echo ""
-    echo -e "  $0 logs [N]           Ver últimos N logs de backup"
-    echo -e "  $0 logs-config [N]    Ver últimos N logs de config"
-    echo -e "  $0 follow             Seguir logs de backup en vivo"
-    echo -e "  $0 follow-config      Seguir logs de config en vivo"
+    echo -e "  $0 logs [N]           View last N backup logs"
+    echo -e "  $0 logs-config [N]    View last N config logs"
+    echo -e "  $0 follow             Follow backup logs live"
+    echo -e "  $0 follow-config      Follow config logs live"
     echo ""
-    echo -e "  $0 enable             Habilitar sincronización automática"
-    echo -e "  $0 disable            Deshabilitar sincronización automática"
-    echo -e "  $0 restart            Reiniciar servicios"
+    echo -e "  $0 enable             Enable automatic sync"
+    echo -e "  $0 disable            Disable automatic sync"
+    echo -e "  $0 restart            Restart services"
     echo ""
-    echo -e "  $0 list               Listar archivos en OneDrive"
-    echo -e "  $0 health             Verificar salud del sistema"
+    echo -e "  $0 list               List files in OneDrive"
+    echo -e "  $0 health             Check system health"
     echo ""
-    echo -e "${RED}DESINSTALACIÓN:${NC}"
-    echo -e "  $0 remove             Quitar sincronización completamente"
+    echo -e "${RED}UNINSTALL:${NC}"
+    echo -e "  $0 remove             Remove sync completely"
     echo ""
-    echo -e "${GREEN}EJEMPLOS:${NC}"
-    echo -e "  $0 setup              # Primera configuración"
-    echo -e "  $0 status             # Ver estado"
-    echo -e "  $0 sync               # Sincronizar ahora"
-    echo -e "  $0 logs 100           # Ver últimos 100 logs"
-    echo -e "  $0 follow             # Seguir logs en vivo"
-    echo -e "  $0 remove             # Quitar sincronización"
+    echo -e "${GREEN}EXAMPLES:${NC}"
+    echo -e "  $0 setup              # First-time setup"
+    echo -e "  $0 status             # Check status"
+    echo -e "  $0 sync               # Sync now"
+    echo -e "  $0 logs 100           # View last 100 log lines"
+    echo -e "  $0 follow             # Follow logs live"
+    echo -e "  $0 remove             # Remove sync"
     echo ""
-    echo -e "${GREEN}ARCHIVOS DE LOG:${NC}"
+    echo -e "${GREEN}LOG FILES:${NC}"
     echo -e "  ${PROJECT_ROOT}/logs/rclone-backup-sync.log"
     echo -e "  ${PROJECT_ROOT}/logs/rclone-config-sync.log"
     echo ""
-    echo -e "${GREEN}COMANDOS SYSTEMD:${NC}"
+    echo -e "${GREEN}SYSTEMD COMMANDS:${NC}"
     echo -e "  systemctl --user status ${BACKUP_SERVICE}.timer"
     echo -e "  journalctl --user -u ${BACKUP_SERVICE}.service -f"
     echo ""
 }
 
 # ============================================================================
-# FUNCIÓN PRINCIPAL
+# MAIN
 # ============================================================================
 
-# Setup completo
+# Full setup
 run_setup() {
     local reconfigure=${1:-false}
 
@@ -725,7 +725,7 @@ run_setup() {
     if $reconfigure || ! check_existing_remote; then
         configure_onedrive_remote
     else
-        info "Usando configuración existente de OneDrive"
+        info "Using existing OneDrive configuration"
     fi
 
     select_onedrive_folder
@@ -734,7 +734,7 @@ run_setup() {
     enable_systemd_services
 
     echo ""
-    prompt "¿Ejecutar sincronización inicial ahora? (S/n): "
+    prompt "Run initial sync now? (Y/n): "
     read -r response
     if [[ ! "$response" =~ ^[Nn]$ ]]; then
         run_initial_sync
@@ -743,9 +743,9 @@ run_setup() {
     show_final_info
 }
 
-# Dispatcher de comandos
+# Command dispatcher
 main() {
-    # Manejar setup con --force
+    # Handle setup --force
     if [[ "${1:-}" == "setup" && "${2:-}" == "--force" ]]; then
         run_setup true
         return
@@ -788,11 +788,11 @@ main() {
             toggle_services "disable"
             ;;
         restart|reload)
-            log "Recargando servicios..."
+            log "Reloading services..."
             systemctl --user daemon-reload
             systemctl --user restart ${BACKUP_SERVICE}.timer
             systemctl --user restart ${CONFIG_SERVICE}.timer
-            success "Servicios reiniciados"
+            success "Services restarted"
             ;;
         list|ls)
             list_onedrive
@@ -807,7 +807,7 @@ main() {
             show_help
             ;;
         *)
-            error "Comando desconocido: $1"
+            error "Unknown command: $1"
             echo ""
             show_help
             exit 1
@@ -815,10 +815,8 @@ main() {
     esac
 }
 
-# Manejar señales de interrupción
-trap 'error "Interrumpido"; exit 130' INT TERM
+# Handle interrupt signals
+trap 'error "Interrupted"; exit 130' INT TERM
 
-# Ejecutar
+# Run
 main "$@"
-
-

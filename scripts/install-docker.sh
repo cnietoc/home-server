@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Colores para output
+# Output colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Función de logging con colores
 log() {
     echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $*"
 }
@@ -25,48 +24,48 @@ info() {
     echo -e "${BLUE}[$(date '+%H:%M:%S')] ℹ️${NC} $*"
 }
 
-# Verificar que se ejecuta en Ubuntu
+# Verify the script is running on Ubuntu
 check_ubuntu() {
     if [[ ! -f /etc/os-release ]]; then
-        error "No se puede determinar el sistema operativo"
+        error "Cannot determine the operating system"
         exit 1
     fi
 
     . /etc/os-release
 
     if [[ "$ID" != "ubuntu" ]]; then
-        error "Este script está diseñado para Ubuntu. Sistema detectado: $ID"
+        error "This script is designed for Ubuntu. Detected system: $ID"
         exit 1
     fi
 
-    log "✅ Ubuntu detectado: $VERSION"
+    log "✅ Ubuntu detected: $VERSION"
 }
 
-# Verificar permisos de sudo
+# Verify sudo permissions
 check_sudo() {
     if [[ $EUID -eq 0 ]]; then
-        warn "Ejecutándose como root. Recomendado ejecutar como usuario normal con sudo."
+        warn "Running as root. Recommended to run as a normal user with sudo."
     fi
 
     if ! sudo -v >/dev/null 2>&1; then
-        error "Este script requiere permisos de sudo"
+        error "This script requires sudo permissions"
         exit 1
     fi
 
-    log "✅ Permisos de sudo verificados"
+    log "✅ sudo permissions verified"
 }
 
-# Verificar si Docker ya está instalado
+# Check if Docker is already installed
 check_docker_installed() {
     if command -v docker >/dev/null 2>&1; then
         local docker_version=$(docker --version | cut -d' ' -f3 | cut -d',' -f1)
-        info "Docker ya está instalado: versión $docker_version"
+        info "Docker is already installed: version $docker_version"
 
-        # Verificar si el servicio está corriendo
+        # Check if the service is running
         if sudo systemctl is-active --quiet docker; then
-            info "Servicio Docker está corriendo"
+            info "Docker service is running"
         else
-            warn "Servicio Docker no está corriendo, iniciándolo..."
+            warn "Docker service is not running, starting it..."
             sudo systemctl start docker
             sudo systemctl enable docker
         fi
@@ -77,171 +76,168 @@ check_docker_installed() {
     fi
 }
 
-# Remover Docker snap si existe para evitar conflictos
+# Remove Docker snap if present to avoid conflicts
 remove_docker_snap() {
     if command -v snap >/dev/null 2>&1 && snap list docker >/dev/null 2>&1; then
-        warn "Docker snap detectado. Removiendo para evitar conflictos..."
+        warn "Docker snap detected. Removing to avoid conflicts..."
         sudo snap remove docker
-        log "✅ Docker snap desinstalado"
+        log "✅ Docker snap removed"
     else
-        info "No se encontró Docker snap instalado"
+        info "No Docker snap installation found"
     fi
 }
 
-# Instalar Docker
+# Install Docker
 install_docker() {
     if check_docker_installed; then
         return 0
     fi
 
-    log "🐳 Instalando Docker..."
+    log "🐳 Installing Docker..."
 
-    # Remover Docker snap primero
+    # Remove Docker snap first
     remove_docker_snap
 
-    # Eliminar versiones antiguas si existen
-    log "Eliminando versiones antiguas de Docker..."
+    # Remove old versions if present
+    log "Removing old Docker versions..."
     sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
 
-    # Añadir repositorio oficial de Docker
-    log "Configurando repositorio oficial de Docker..."
+    # Add official Docker repository
+    log "Setting up official Docker repository..."
 
-    # Verificar si la clave GPG ya existe
+    # Check if GPG key already exists
     local gpg_keyring="/usr/share/keyrings/docker-archive-keyring.gpg"
     if [[ ! -f "$gpg_keyring" ]]; then
-        log "Descargando clave GPG de Docker..."
+        log "Downloading Docker GPG key..."
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o "$gpg_keyring"
-        log "✅ Clave GPG de Docker instalada"
+        log "✅ Docker GPG key installed"
     else
-        info "Clave GPG de Docker ya existe"
+        info "Docker GPG key already exists"
     fi
 
-    # Verificar si el repositorio ya está configurado
+    # Check if repository is already configured
     local docker_list="/etc/apt/sources.list.d/docker.list"
     if [[ ! -f "$docker_list" ]] || ! grep -q "download.docker.com" "$docker_list"; then
-        log "Añadiendo repositorio de Docker..."
+        log "Adding Docker repository..."
         echo "deb [arch=$(dpkg --print-architecture) signed-by=$gpg_keyring] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee "$docker_list" > /dev/null
-        log "✅ Repositorio de Docker configurado"
+        log "✅ Docker repository configured"
     else
-        info "Repositorio de Docker ya está configurado"
+        info "Docker repository is already configured"
     fi
 
-    # Actualizar lista de paquetes con el nuevo repositorio
+    # Update package list with the new repository
     sudo apt-get update
 
-    # Instalar Docker Engine
-    log "Instalando Docker Engine, CLI y containerd..."
+    # Install Docker Engine
+    log "Installing Docker Engine, CLI and containerd..."
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    # Iniciar y habilitar Docker
+    # Start and enable Docker
     sudo systemctl start docker
     sudo systemctl enable docker
 
-    log "✅ Docker instalado correctamente"
+    log "✅ Docker installed successfully"
 }
 
-# Configurar Docker para el usuario actual
+# Configure Docker for the current user
 configure_docker_user() {
     local current_user=$(whoami)
 
     if [[ "$current_user" == "root" ]]; then
-        warn "Ejecutándose como root, saltando configuración de grupo docker"
+        warn "Running as root, skipping docker group configuration"
         return 0
     fi
 
-    log "👤 Configurando Docker para el usuario: $current_user"
+    log "👤 Configuring Docker for user: $current_user"
 
-    # Crear grupo docker si no existe
+    # Create docker group if it doesn't exist
     if ! getent group docker >/dev/null; then
         sudo groupadd docker
-        log "Grupo docker creado"
+        log "docker group created"
     fi
 
-    # Añadir usuario al grupo docker si no está ya
+    # Add user to docker group if not already a member
     if groups "$current_user" | grep -q docker; then
-        info "Usuario $current_user ya está en el grupo docker"
+        info "User $current_user is already in the docker group"
     else
         sudo usermod -aG docker "$current_user"
-        log "Usuario $current_user añadido al grupo docker"
-        warn "⚠️ Necesitarás cerrar sesión y volver a entrar para que los cambios tengan efecto"
-        warn "   O ejecutar: newgrp docker"
+        log "User $current_user added to the docker group"
+        warn "⚠️ You will need to log out and back in for the changes to take effect"
+        warn "   Or run: newgrp docker"
     fi
 }
 
-# Verificar instalación de Docker
+# Verify Docker installation
 verify_docker() {
-    log "🔍 Verificando instalación de Docker..."
+    log "🔍 Verifying Docker installation..."
 
-    # Verificar comando docker
+    # Check docker command
     if ! command -v docker >/dev/null 2>&1; then
-        error "Docker no está en el PATH"
+        error "Docker is not in PATH"
         return 1
     fi
 
-    # Verificar servicio
+    # Check service
     if ! sudo systemctl is-active --quiet docker; then
-        error "Servicio Docker no está corriendo"
+        error "Docker service is not running"
         return 1
     fi
 
-    # Verificar funcionalidad básica
+    # Verify basic functionality
     if sudo docker run --rm hello-world >/dev/null 2>&1; then
-        log "✅ Docker funciona correctamente"
+        log "✅ Docker is working correctly"
     else
-        error "Docker instalado pero no funciona correctamente"
+        error "Docker is installed but not working correctly"
         return 1
     fi
 
-    # Mostrar versiones
+    # Show versions
     local docker_version=$(docker --version)
-    local compose_version=$(docker compose version 2>/dev/null || echo "Docker Compose no disponible")
+    local compose_version=$(docker compose version 2>/dev/null || echo "Docker Compose not available")
 
-    log "📋 Versiones instaladas:"
+    log "📋 Installed versions:"
     log "   $docker_version"
     log "   $compose_version"
 }
 
-
-
-# Función para mostrar información final
+# Show final information
 show_final_info() {
-    log "🎉 Instalación completada exitosamente!"
+    log "🎉 Installation completed successfully!"
     echo ""
-    log "📋 Resumen de lo instalado:"
-    log "   ✅ Docker Engine y Docker Compose"
+    log "📋 What was installed:"
+    log "   ✅ Docker Engine and Docker Compose"
     echo ""
-    warn "⚠️ IMPORTANTE: Reinicia tu sesión SSH para que los cambios del grupo docker tengan efecto"
-    log "  O ejecuta: newgrp docker"
+    warn "⚠️ IMPORTANT: Restart your SSH session for the docker group changes to take effect"
+    log "  Or run: newgrp docker"
     echo ""
-    log "🚀 Puedes verificar la instalación ejecutando: docker run hello-world"
+    log "🚀 You can verify the installation by running: docker run hello-world"
 }
 
-# Función de ayuda
+# Help
 show_help() {
     cat << EOF
-Uso: $0 [opciones]
+Usage: $0 [options]
 
-DESCRIPCIÓN:
-  Instala Docker y Docker Compose en Ubuntu Server.
-  El script es idempotente (se puede ejecutar múltiples veces).
+DESCRIPTION:
+  Installs Docker and Docker Compose on Ubuntu Server.
+  The script is idempotent (safe to run multiple times).
 
-OPCIONES:
-  --help             Mostrar esta ayuda
+OPTIONS:
+  --help             Show this help
 
-EJEMPLOS:
-  $0                       # Instalación de Docker
+EXAMPLES:
+  $0                       # Install Docker
 
-PREREQUISITOS:
-  - Ubuntu Server (18.04 o superior)
-  - Usuario con permisos sudo
-  - Conexión a internet
+PREREQUISITES:
+  - Ubuntu Server (18.04 or later)
+  - User with sudo permissions
+  - Internet connection
 
 EOF
 }
 
-# Función principal
+# Main function
 main() {
-    # Parsear argumentos
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h)
@@ -249,31 +245,26 @@ main() {
                 exit 0
                 ;;
             *)
-                error "Opción desconocida: $1"
+                error "Unknown option: $1"
                 show_help
                 exit 1
                 ;;
         esac
     done
 
-    log "🚀 Iniciando instalación de Docker en Ubuntu Server..."
+    log "🚀 Starting Docker installation on Ubuntu Server..."
     echo ""
 
-    # Verificaciones iniciales
     check_ubuntu
     check_sudo
 
-    # Instalación
     install_docker
     configure_docker_user
     verify_docker
 
-    # Información final
     show_final_info
 }
 
-# Manejar señales de interrupción
-trap 'error "Instalación interrumpida"; exit 130' INT TERM
+trap 'error "Installation interrupted"; exit 130' INT TERM
 
-# Ejecutar función principal
 main "$@"
