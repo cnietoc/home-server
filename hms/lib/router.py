@@ -24,6 +24,11 @@ class RouterError(Exception):
     pass
 
 
+class RouterConflictError(RouterError):
+    """Puerto ya mapeado por una regla estática o cliente externo."""
+    pass
+
+
 class PortMapping(NamedTuple):
     stack: str
     port: int
@@ -119,6 +124,9 @@ class UpnpClient:
         except RouterError:
             raise
         except Exception as e:
+            if str(e) == "ConflictInMappingEntry":
+                # Port already forwarded by a static/external rule — not an error
+                raise RouterConflictError(f"{m.port}/{proto} ya mapeado por regla externa") from e
             raise RouterError(f"No se pudo añadir mapeo {m.port}/{proto}: {e}") from e
 
 
@@ -338,17 +346,17 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
         current_list = client.list_mappings()
         current = {(m["ext_port"], m["protocol"].lower()) for m in current_list}
         if current_list:
-            logger.debug(f"📋 Router: {len(current_list)} mapeo(s) activos antes de actualizar [{stack_name}]:")
+            logger.info(f"📋 Router: {len(current_list)} mapeo(s) activos antes de actualizar [{stack_name}]:")
             for m in current_list:
                 port = m.get("ext_port", "?")
                 proto = m.get("protocol", "?").lower()
                 dest = f"{m.get('int_client', '?')}:{m.get('int_port', '?')}"
                 desc = m.get("description", "")
-                lease = m.get("lease_time", 0)
-                lease_str = f"{lease}s" if lease else "permanente"
-                logger.debug(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
+                lease_time = m.get("lease_time", 0)
+                lease_str = f"{lease_time}s" if lease_time else "permanente"
+                logger.info(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
         else:
-            logger.debug(f"📋 Router: sin mapeos activos [{stack_name}]")
+            logger.info(f"📋 Router: sin mapeos activos [{stack_name}]")
     except Exception:
         current = set()
 
@@ -360,6 +368,8 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
                 logger.info(f"🔄 Router: {pm.port}/{pm.protocol} → {lan_ip} (refrescado) [{pm.stack}]")
             else:
                 logger.info(f"🌐 Router: {pm.port}/{pm.protocol} → {lan_ip} [{pm.stack}]")
+        except RouterConflictError as e:
+            logger.info(f"ℹ️  Router: {e}")
         except Exception as e:
             logger.warning(f"⚠️  Router: no se pudo añadir {pm.port}/{pm.protocol}: {e}")
 

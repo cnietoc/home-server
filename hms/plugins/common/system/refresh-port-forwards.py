@@ -141,7 +141,7 @@ EJEMPLOS:
 
     def _reconcile(self, client, cfg: dict, dry_run: bool, prune: bool, verbose: bool) -> int:
         from hms.lib.config import config_manager
-        from hms.lib.router import RouterError, get_desired_mappings
+        from hms.lib.router import RouterError, RouterConflictError, get_desired_mappings
 
         exclude = cfg.get("exclude_stacks", [])
         desired = get_desired_mappings(exclude_stacks=exclude)
@@ -196,6 +196,9 @@ EJEMPLOS:
             if not dry_run:
                 try:
                     client.add_mapping(pm, lan_ip, lease)
+                    added += 1
+                except RouterConflictError as e:
+                    logger.info(f"    ℹ️  {e}")
                     added += 1
                 except Exception as e:
                     logger.warning(f"    ⚠️  {pm.port}/{pm.protocol}: {e}")
