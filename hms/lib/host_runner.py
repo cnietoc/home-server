@@ -74,7 +74,7 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         *[arg for g in group_add for arg in ("--group-add", str(g))],
         *volume_args,
         "-e", f"{HOST_RUNNER_ENV}=1",
-        "-e", "HMS_LOG_TAG=host-runner",
+        "-e", "HMS_LOG_TAG=host",
         image,
         "python", "-m", "hms", *cli_args,
     ]
