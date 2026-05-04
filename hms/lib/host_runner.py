@@ -65,8 +65,11 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         if m["Type"] == "bind":
             volume_args += ["-v", f"{m['Source']}:{m['Destination']}"]
 
+    cmd_label = cli_args[1] if len(cli_args) > 1 else cli_args[0] if cli_args else "host"
+    name = f"hms-{cmd_label}-{os.urandom(2).hex()}"
     cmd = [
         "docker", "run", "--rm", "--network=host",
+        "--name", name,
         *(["--user", user] if user else []),
         *[arg for g in group_add for arg in ("--group-add", str(g))],
         *volume_args,
