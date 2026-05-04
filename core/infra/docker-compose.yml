@@ -9,6 +9,7 @@ x-hms:
   public_ports:
     - { port: 80, protocol: tcp, description: "HTTP (Traefik)" }
     - { port: 443, protocol: tcp, description: "HTTPS (Traefik)" }
+    - { port: 19992, protocol: tcp, description: "Test port" }
 
 services:
   traefik:
