@@ -6,7 +6,7 @@ networks:
     driver: bridge
 
 services:
-  cli:
+  app:
     user: ${PUID}:${PGID}
     build:
       context: ../..
