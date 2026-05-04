@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Punto de entrada del daemon."""
+    import os
+    os.environ["HMS_DAEMON"] = "1"  # ui.* redirige a logger en vez de print
+
     # Cargar configuración y establecer variables de entorno
     log_level = config_manager.get_config_value("global.log_level")
 

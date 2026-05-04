@@ -4,22 +4,44 @@ hms.lib.ui — output visible al usuario en el CLI.
 Separado del logger para que el feedback al usuario no dependa del log_level.
 Usar en plugins para mensajes de estado, resultados y errores visibles en terminal.
 Usar logger.* para diagnósticos y registros en hms.log.
+
+En contexto de daemon (HMS_DAEMON=1) redirige a logger para no contaminar docker logs.
 """
 
+import logging
+import os
 import sys
+
+_logger = logging.getLogger("hms.ui")
+
+
+def _daemon() -> bool:
+    return bool(os.environ.get("HMS_DAEMON"))
 
 
 def info(msg: str) -> None:
-    print(msg)
+    if _daemon():
+        _logger.info(msg)
+    else:
+        print(msg)
 
 
 def ok(msg: str) -> None:
-    print(f"✅ {msg}")
+    if _daemon():
+        _logger.info(msg)
+    else:
+        print(f"✅ {msg}")
 
 
 def warn(msg: str) -> None:
-    print(f"⚠️  {msg}", file=sys.stderr)
+    if _daemon():
+        _logger.warning(msg)
+    else:
+        print(f"⚠️  {msg}", file=sys.stderr)
 
 
 def err(msg: str) -> None:
-    print(f"❌ {msg}", file=sys.stderr)
+    if _daemon():
+        _logger.error(msg)
+    else:
+        print(f"❌ {msg}", file=sys.stderr)
