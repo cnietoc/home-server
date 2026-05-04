@@ -43,8 +43,5 @@ if [[ -n "$PGID" && "$PGID" != "$CURRENT_GID" ]]; then
     exit 1
 fi
 
-# Ensure hms-network exists (can't use docker-compose networks with network_mode: host)
-docker network inspect hms-network >/dev/null 2>&1 || docker network create hms-network
-
 echo "👤 Ejecutando como root"
 exec "$@"
