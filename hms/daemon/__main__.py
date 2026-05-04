@@ -4,6 +4,7 @@ El scheduler se integra con FastAPI via lifespan events.
 """
 
 import logging
+import logging.handlers
 
 import uvicorn
 
@@ -33,19 +34,25 @@ def main():
     )
     config_manager.load_env_config()
 
-    # Hacer que los loggers de uvicorn usen los handlers/formatos globales
-    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    # uvicorn.error → root logger (hms.log), uvicorn.access → access.log separado
+    for name in ("uvicorn", "uvicorn.error"):
         uv_logger = logging.getLogger(name)
-        uv_logger.handlers = []  # limpia handlers propios
-        uv_logger.propagate = True  # reenvía al root con formato unificado
+        uv_logger.handlers = []
+        uv_logger.propagate = True
         uv_logger.setLevel(logging.INFO)
 
-    # Silenciar el spam de /api/health en el access log
-    class _HealthFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            return "/api/health" not in record.getMessage()
+    _access_handler = logging.handlers.RotatingFileHandler(
+        log_dir / "access.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    _access_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", "%Y-%m-%d %H:%M:%S"))
+    uv_access = logging.getLogger("uvicorn.access")
+    uv_access.handlers = [_access_handler]
+    uv_access.propagate = False
+    uv_access.setLevel(logging.INFO)
 
-    logging.getLogger("uvicorn.access").addFilter(_HealthFilter())
+    # httpx/httpcore: peticiones salientes — INFO es demasiado verboso, WARNING basta
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     logger.info("=" * 60)
     logger.info("🎯 HMS DAEMON")
