@@ -175,6 +175,21 @@ EJEMPLOS:
         except Exception:
             current = []
 
+        if current:
+            logger.info(f"📋 Mapeos activos en el router ({len(current)}):")
+            for m in current:
+                port = m.get("ext_port", "?")
+                proto = m.get("protocol", "?").lower()
+                dest = f"{m.get('int_client', '?')}:{m.get('int_port', '?')}"
+                desc = m.get("description", "")
+                lease_time = m.get("lease_time", 0)
+                lease_str = f"{lease_time}s" if lease_time else "permanente"
+                logger.info(f"    {port}/{proto} → {dest}  {desc!r}  lease:{lease_str}")
+            logger.info("")
+        else:
+            logger.info("📋 Sin mapeos activos en el router")
+            logger.info("")
+
         current_keys = {
             (m["ext_port"], m["protocol"].lower())
             for m in current
