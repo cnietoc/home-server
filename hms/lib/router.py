@@ -316,7 +316,7 @@ def get_router_client() -> RouterClient:
 
 def _log_current_mappings(current_list: list[dict], out=None) -> None:
     def _out(msg):
-        if out is not None:
+        if out is not None and msg:
             logger.info(msg)
         (out or logger.info)(msg)
     if current_list:
@@ -348,7 +348,7 @@ def reconcile_port_forwards(
     Returns (processed, failed).
     """
     def _out(msg):
-        if out is not None:
+        if out is not None and msg:
             logger.info(msg)
         (out or logger.info)(msg)
 

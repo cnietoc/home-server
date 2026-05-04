@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# HMS Stop Command - Bash puro
-# Detiene los servicios internos y el contenedor HMS
+# HMS Stop Command - stops internal services and the HMS container
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,7 +8,7 @@ COMPOSE_DIR="$REPO_ROOT/core/hms"
 CONTAINER_NAME="hms"
 CONFIG_FILE="$REPO_ROOT/config.toml"
 
-# Colores
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -19,20 +18,20 @@ log_info() { echo -e "${GREEN}➜${NC} $*"; }
 log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
 log_error() { echo -e "${RED}✗${NC} $*" >&2; }
 
-# Validar Docker disponible
+# Validate Docker is available
 if ! command -v docker >/dev/null 2>&1; then
-  log_error "Docker no está instalado"
+  log_error "Docker is not installed"
   exit 1
 fi
 
 if ! docker info >/dev/null 2>&1; then
-  log_error "Docker daemon no disponible"
+  log_error "Docker daemon is not available"
   exit 1
 fi
 
-# Verificar si el contenedor está corriendo
+# Check if container is running
 if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-  log_warn "El contenedor HMS no está corriendo"
+  log_warn "HMS container is not running"
   exit 0
 fi
 
@@ -59,18 +58,18 @@ read_global_config() {
   ' "$config_file"
 }
 
-# Lee el archivo de configuración config.toml para obtener parámetros necesarios
+# Read config.toml to get required parameters
 PUID=$(read_global_config "puid" || echo "")
 PGID=$(read_global_config "pgid" || echo "")
 DOCKER_GID=$(read_global_config "docker_gid" || echo "")
 
 export PUID PGID DOCKER_GID
 
-# Ejecutar comando stop dentro del contenedor
+# Run stop command inside container
 docker exec "$CONTAINER_NAME" python -m hms stop "$@"
 
-# Detener el contenedor
-log_info "Deteniendo contenedor HMS..."
+# Stop the container
+log_info "Stopping HMS container..."
 (cd "$COMPOSE_DIR" && docker compose down --remove-orphans)
 
-log_info "✅ HMS detenido correctamente"
+log_info "✅ HMS stopped successfully"

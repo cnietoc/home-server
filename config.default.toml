@@ -4,7 +4,7 @@ puid             = "__REQUIRED__"
 pgid             = "__REQUIRED__"
 tz               = "__REQUIRED__"
 domain           = "__REQUIRED__"
-host_ip          = "__REQUIRED__"  # IP LAN del host (se autoconfigura en `hms install`)
+host_ip          = "__REQUIRED__"  # host LAN IP (auto-configured by `hms install`)
 log_level        = "info"
 notification_url = ""
 
@@ -25,7 +25,7 @@ oauth_whitelist      = "__REQUIRED__"
 exclude = ["*.log"]
 
 [jobs.update-dns]
-description = "Actualizar DNS en Cloudflare"
+description = "Update DNS records in Cloudflare"
 plugin      = "system:update-dns"
 args        = []
 triggers    = [
@@ -34,24 +34,24 @@ triggers    = [
 ]
 
 [jobs.backup-daily]
-description = "Backup diario de todos los stacks e infra"
+description = "Daily backup of all stacks and infra"
 plugin      = "system:backup"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "startup", delay = "1m"        },  # 1 minuto después del inicio
-    { type = "cron",    cron  = "0 3 * * *" },  # 03:00 cada día
+    { type = "startup", delay = "1m"        },  # 1 minute after startup
+    { type = "cron",    cron  = "0 3 * * *" },  # daily at 03:00
 ]
 
 [router]
-enabled         = true         # false si UPnP no está disponible en el router
+enabled         = true         # set false if UPnP is unavailable on the router
 backend         = "upnp"       # "upnp" | "natpmp" | "none"
-gateway_ip      = ""           # opcional: IP del router (p.ej. "192.168.1.1"); vacío = autodetección
-lease_duration  = "3600"       # segundos de duración del lease (0 = permanente si el router lo soporta)
-exclude_stacks  = []           # stacks a gestionar a mano (p.ej. ["infra"])
+gateway_ip      = ""           # optional: router IP (e.g. "192.168.1.1"); empty = auto-detect
+lease_duration  = "3600"       # lease duration in seconds (0 = permanent if supported by router)
+exclude_stacks  = []           # stacks to manage manually (e.g. ["infra"])
 
 [jobs.refresh-port-forwards]
-description = "Refrescar port-forwards UPnP/NAT-PMP en el router"
+description = "Refresh UPnP/NAT-PMP port-forwards on the router"
 plugin      = "system:refresh-port-forwards"
 enabled     = true
 args        = []
@@ -61,21 +61,21 @@ triggers    = [
 ]
 
 [jobs.update-stacks]
-description = "Actualizar imágenes de todos los stacks (excepto infra)"
+description = "Update images for all stacks (except infra)"
 plugin      = "system:update-stacks"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "cron", cron = "0 2 * * *" },  # 02:00 cada día
+    { type = "cron", cron = "0 2 * * *" },  # daily at 02:00
 ]
 
 [jobs.update-infra]
-description = "Actualizar imágenes del stack de infraestructura"
+description = "Update infrastructure stack images"
 plugin      = "update"
 enabled     = true
 args        = ["infra"]
 triggers    = [
-    { type = "cron", cron = "0 4 * * *" },  # 04:00 cada día
+    { type = "cron", cron = "0 4 * * *" },  # daily at 04:00
 ]
 
 [media]
@@ -133,20 +133,20 @@ list_on_steam          = "true"
 list_on_eos            = "true"
 game_settings_preset   = "StandardPvE"        # StandardPvE | StandardPvE_Easy | StandardPvE_Hard | StandardPvP | StandardPvP_Easy | StandardPvP_Hard | SoloPvP | DuoPvP | HardcorePvP | HardcoreDuoPvP | Level30PvE | Level30PvP | Level50PvE | Level50PvP | Level70PvE | Level70PvP
 game_difficulty_preset = "Difficulty_Normal"  # Difficulty_Easy | Difficulty_Normal | Difficulty_Brutal
-teleport_bound_items   = false                # false = puedes teleportarte con recursos encima
-castle_decay_rate      = "0.1"                # decay mínimo del castillo
-blood_essence_drain    = "0.5"                # el corazón drena esencia a la mitad de velocidad
-material_yield         = "1.5"                # +50% materiales al farmear
-craft_rate             = "2.0"                # crafteo 2x más rápido
-refinement_rate        = "2.0"                # refinado 2x más rápido
-day_duration           = "720"                # duración del ciclo día/noche en segundos (defecto: 1080)
+teleport_bound_items   = false                # false = can teleport with resources
+castle_decay_rate      = "0.1"                # minimum castle decay rate
+blood_essence_drain    = "0.5"                # heart drains essence at half speed
+material_yield         = "1.5"                # +50% material yield when farming
+craft_rate             = "2.0"                # crafting 2x faster
+refinement_rate        = "2.0"                # refining 2x faster
+day_duration           = "720"                # day/night cycle duration in seconds (default: 1080)
 
 [vrising.backups]
 exclude = ["/server/"]
 
 [terraria]
 world_name  = "World"
-world_size  = "2"           # 1=pequeño, 2=medio, 3=grande
+world_size  = "2"           # 1=small, 2=medium, 3=large
 difficulty  = "0"           # 0=normal, 1=expert, 2=master, 3=journey
 motd        = "Welcome to my Terraria server!"
 password    = "__REQUIRED__"
