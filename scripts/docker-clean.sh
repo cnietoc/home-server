@@ -9,29 +9,57 @@ confirm() {
     [[ "${ans,,}" == "s" ]]
 }
 
-echo -e "${BOLD}🧹 Docker Clean${NC}"
-echo ""
+usage() {
+    echo -e "${BOLD}Uso:${NC} $0 [--all]"
+    echo ""
+    echo "  (sin flags)   Limpia recursos no usados (contenedores parados, imágenes"
+    echo "                sin usar, volúmenes y redes huérfanos, build cache)"
+    echo "  --all         Para todos los contenedores en ejecución y luego limpia todo"
+    exit 1
+}
 
-# ── Parar todos los contenedores corriendo ───────────────────────────────────
-running=$(docker ps -q)
-if [[ -n "$running" ]]; then
-    count=$(echo "$running" | wc -l | tr -d ' ')
-    confirm "Se van a parar $count contenedor(es) en ejecución" || { echo "Cancelado."; exit 0; }
-    docker stop $running
-    echo -e "${GREEN}✓ Contenedores parados${NC}"
+FULL=0
+for arg in "$@"; do
+    case "$arg" in
+        --all) FULL=1 ;;
+        -h|--help) usage ;;
+        *) echo -e "${RED}Argumento desconocido: $arg${NC}"; usage ;;
+    esac
+done
+
+if [[ $FULL -eq 1 ]]; then
+    echo -e "${BOLD}🧹 Docker Clean (todo)${NC}"
 else
-    echo "  Sin contenedores en ejecución"
+    echo -e "${BOLD}🧹 Docker Clean${NC}"
 fi
-
 echo ""
+
+# ── Parar contenedores (solo en modo --all) ───────────────────────────────────
+if [[ $FULL -eq 1 ]]; then
+    running=$(docker ps -q)
+    if [[ -n "$running" ]]; then
+        count=$(echo "$running" | wc -l | tr -d ' ')
+        confirm "Se van a parar $count contenedor(es) en ejecución" || { echo "Cancelado."; exit 0; }
+        docker stop $running
+        echo -e "${GREEN}✓ Contenedores parados${NC}"
+    else
+        echo "  Sin contenedores en ejecución"
+    fi
+    echo ""
+fi
 
 # ── Contenedores parados ──────────────────────────────────────────────────────
 docker container prune -f
 echo -e "${GREEN}✓ Contenedores parados eliminados${NC}"
 
 # ── Imágenes sin usar ─────────────────────────────────────────────────────────
-docker image prune -af
-echo -e "${GREEN}✓ Imágenes eliminadas${NC}"
+if [[ $FULL -eq 1 ]]; then
+    docker image prune -af
+    echo -e "${GREEN}✓ Imágenes eliminadas (todas)${NC}"
+else
+    docker image prune -f
+    echo -e "${GREEN}✓ Imágenes huérfanas eliminadas${NC}"
+fi
 
 # ── Volúmenes sin usar ────────────────────────────────────────────────────────
 docker volume prune -f
