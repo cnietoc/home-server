@@ -26,8 +26,11 @@ def main():
     # Configurar logging global (una sola vez)
     log_dir = get_logs_root()
     setup_logging(
-        log_file=log_dir / "hms-cli.log",
+        log_file=log_dir / "hms.log",
         level=logging.getLevelName(log_level.upper()),
+        console=True,
+        rotator=False,
+        tag="cli",
     )
     config_manager.load_env_config()
 

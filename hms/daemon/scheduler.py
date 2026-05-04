@@ -144,7 +144,7 @@ def _load_jobs(scheduler: BackgroundScheduler):
 
     current_jobs = scheduler.get_jobs()
 
-    logger.debug(f"Actualmente hay {len(current_jobs)} job(s) en el scheduler: {[job.id for job in current_jobs]}")
+    logger.debug("Actualmente hay %d job(s) en el scheduler: %s", len(current_jobs), [job.id for job in current_jobs])
     global _is_startup
 
     for job_definition in job_definitions:
@@ -178,7 +178,7 @@ def _load_jobs(scheduler: BackgroundScheduler):
                 job_id = f"{job_definition.name}-on-startup-{seconds}s"
                 trigger = DateTrigger(run_date=datetime.fromtimestamp(time.time() + seconds))
                 if not _is_startup:
-                    logger.debug(f"⏭️ Skipping startup trigger for job {job_definition.name} on reload")
+                    logger.debug("⏭️ Skipping startup trigger for job %s on reload", job_definition.name)
                     skip = True
             elif trigger.type == "interval":
                 seconds = parse_interval(trigger.value)
@@ -211,7 +211,7 @@ def _load_jobs(scheduler: BackgroundScheduler):
 
             current_jobs = [job for job in current_jobs if job.id != job_id]
 
-    logger.debug(f"Quedan {len(current_jobs)} job(s) sin definir: {[job.id for job in current_jobs]}")
+    logger.debug("Quedan %d job(s) sin definir: %s", len(current_jobs), [job.id for job in current_jobs])
 
     # Remover jobs que ya no están en la configuración
     for job in current_jobs:

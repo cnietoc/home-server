@@ -45,8 +45,8 @@ class StateManager:
                 content = self.state_file.read_text()
                 self._state = yaml.safe_load(content) or {"server": {}, "stacks": {}}
                 logger.debug(f"✅ Estado cargado desde {self.state_file.name}")
-            except Exception as e:
-                logger.error(f"❌ Error cargando {self.state_file.name}: {e}")
+            except Exception:
+                logger.exception(f"❌ Error cargando {self.state_file.name}")
                 self._state = {"server": {}, "stacks": {}}
 
     def _save(self) -> None:
@@ -61,8 +61,8 @@ class StateManager:
             )
             self.state_file.write_text(content)
             logger.debug(f"✅ Estado guardado a {self.state_file.name}")
-        except Exception as e:
-            logger.error(f"❌ Error guardando {self.state_file.name}: {e}")
+        except Exception:
+            logger.exception(f"❌ Error guardando {self.state_file.name}")
 
     def get(self, key: str, default: Any = None) -> Any:
         """

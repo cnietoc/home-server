@@ -343,8 +343,8 @@ CONFIGURATION:
                 from hms.lib.notify import send as notify
                 notify("❌ HMS: restore fallido", f"Backup: {backup_file}")
             return result
-        except Exception as e:
-            logger.error(f"❌ Error durante restauración: {e}")
+        except Exception:
+            logger.exception("❌ Error durante restauración")
             if not dry_run:
                 from hms.lib.notify import send as notify
                 notify("❌ HMS: restore fallido", f"Backup: {backup_file}\nError: {e}")
@@ -606,8 +606,8 @@ CONFIGURATION:
             else:
                 logger.info(f"\n✨ Backup completado. {len(timestamps)} backup(s) creado(s)")
 
-        except Exception as e:
-            logger.error(f"❌ Error durante backup: {e}")
+        except Exception:
+            logger.exception("❌ Error durante backup")
             return 1
 
         return exit_code
@@ -651,8 +651,8 @@ CONFIGURATION:
             stats["compressed_bytes"] = backup_file.stat().st_size
             return timestamp, stats
 
-        except Exception as e:
-            logger.error(f"   Error creando backup de hms: {e}")
+        except Exception:
+            logger.exception("   Error creando backup de hms")
             return None
 
     def _create_stack_backup(self, stack_name: str) -> Optional[tuple]:
@@ -673,8 +673,8 @@ CONFIGURATION:
             stats["compressed_bytes"] = backup_file.stat().st_size
             return timestamp, stats
 
-        except Exception as e:
-            logger.error(f"   Error creando backup de {stack_name}: {e}")
+        except Exception:
+            logger.exception(f"   Error creando backup de {stack_name}")
             return None
 
     def _log_backup_stats(self, name: str, timestamp: str, stats: dict) -> None:
@@ -726,8 +726,8 @@ Patrón exclusión: {exclude_patterns if exclude_patterns else 'ninguno'}
                     backup_file.unlink()
                     logger.info(f"🗑️  Eliminado: {backup_file.name}")
 
-        except Exception as e:
-            logger.error(f"Error durante rotación de backups: {e}")
+        except Exception:
+            logger.exception("Error durante rotación de backups")
 
     # ─── Stack lifecycle ───────────────────────────────────────────────────────
 

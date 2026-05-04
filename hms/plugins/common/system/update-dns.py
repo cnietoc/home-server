@@ -125,7 +125,7 @@ REGISTROS QUE SE CREAN/ACTUALIZAN:
             logger.error(f"❌ Error: {e}")
             return 1
         except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}", e)
+            logger.exception("❌ Error inesperado en update-dns")
             return 1
 
     def _list_records(self, client: CloudflareClient) -> int:

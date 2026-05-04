@@ -44,64 +44,80 @@ class ColoredFormatter(logging.Formatter):
         return msg
 
 
+class _TagFilter(logging.Filter):
+    """Inyecta un campo 'tag' en cada registro para identificar el proceso."""
+
+    def __init__(self, tag: str):
+        super().__init__()
+        self.tag = tag
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.tag = self.tag
+        return True
+
+
 def setup_logging(
     log_file: Path | None = None,
     level: int = logging.INFO,
     console: bool = True,
+    rotator: bool = False,
+    tag: str = "",
 ) -> logging.Logger:
     """Configura logging centralizado en el root logger.
 
-    Captura logs de todos los módulos (hms.*, etc.) tanto en consola
-    como en archivo. Consola con colores, archivo sin colores.
-
     Args:
-        log_file: Ruta del archivo de log (con rotación automática).
-                 Si es None, no se escribe a archivo.
-        level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-        console: Si True, también loguea en consola con colores.
-
-    Ejemplo:
-        setup_logging(
-            log_file=Path("/app/data/logs/hms.log"),
-            level=logging.INFO,
-        )
+        log_file: Ruta del archivo de log. Si es None, no escribe a archivo.
+        level: Nivel de logging.
+        console: Si True, loguea en consola con colores.
+        rotator: Si True, usa RotatingFileHandler (el daemon rota).
+                 Si False, usa WatchedFileHandler (el CLI sólo append, sigue inode).
+        tag: Etiqueta de proceso que aparece en cada línea del log ("[daemon]", "[cli]").
     """
-    # Configurar root logger (captura todos los logs)
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
-
-    # Limpiar handlers existentes si se llama múltiples veces
     root_logger.handlers = []
 
-    # Formato base (sin colores para archivo)
-    fmt = "%(asctime)s [%(levelname)s] %(message)s"
+    fmt = "%(asctime)s [%(levelname)s]%(tag_prefix)s %(message)s"
     date_fmt = "%Y-%m-%d %H:%M:%S"
 
-    # Handler de consola (con colores)
+    # Si hay tag, lo inyectamos en el formato vía filtro
+    tag_prefix = f" [{tag}]" if tag else ""
+
+    class _TagFormatter(logging.Formatter):
+        def format(self, record: logging.LogRecord) -> str:
+            record.tag_prefix = tag_prefix
+            return super().format(record)
+
+    class _ColoredTagFormatter(ColoredFormatter):
+        def format(self, record: logging.LogRecord) -> str:
+            record.tag_prefix = tag_prefix
+            return super().format(record)
+
     if console:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
-        console_formatter = ColoredFormatter(fmt, datefmt=date_fmt)
-        console_handler.setFormatter(console_formatter)
+        console_handler.setFormatter(_ColoredTagFormatter(fmt, datefmt=date_fmt))
         root_logger.addHandler(console_handler)
 
-    # Handler de archivo (sin colores)
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # RotatingFileHandler: máx 10MB por archivo, máx 5 backups
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=10 * 1024 * 1024,  # 10MB
-            backupCount=5,
-            encoding='utf-8'
-        )
+        if rotator:
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_file,
+                maxBytes=10 * 1024 * 1024,
+                backupCount=5,
+                encoding="utf-8",
+            )
+        else:
+            # WatchedFileHandler: sólo append, detecta cambio de inode tras rollover
+            file_handler = logging.handlers.WatchedFileHandler(
+                log_file,
+                encoding="utf-8",
+            )
+
         file_handler.setLevel(level)
-        # Formatter sin colores para archivo
-        file_formatter = logging.Formatter(fmt, datefmt=date_fmt)
-        file_handler.setFormatter(file_formatter)
+        file_handler.setFormatter(_TagFormatter(fmt, datefmt=date_fmt))
         root_logger.addHandler(file_handler)
 
-
     return root_logger
-

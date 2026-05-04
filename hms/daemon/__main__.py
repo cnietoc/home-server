@@ -22,9 +22,11 @@ def main():
     # Configurar logging centralizado
     log_dir = get_logs_root()
     setup_logging(
-        log_file=log_dir / "hms-daemon.log",
+        log_file=log_dir / "hms.log",
         level=logging.getLevelName(log_level.upper()),
-        console=True,
+        console=False,
+        rotator=True,
+        tag="daemon",
     )
     config_manager.load_env_config()
 
@@ -34,6 +36,13 @@ def main():
         uv_logger.handlers = []  # limpia handlers propios
         uv_logger.propagate = True  # reenvía al root con formato unificado
         uv_logger.setLevel(logging.INFO)
+
+    # Silenciar el spam de /api/health en el access log
+    class _HealthFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            return "/api/health" not in record.getMessage()
+
+    logging.getLogger("uvicorn.access").addFilter(_HealthFilter())
 
     logger.info("=" * 60)
     logger.info("🎯 HMS DAEMON")

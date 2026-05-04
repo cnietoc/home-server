@@ -145,8 +145,8 @@ class DockerComposeManager:
         except subprocess.TimeoutExpired:
             logger.error(f"Pre-deploy script timeout for stack '{stack_name}'")
             return 1
-        except Exception as e:
-            logger.error(f"Error running pre-deploy script for stack '{stack_name}': {e}")
+        except Exception:
+            logger.exception(f"Error running pre-deploy script for stack '{stack_name}'")
             return 1
 
     def _get_compose_file(self, stack_name: str) -> Optional[Path]:
@@ -225,8 +225,8 @@ class DockerComposeManager:
         except subprocess.TimeoutExpired:
             logger.error(f"Timeout checking status for stack '{stack_name}'")
             return "not-found"
-        except Exception as e:
-            logger.error(f"Error checking status for stack '{stack_name}': {e}")
+        except Exception:
+            logger.exception(f"Error checking status for stack '{stack_name}'")
             return "not-found"
 
     def _get_stack_containers(self, stack_name: str) -> list[dict]:
@@ -360,8 +360,8 @@ class DockerComposeManager:
                 process.wait()
                 logger.error(f"Timeout executing command {' '.join(command)} for stack '{stack_name}'")
                 return 1, b"".join(output_buffer).decode(errors="replace")
-            except Exception as e:
-                logger.error(f"Error executing command {' '.join(command)} for stack '{stack_name}': {e}")
+            except Exception:
+                logger.exception(f"Error executing command {' '.join(command)} for stack '{stack_name}'")
                 return 1, b"".join(output_buffer).decode(errors="replace")
         finally:
             os.close(master)
@@ -411,8 +411,8 @@ class DockerComposeManager:
 
             return result
 
-        except Exception as e:
-            logger.error(f"Error bringing up stack '{stack_name}': {e}")
+        except Exception:
+            logger.exception(f"Error bringing up stack '{stack_name}'")
             return 1
 
     def stack_down(self, stack_name: str) -> int:
