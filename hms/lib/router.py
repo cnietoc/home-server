@@ -117,7 +117,7 @@ class UpnpClient:
         desc = f"hms:{m.stack}:{m.description}" if m.description else f"hms:{m.stack}"
         try:
             u = self._get_upnp()
-            result = u.addportmapping(m.port, proto, m.port, lan_ip, desc, "", str(lease))
+            result = u.addportmapping(m.port, proto, lan_ip, m.port, desc, "", lease)
             if result is False:
                 raise RouterError(f"addportmapping devolvió False para {m.port}/{proto}")
         except RouterError:
