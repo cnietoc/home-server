@@ -317,8 +317,6 @@ def get_router_client() -> RouterClient:
 def _log_current_mappings(current_list: list[dict], out=None) -> None:
     def _out(msg):
         if out is not None:
-            if msg:
-                logger.info(msg)
             out(msg)
         elif msg:
             logger.info(msg)
