@@ -439,16 +439,18 @@ async def stack_up_endpoint(name: str) -> JSONResponse:
     if not stack_metadata.stack_exists(name):
         raise HTTPException(status_code=404, detail=f"Stack '{name}' no encontrado")
     try:
+        logger.info(f"🟢 Web: levantando stack '{name}'")
         if not config_manager.is_stack_enabled(name):
             config_manager.enable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_up, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
+        logger.info(f"✅ Web: stack '{name}' levantado")
         notify("🟢 Stack arrancado", f"{name} (web)")
         return JSONResponse(content={"status": "ok", "stack": name, "action": "up"})
     except Exception as e:
         notify("❌ Error al arrancar stack", f"{name} (web): {e}")
-        logger.error(f"Error starting stack {name}: {e}", exc_info=True)
+        logger.exception(f"❌ Web: error levantando stack '{name}'")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -459,14 +461,16 @@ async def stack_down_endpoint(name: str) -> JSONResponse:
     if name in _PROTECTED_STACKS:
         raise HTTPException(status_code=403, detail=f"Stack '{name}' está protegido")
     try:
+        logger.info(f"🔴 Web: parando stack '{name}'")
         if config_manager.is_stack_enabled(name):
             config_manager.disable_stack(name)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, docker_manager.stack_down, name)
         _cache["dashboard"] = {"ts": 0.0, "data": None}
+        logger.info(f"✅ Web: stack '{name}' parado")
         notify("🔴 Stack parado", f"{name} (web)")
         return JSONResponse(content={"status": "ok", "stack": name, "action": "down"})
     except Exception as e:
         notify("❌ Error al parar stack", f"{name} (web): {e}")
-        logger.error(f"Error stopping stack {name}: {e}", exc_info=True)
+        logger.exception(f"❌ Web: error parando stack '{name}'")
         raise HTTPException(status_code=500, detail=str(e))
