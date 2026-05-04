@@ -1,6 +1,6 @@
 """
 Plugin: start
-Inicia el servidor HMS y levanta todos los stacks habilitados.
+Starts the HMS server and brings up all enabled stacks.
 """
 
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class StartPlugin(GlobalPlugin):
-    """Inicia el servidor HMS y levanta stacks habilitados."""
+    """Starts the HMS server and brings up enabled stacks."""
 
     def get_name(self) -> str:
         return "start"
@@ -55,7 +55,7 @@ DESCRIPTION:
                 ui.err(f" - {item}")
             return 1
 
-        # 1. Levantar stack infra PRIMERO (siempre)
+        # 1. Bring up infra stack FIRST (always)
         infra_enabled = config_manager.is_stack_enabled("infra")
         if not infra_enabled:
             ui.warn("Infrastructure stack is disabled in configuration, check if this is intended.")
@@ -69,7 +69,7 @@ DESCRIPTION:
                 return 1
         self._ensure_stack_state("infra")
 
-        # 2. Obtener lista de stacks disponibles (excepto infra)
+        # 2. Get list of available stacks (except infra)
         all_stacks = stack_metadata.list_stacks()
         stacks = [s for s in all_stacks if s != "infra"]
 
@@ -80,7 +80,7 @@ DESCRIPTION:
 
         ui.info(f"📋 Found {len(stacks)} stack(s): {', '.join(stacks)}")
 
-        # 3. Procesar cada stack según su configuración
+        # 3. Process each stack according to its configuration
         for stack_name in stacks:
             enabled = config_manager.is_stack_enabled(stack_name)
 

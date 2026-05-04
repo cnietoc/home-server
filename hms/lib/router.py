@@ -120,7 +120,7 @@ class UpnpClient:
             u = self._get_upnp()
             result = u.addportmapping(m.port, proto, lan_ip, m.port, desc, "", lease)
             if result is False:
-                raise RouterError(f"addportmapping devolvió False para {m.port}/{proto}")
+                raise RouterError(f"addportmapping returned False for {m.port}/{proto}")
         except RouterError:
             raise
         except Exception as e:
@@ -270,7 +270,7 @@ def _detect_default_gateway() -> str:
                     return socket.inet_ntoa(gw_bytes[::-1])
     except Exception:
         pass
-    # Fallback: buscar en la tabla de rutas con socket
+    # Fallback: look up in the routing table via socket
     try:
         import subprocess
         result = subprocess.run(

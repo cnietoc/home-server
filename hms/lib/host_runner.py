@@ -30,20 +30,20 @@ def is_host_runner() -> bool:
 
 def run_hms_in_host_network(cli_args: list[str]) -> int:
     """
-    Lanza `python -m hms <cli_args>` en un contenedor efímero clonado del daemon
-    pero con --network=host. Devuelve el exit code. Streamea stdout/stderr al
-    proceso llamante.
+    Launches `python -m hms <cli_args>` in an ephemeral container cloned from the
+    daemon but with --network=host. Returns the exit code. Streams stdout/stderr to
+    the calling process.
 
-    Mismo primitivo para todos los call-sites:
+    Same primitive for all call-sites:
 
-      # Desde un helper (siempre spawn, sin guard):
+      # From a helper (always spawn, no guard):
       run_hms_in_host_network(["system", "refresh-port-forwards", "--stack", "terraria"])
 
-      # Desde el plugin (con guard anti-recursión):
+      # From the plugin (with anti-recursion guard):
       def run(self, args):
           if not is_host_runner():
               return run_hms_in_host_network(["system", "refresh-port-forwards", *args])
-          # ...trabajo in-process garantizado en host network...
+          # ...in-process work guaranteed on host network...
     """
     try:
         raw = subprocess.run(
@@ -56,7 +56,7 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
         ) from e
 
     info = json.loads(raw)[0]
-    image = info["Image"]  # sha256:... exacto del daemon vivo — sin riesgo de version-skew
+    image = info["Image"]  # sha256:... exact digest from the live daemon — no version-skew risk
     user = info["Config"].get("User", "")
     group_add = info["HostConfig"].get("GroupAdd") or []
 

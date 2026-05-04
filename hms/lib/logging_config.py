@@ -26,7 +26,7 @@ class _SimpleColoredFormatter(logging.Formatter):
         color = self.LEVEL_COLOR.get(record.levelname)
         if color:
             return f"{color}{record.levelname}: {msg}{self.RESET}"
-        return msg  # INFO: sin prefijo ni color
+        return msg  # INFO: no prefix, no color
 
 
 class ColoredFormatter(logging.Formatter):

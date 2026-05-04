@@ -355,7 +355,7 @@ OPTIONS:
 EXAMPLES:
 """)
 
-        # Generar ejemplos dinámicamente
+        # Generate examples dynamically
         first_stack = available_stacks[0] if available_stacks else 'STACK'
         ordered_actions = self._sort_with_order(list(stack_plugins.keys()), stack_order)
         first_action = ordered_actions[0] if ordered_actions else 'ACTION'

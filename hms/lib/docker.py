@@ -354,7 +354,7 @@ class DockerComposeManager:
                         if not output:
                             break
                         if not hidden:
-                            os.write(1, output)  # stdout real solo si no está oculto
+                            os.write(1, output)  # real stdout only if not hidden
                         output_buffer.append(output)
                     except OSError:
                         break

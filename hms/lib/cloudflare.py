@@ -89,12 +89,12 @@ class CloudflareClient:
                 response.raise_for_status()
                 ip = response.text.strip()
 
-                # Validar formato de IP
+                # Validate IP format
                 if self._is_valid_ip(ip):
-                    logger.debug(f"✅ IP detectada: {ip} (desde {service.split('/')[2]})")
+                    logger.debug(f"✅ IP detected: {ip} (from {service.split('/')[2]})")
                     return ip
             except Exception as e:
-                logger.debug(f"⚠️  Error en {service}: {e}")
+                logger.debug(f"⚠️  Error at {service}: {e}")
                 continue
 
         raise CloudflareError("Could not detect the public IP")
@@ -210,9 +210,9 @@ class CloudflareClient:
         zone_id = self.get_zone_id()
         full_name = self._get_full_record_name(record_name)
 
-        logger.debug(f"🔍 Verificando registro: {full_name}")
+        logger.debug(f"🔍 Checking record: {full_name}")
 
-        # Obtener registro existente
+        # Get existing record
         try:
             existing_records = self._session.get(
                 f"{self.CLOUDFLARE_API_BASE}/zones/{zone_id}/dns_records",
@@ -397,7 +397,7 @@ def get_cloudflare_client() -> CloudflareClient:
         Configured CloudflareClient
 
     Raises:
-        CloudflareError: Si faltan variables de entorno o configuración
+        CloudflareError: If environment variables or configuration are missing
     """
     api_token = config_manager.get_config_value("infra.cloudflare.dns_api_token")
     if not api_token:

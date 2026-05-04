@@ -257,10 +257,10 @@ CONFIGURATION:
 
         return count
 
-    # ─── Extracción Python (solo para config.toml) ───────────────────────────
+    # ─── Python extraction (config.toml only) ───────────────────────────
 
     def _extract_member_to(self, tar: tarfile.TarFile, member: tarfile.TarInfo, target_path: Path) -> None:
-        """Extrae un miembro del tar a target_path preservando permisos."""
+        """Extract a tar member into target_path preserving permissions."""
         f = tar.extractfile(member)
         if f is not None:
             target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -389,7 +389,7 @@ CONFIGURATION:
                         top = "/".join(m.name.split("/")[:3])
                         dir_counts[top] = dir_counts.get(top, 0) + 1
                 for dir_path, count in sorted(dir_counts.items()):
-                    ui.info(f"   → {dir_path}/ ({count} archivos)")
+                    ui.info(f"   → {dir_path}/ ({count} files)")
                 if stack_targets:
                     ui.info(f"\n[DRY-RUN] Would temporarily stop: {', '.join(stack_targets)}")
                 return 0
@@ -709,7 +709,7 @@ Exclusion patterns: {exclude_patterns if exclude_patterns else 'none'}
         tarinfo.size = len(manifest_bytes)
         tar.addfile(tarinfo, io.BytesIO(manifest_bytes))
 
-    # ─── Rotación ─────────────────────────────────────────────────────────────
+    # ─── Rotation ─────────────────────────────────────────────────────────────
 
     def _rotate_backups(self) -> None:
         try:
