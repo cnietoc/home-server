@@ -46,8 +46,8 @@ class RouterClient(Protocol):
         """Añade o refresca un mapeo. Idempotente si ya existe."""
         ...
 
-    def delete_mapping(self, port: int, protocol: str) -> None:
-        """Elimina un mapeo si existe; no-op si no existe."""
+    def delete_mapping(self, port: int, protocol: str) -> bool:
+        """Elimina un mapeo si existe; no-op si no existe. Devuelve True si se eliminó."""
         ...
 
     def get_external_ip(self) -> str:
@@ -130,14 +130,15 @@ class UpnpClient:
             raise RouterError(f"No se pudo añadir mapeo {m.port}/{proto}: {e}") from e
 
 
-    def delete_mapping(self, port: int, protocol: str) -> None:
+    def delete_mapping(self, port: int, protocol: str) -> bool:
         proto = protocol.upper()
         try:
             u = self._get_upnp()
             existing = u.getspecificportmapping(port, proto)
             if existing is None:
-                return  # ya no existe
+                return False
             u.deleteportmapping(port, proto)
+            return True
         except RouterError:
             raise
         except Exception as e:
@@ -189,15 +190,16 @@ class NatpmpClient:
         natpmp.map_port(proto, m.port, m.port, lease, gateway=gw)
 
 
-    def delete_mapping(self, port: int, protocol: str) -> None:
+    def delete_mapping(self, port: int, protocol: str) -> bool:
         try:
             import natpmp
         except ImportError:
             raise RouterError("libnatpmp no está instalado. Ejecuta: uv pip install libnatpmp")
         gw = self._detect_gateway()
         proto = natpmp.NATPMP_PROTOCOL_TCP if protocol == "tcp" else natpmp.NATPMP_PROTOCOL_UDP
-        # Lease de 0 elimina el mapeo en NAT-PMP
+        # Lease de 0 elimina el mapeo en NAT-PMP; no hay forma de saber si existía
         natpmp.map_port(proto, port, 0, 0, gateway=gw)
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -217,8 +219,8 @@ class NoopClient:
     def add_mapping(self, m: PortMapping, lan_ip: str, lease: int) -> None:
         pass
 
-    def delete_mapping(self, port: int, protocol: str) -> None:
-        pass
+    def delete_mapping(self, port: int, protocol: str) -> bool:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -485,8 +487,8 @@ def _remove_ports_for_stack(stack_name: str) -> None:
 
     for pm in ports:
         try:
-            client.delete_mapping(pm.port, pm.protocol)
-            logger.info(f"🔌 Router: eliminado {pm.port}/{pm.protocol} [{pm.stack}]")
+            if client.delete_mapping(pm.port, pm.protocol):
+                logger.info(f"🔌 Router: eliminado {pm.port}/{pm.protocol} [{pm.stack}]")
         except RouterError as e:
             logger.warning(f"⚠️  Router: no se pudo eliminar {pm.port}/{pm.protocol}: {e}")
 
