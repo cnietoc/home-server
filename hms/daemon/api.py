@@ -37,20 +37,29 @@ _STACK_PREFIX = "hms-"
 
 
 async def _wait_for_stacks_ready(timeout_s: int = 300, poll_s: int = 3) -> list[str]:
-    """Poll until all enabled stacks have running == total. Returns stacks NOT ready at timeout."""
+    """
+    Poll until all enabled stacks are ready (running + healthy).
+    Returns stacks that are not ready when the deadline is reached or all stacks
+    have settled (ready or unhealthy — no point waiting further for unhealthy ones).
+    """
     enabled = [s for s in stack_metadata.list_stacks() if config_manager.is_stack_enabled(s)]
     if not enabled:
         return []
     deadline = time.monotonic() + timeout_s
     loop = asyncio.get_running_loop()
     while True:
+        pending = []
         not_ready = []
         for name in enabled:
-            counts = await loop.run_in_executor(None, docker_manager.get_stack_container_counts, name)
-            if counts.get("total", 0) == 0 or counts.get("running", 0) < counts.get("total", 0):
+            state = await loop.run_in_executor(None, docker_manager.get_stack_readiness, name)
+            if state == "ready":
+                pass
+            elif state == "unhealthy":
                 not_ready.append(name)
-        if not not_ready or time.monotonic() >= deadline:
-            return not_ready
+            else:  # "empty" or "starting"
+                pending.append(name)
+        if not pending or time.monotonic() >= deadline:
+            return not_ready + pending
         await asyncio.sleep(poll_s)
 
 

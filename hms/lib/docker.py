@@ -270,6 +270,28 @@ class DockerComposeManager:
             logger.error(f"Error listing containers for stack '{stack_name}': {e}")
             return []
 
+    def get_stack_readiness(self, stack_name: str) -> str:
+        """
+        Returns the readiness state of a stack in a single non-blocking check.
+
+        Returns:
+            "ready"     — all containers running and (healthy or no healthcheck defined)
+            "starting"  — containers running but healthchecks still initialising
+            "unhealthy" — any container is unhealthy or stopped
+            "empty"     — no containers found yet
+        """
+        containers = self._get_stack_containers(stack_name)
+        if not containers:
+            return "empty"
+        if any(c.get("State") != "running" for c in containers):
+            return "unhealthy"
+        with_health = [c for c in containers if c.get("Health") not in ("", None)]
+        if any(c.get("Health") == "unhealthy" for c in with_health):
+            return "unhealthy"
+        if any(c.get("Health") == "starting" for c in with_health):
+            return "starting"
+        return "ready"
+
     def get_stack_container_counts(self, stack_name: str) -> dict:
         """
         Returns the container count by state for a stack.
