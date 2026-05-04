@@ -59,10 +59,16 @@ EJEMPLOS:
 """
 
     def run(self, args: List[str]) -> int:
+        from hms.lib.host_runner import is_host_runner, run_hms_in_host_network
+        if not is_host_runner():
+            return run_hms_in_host_network(["system", "refresh-port-forwards", *args])
+
         dry_run = False
         list_only = False
         prune = False
         verbose = False
+        stack_name: str | None = None
+        remove = False
 
         i = 0
         while i < len(args):
@@ -78,10 +84,26 @@ EJEMPLOS:
                 prune = True
             elif arg in ("-v", "--verbose"):
                 verbose = True
+            elif arg == "--stack":
+                i += 1
+                if i >= len(args):
+                    logger.error("❌ --stack requiere un argumento")
+                    return 1
+                stack_name = args[i]
+            elif arg == "--remove":
+                remove = True
             else:
                 logger.error(f"❌ Argumento desconocido: {arg}")
                 return 1
             i += 1
+
+        if stack_name:
+            from hms.lib.router import _apply_ports_for_stack, _remove_ports_for_stack
+            if remove:
+                _remove_ports_for_stack(stack_name)
+            else:
+                _apply_ports_for_stack(stack_name)
+            return 0
 
         from hms.lib.config import config_manager
         from hms.lib.router import (

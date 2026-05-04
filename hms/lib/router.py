@@ -391,16 +391,55 @@ def reconcile_port_forwards(
 
 
 def apply_port_forwards_for_stack(stack_name: str) -> None:
-    """Aplica port-forwards del router para un stack. Errores son warning, no fatal."""
+    """Aplica port-forwards del router para un stack. Lanza efímero con host networking."""
+    from hms.lib.config import config_manager
+    from hms.lib.stacks import stack_metadata
+    from hms.lib.host_runner import run_hms_in_host_network, HostRunnerError
+
+    cfg = config_manager.get_router_config()
+    if not cfg.get("enabled", True):
+        return
+    if stack_name in cfg.get("exclude_stacks", []):
+        logger.debug(f"Stack '{stack_name}' en exclude_stacks, omitiendo port-forwards")
+        return
+    if not stack_metadata.get_public_ports(stack_name):
+        return
+
+    try:
+        run_hms_in_host_network(["system", "refresh-port-forwards", "--stack", stack_name])
+    except HostRunnerError as e:
+        logger.warning(f"⚠️  Router: {e}")
+
+
+def remove_port_forwards_for_stack(stack_name: str) -> None:
+    """Elimina port-forwards del router para un stack. Lanza efímero con host networking."""
+    from hms.lib.config import config_manager
+    from hms.lib.stacks import stack_metadata
+    from hms.lib.host_runner import run_hms_in_host_network, HostRunnerError
+
+    cfg = config_manager.get_router_config()
+    if not cfg.get("enabled", True):
+        return
+    if stack_name in cfg.get("exclude_stacks", []):
+        return
+    if not stack_metadata.get_public_ports(stack_name):
+        return
+
+    try:
+        run_hms_in_host_network(["system", "refresh-port-forwards", "--stack", stack_name, "--remove"])
+    except HostRunnerError as e:
+        logger.warning(f"⚠️  Router: {e}")
+
+
+def _apply_ports_for_stack(stack_name: str) -> None:
+    """Aplica port-forwards in-process. Solo llamar con host networking activo."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
 
     cfg = config_manager.get_router_config()
     if not cfg.get("enabled", True):
         return
-
-    exclude = cfg.get("exclude_stacks", [])
-    if stack_name in exclude:
+    if stack_name in cfg.get("exclude_stacks", []):
         logger.debug(f"Stack '{stack_name}' en exclude_stacks, omitiendo port-forwards")
         return
 
@@ -423,17 +462,15 @@ def apply_port_forwards_for_stack(stack_name: str) -> None:
     reconcile_port_forwards(ports, client, lan_ip, lease)
 
 
-def remove_port_forwards_for_stack(stack_name: str) -> None:
-    """Elimina port-forwards del router para un stack. Errores son warning, no fatal."""
+def _remove_ports_for_stack(stack_name: str) -> None:
+    """Elimina port-forwards in-process. Solo llamar con host networking activo."""
     from hms.lib.config import config_manager
     from hms.lib.stacks import stack_metadata
 
     cfg = config_manager.get_router_config()
     if not cfg.get("enabled", True):
         return
-
-    exclude = cfg.get("exclude_stacks", [])
-    if stack_name in exclude:
+    if stack_name in cfg.get("exclude_stacks", []):
         return
 
     ports = stack_metadata.get_public_ports(stack_name)
