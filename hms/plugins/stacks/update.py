@@ -73,4 +73,7 @@ DESCRIPTION:
             logger.warning(f"⚠️  Stack '{stack_name}' updated but health check failed or timed out")
             notify(f"⬆️ HMS: {stack_name} actualizado", "Imágenes desplegadas ⚠️ health check fallido")
 
+        from hms.lib.router import apply_port_forwards_for_stack
+        apply_port_forwards_for_stack(stack_name)
+
         return up_result

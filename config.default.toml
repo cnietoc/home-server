@@ -4,6 +4,7 @@ puid             = "__REQUIRED__"
 pgid             = "__REQUIRED__"
 tz               = "__REQUIRED__"
 domain           = "__REQUIRED__"
+host_ip          = "__REQUIRED__"  # IP LAN del host (se autoconfigura en `hms install`)
 log_level        = "info"
 notification_url = ""
 
@@ -40,6 +41,23 @@ args        = []
 triggers    = [
     { type = "startup", delay = "1m"        },  # 1 minuto después del inicio
     { type = "cron",    cron  = "0 3 * * *" },  # 03:00 cada día
+]
+
+[router]
+enabled         = true         # false si UPnP no está disponible en el router
+backend         = "upnp"       # "upnp" | "natpmp" | "none"
+gateway_ip      = ""           # opcional: IP del router (p.ej. "192.168.1.1"); vacío = autodetección
+lease_duration  = "3600"       # segundos de duración del lease (0 = permanente si el router lo soporta)
+exclude_stacks  = []           # stacks a gestionar a mano (p.ej. ["infra"])
+
+[jobs.refresh-port-forwards]
+description = "Refrescar port-forwards UPnP/NAT-PMP en el router"
+plugin      = "system:refresh-port-forwards"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "startup",  delay    = "20s" },
+    { type = "interval", interval = "30m" },
 ]
 
 [jobs.update-stacks]

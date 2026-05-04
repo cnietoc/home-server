@@ -2,6 +2,8 @@ name: ${STACK_PREFIX}
 
 x-hms:
   description: "Servidor de juego Terraria con tModLoader"
+  public_ports:
+    - { port: 7777, protocol: tcp, description: "Terraria server" }
 
 services:
   terraria:

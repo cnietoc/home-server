@@ -56,6 +56,12 @@ DESCRIPTION:
         lines.append(f"Status: {status}")
         lines.append(f"Description: {description}")
 
+        public_ports = stack_metadata.get_public_ports(stack_name)
+        if public_ports:
+            lines.append("Public ports (UPnP):")
+            for pm in public_ports:
+                lines.append(f"  - {pm.port}/{pm.protocol}  {pm.description}")
+
         if services:
             lines.append("Services:")
             for service in services:

@@ -5,7 +5,7 @@ Stack para gestión y streaming de contenido multimedia.
 |-----------|-------|
 | **Estado** | ✅ Estable |
 | **Servicios** | 8 servicios (Jellyfin, qBittorrent, Radarr, Sonarr, Prowlarr, Tdarr, Jackett, FlareSolverr) |
-| **Puertos Expuestos** | 8096 (Jellyfin - opcional), 6881 (qBittorrent - torrent) |
+| **Puertos Expuestos** | 8096 (Jellyfin - solo LAN/Traefik), 6881 TCP+UDP (qBittorrent - abierto automáticamente vía UPnP) |
 | **Almacenamiento** | Depende contenido (100GB+) |
 ## 🎬 Servicios Incluidos
 

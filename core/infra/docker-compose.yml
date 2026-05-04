@@ -6,6 +6,9 @@ networks:
 
 x-hms:
   description: "Servicios de infraestructura base"
+  public_ports:
+    - { port: 80, protocol: tcp, description: "HTTP (Traefik)" }
+    - { port: 443, protocol: tcp, description: "HTTPS (Traefik)" }
 
 services:
   traefik:

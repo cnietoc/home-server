@@ -130,6 +130,9 @@ DESCRIPTION:
             else:
                 logger.warning(f"⚠️  Stack '{stack_name}' started but health check failed or timed out")
 
+            from hms.lib.router import apply_port_forwards_for_stack
+            apply_port_forwards_for_stack(stack_name)
+
         else:
             # Stack debe estar stopped
             if current_status in ['running', 'partial']:
@@ -138,6 +141,8 @@ DESCRIPTION:
 
                 if result == 0:
                     logger.info(f"✅ Stack '{stack_name}' stopped successfully")
+                    from hms.lib.router import remove_port_forwards_for_stack
+                    remove_port_forwards_for_stack(stack_name)
                 else:
                     logger.error(f"❌ Failed to stop stack '{stack_name}'")
             else:

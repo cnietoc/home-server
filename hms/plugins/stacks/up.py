@@ -10,6 +10,7 @@ from hms.core.plugin import StackPlugin, EmptyStackBehavior
 from hms.lib.config import config_manager
 from hms.lib.docker import docker_manager
 from hms.lib.notify import send as notify
+from hms.lib.router import apply_port_forwards_for_stack
 
 logger = logging.getLogger(__name__)
 
@@ -74,5 +75,7 @@ DESCRIPTION:
         else:
             logger.warning(f"⚠️  Stack '{stack_name}' started but health check failed or timed out")
             notify("⚠️ Stack arrancado (healthcheck fallido)", stack_name)
+
+        apply_port_forwards_for_stack(stack_name)
 
         return result

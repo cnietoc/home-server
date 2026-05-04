@@ -2,6 +2,8 @@ name: ${STACK_PREFIX}
 
 x-hms:
   description: "Servidor de juego Necesse"
+  public_ports:
+    - { port: 14159, protocol: udp, description: "Necesse server" }
 
 services:
   necesse:

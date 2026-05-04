@@ -179,6 +179,28 @@ if [ -f "$CONFIG_FILE" ]; then
     update_toml_field "$CONFIG_FILE" "global" "host_root" "\"$REPO_ROOT\""
 
     echo -e "${GREEN}✅ config.toml actualizado con PUID=$CURRENT_UID, PGID=$CURRENT_GID, DOCKER_GID=$DOCKER_GID, TZ=$SYSTEM_TZ, HOST_ROOT=$REPO_ROOT${NC}"
+
+    # Detectar IP LAN del host
+    LAN_IP=""
+    if command -v ip >/dev/null 2>&1; then
+        LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}')
+    fi
+    if [ -z "$LAN_IP" ] && command -v ipconfig >/dev/null 2>&1; then
+        # macOS: probar en0 (ethernet/wifi) y en1
+        LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
+    fi
+    if [ -z "$LAN_IP" ]; then
+        LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+
+    if [ -n "$LAN_IP" ]; then
+        update_toml_field "$CONFIG_FILE" "global" "host_ip" "\"$LAN_IP\""
+        echo -e "${GREEN}✅ IP del host detectada: $LAN_IP → global.host_ip${NC}"
+    else
+        echo -e "${YELLOW}⚠️  No se pudo detectar la IP del host. Añade manualmente a config.toml:${NC}"
+        echo "       [global]"
+        echo "       host_ip = \"192.168.X.X\""
+    fi
 else
     echo -e "${YELLOW}⚠️  config.toml no existe${NC}"
 fi

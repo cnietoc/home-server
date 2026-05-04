@@ -25,6 +25,20 @@ from hms.lib.paths import get_config_root
 
 logger = logging.getLogger(__name__)
 
+_SECRET_KEYS = {"token", "secret", "password", "api_key", "api_token", "key", "passwd", "pass"}
+
+
+def _redact(d: Any) -> Any:
+    """Return a copy of d with values of sensitive keys replaced by '***'."""
+    if isinstance(d, dict):
+        return {
+            k: "***" if k.lower() in _SECRET_KEYS else _redact(v)
+            for k, v in d.items()
+        }
+    if isinstance(d, list):
+        return [_redact(i) for i in d]
+    return d
+
 
 @dataclass
 class JobTrigger:
@@ -220,7 +234,7 @@ class TomlConfigManager:
         :param user_config: Configuración del usuario (a modificar)
         """
         logger.debug(f"Añadiendo claves faltantes a la configuración: {missing_keys}")
-        logger.debug(f"Configuración antes de añadir claves faltantes: {user_config}")
+        logger.debug(f"Configuración antes de añadir claves faltantes: {_redact(user_config)}")
         for key in missing_keys:
             keys = key.split(".")
             current_level = user_config
@@ -230,7 +244,7 @@ class TomlConfigManager:
                 current_level = current_level[k]
             # Añadir la clave faltante como __REQUIRED__
             current_level[keys[-1]] = "__REQUIRED__"
-        logger.debug(f"Configuración después de añadir claves faltantes: {user_config}")
+        logger.debug(f"Configuración después de añadir claves faltantes: {_redact(user_config)}")
 
     def _find_still_required_keys(self, config: Dict, prefix: str = "") -> List[str]:
         """
@@ -431,6 +445,11 @@ class TomlConfigManager:
                 del config[stack_name]["enabled"]
 
         self._save_config(config)
+
+    def get_router_config(self) -> Dict[str, Any]:
+        """Obtiene la sección [router] de config.toml (con defaults aplicados)."""
+        config = self._load_config()
+        return config.get("router", {})
 
     def get_job_definitions(self) -> List[JobDefinition]:
         """

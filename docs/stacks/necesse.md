@@ -86,8 +86,8 @@ data/necesse/
 
 ### Acceso de Red
 - El puerto 14159 (UDP) debe estar accesible para jugadores
-- Si está detrás de NAT, configurar port-forwarding
-- Firewall debe permitir UDP 14159
+- HMS abre este puerto automáticamente en el router vía UPnP al hacer `hms necesse up` (ver [port-forwarding automático](../router-port-forwarding.md))
+- Firewall del host debe permitir UDP 14159
 
 ## 📊 Rendimiento
 
