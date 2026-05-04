@@ -90,8 +90,9 @@ def setup_logging(
     fmt = "%(asctime)s [%(levelname)s]%(tag_prefix)s %(message)s"
     date_fmt = "%Y-%m-%d %H:%M:%S"
 
-    # Si hay tag, lo inyectamos en el formato vía filtro
-    tag_prefix = f" [{tag}]" if tag else ""
+    # Tags centrados a la anchura del más largo ("host-runner" = 11)
+    _TAG_WIDTH = 11
+    tag_prefix = f" [{tag.center(_TAG_WIDTH)}]" if tag else ""
 
     class _TagFormatter(logging.Formatter):
         def format(self, record: logging.LogRecord) -> str:
