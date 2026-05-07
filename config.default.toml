@@ -66,7 +66,8 @@ plugin      = "system:update-stacks"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "cron", cron = "0 2 * * *" },  # daily at 02:00
+    { type = "startup",  delay    = "5m" },
+    { type = "interval", interval = "4h" },
 ]
 
 [jobs.update-infra]
@@ -75,7 +76,8 @@ plugin      = "update"
 enabled     = true
 args        = ["infra"]
 triggers    = [
-    { type = "cron", cron = "0 4 * * *" },  # daily at 04:00
+    { type = "startup",  delay    = "6m" },
+    { type = "interval", interval = "4h" },
 ]
 
 [media]
