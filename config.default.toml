@@ -76,7 +76,7 @@ plugin      = "update"
 enabled     = true
 args        = ["infra"]
 triggers    = [
-    { type = "startup",  delay    = "6m" },
+    { type = "startup",  delay    = "2m" },
     { type = "interval", interval = "4h" },
 ]
 
