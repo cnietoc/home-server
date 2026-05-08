@@ -25,13 +25,28 @@ services:
       - WORLDNAME=${WORLD_NAME}
       - GAMEPORT=${GAMEPORT}
       - QUERYPORT=${QUERYPORT}
-      # Host settings
+      # Host settings (no preset — all game settings are explicit below)
       - HOST_SETTINGS_Password=${PASSWORD}
       - HOST_SETTINGS_ListOnSteam=${LIST_ON_STEAM}
       - HOST_SETTINGS_ListOnEOS=${LIST_ON_EOS}
-      - HOST_SETTINGS_GameSettingsPreset=${GAME_SETTINGS_PRESET}
-      - HOST_SETTINGS_GameDifficultyPreset=${GAME_DIFFICULTY_PRESET}
-      # QoL overrides (applied on top of preset)
+      - HOST_SETTINGS_GameSettingsPreset=
+      - HOST_SETTINGS_GameDifficultyPreset=
+      # PvE mode (replaces StandardPvE + Difficulty_Normal presets explicitly)
+      - GAME_SETTINGS_GameDifficulty=1
+      - GAME_SETTINGS_GameModeType=PvE
+      - GAME_SETTINGS_CastleDamageMode=Never
+      - GAME_SETTINGS_CastleHeartDamageMode=CanBeDestroyedOnlyWhenDecaying
+      - GAME_SETTINGS_DeathContainerPermission=ClanMembers
+      - GAME_SETTINGS_RelicSpawnType=Plentiful
+      - GAME_SETTINGS_BloodBoundEquipment=true
+      - GAME_SETTINGS_CanLootEnemyContainers=false
+      - GAME_SETTINGS_SoulShard_DurabilityLossRate=0.25
+      - GAME_SETTINGS_Death_DurabilityFactorLoss=0.0
+      - GAME_SETTINGS_Death_DurabilityLossFactorAsResources=0.0
+      - GAME_SETTINGS_AnnounceSiegeWeaponSpawn=false
+      - GAME_SETTINGS_CastleStatModifiers_Global__CastleLimit=2
+      - GAME_SETTINGS_CastleStatModifiers_Global__CastleHeartLimitType=1
+      # QoL overrides
       - GAME_SETTINGS_TeleportBoundItems=${TELEPORT_BOUND_ITEMS}
       - GAME_SETTINGS_CastleDecayRateModifier=${CASTLE_DECAY_RATE}
       - GAME_SETTINGS_CastleBloodEssenceDrainModifier=${BLOOD_ESSENCE_DRAIN}

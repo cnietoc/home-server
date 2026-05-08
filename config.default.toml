@@ -133,8 +133,6 @@ queryport              = "9877"
 password               = "__REQUIRED__"
 list_on_steam          = "true"
 list_on_eos            = "true"
-game_settings_preset   = "StandardPvE"        # StandardPvE | StandardPvE_Easy | StandardPvE_Hard | StandardPvP | StandardPvP_Easy | StandardPvP_Hard | SoloPvP | DuoPvP | HardcorePvP | HardcoreDuoPvP | Level30PvE | Level30PvP | Level50PvE | Level50PvP | Level70PvE | Level70PvP
-game_difficulty_preset = "Difficulty_Normal"  # Difficulty_Easy | Difficulty_Normal | Difficulty_Brutal
 teleport_bound_items   = false                # false = can teleport with resources
 castle_decay_rate      = "0.1"                # minimum castle decay rate
 blood_essence_drain    = "0.5"                # heart drains essence at half speed
