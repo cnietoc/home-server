@@ -46,6 +46,9 @@ services:
       - GAME_SETTINGS_AnnounceSiegeWeaponSpawn=false
       - GAME_SETTINGS_CastleStatModifiers_Global__CastleLimit=2
       - GAME_SETTINGS_CastleStatModifiers_Global__CastleHeartLimitType=1
+      - GAME_SETTINGS_CastleStatModifiers_Global__HeartLimits__Level1__ServantLimit=4
+      - GAME_SETTINGS_CastleStatModifiers_Global__HeartLimits__Level2__ServantLimit=5
+      - GAME_SETTINGS_CastleStatModifiers_Global__HeartLimits__Level3__ServantLimit=6
       # QoL overrides
       - GAME_SETTINGS_TeleportBoundItems=${TELEPORT_BOUND_ITEMS}
       - GAME_SETTINGS_CastleDecayRateModifier=${CASTLE_DECAY_RATE}
