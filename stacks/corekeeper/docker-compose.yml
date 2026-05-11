@@ -19,7 +19,9 @@ services:
       - ACTIVATE_ALL_CONTENT=true
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
     volumes:
-      - ${STACK_DATA}/server-files:/home/steam/core-keeper-dedicated
+      # Comentado para forzar que al iniciar el contenedor se descargue la última versión del servidor de Core Keeper,
+      # ya que el repositorio oficial no se actualiza con cada nueva versión del juego.
+      # - ${STACK_DATA}/server-files:/home/steam/core-keeper-dedicated
       - ${STACK_DATA}/server-data:/home/steam/core-keeper-data
     labels:
       - "hms.description=🎮 Servidor de juego Core Keeper"

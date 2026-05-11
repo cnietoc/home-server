@@ -18,6 +18,7 @@ Stack que proporciona un servidor multijugador para el juego **Core Keeper**. Lo
 ## 🔧 Servicios Incluidos
 
 ### 1. Servidor Core Keeper - Juego Multijugador
+
 Servidor de juego con soporte para múltiples jugadores simultáneos
 
 - **Nombre del servidor**: Configurable con `WORLD_NAME`
@@ -58,6 +59,9 @@ data/corekeeper/
 └── server-data/         # Guardados, configuración y GameID
     └── GameID.txt       # Identificador único del servidor
 ```
+
+> **Nota**: `server-files/` **no** se monta como volumen actualmente para forzar la descarga de archivos desde Steam en
+> cada inicio. Los guardados y configuraciones se almacenan en `server-data/` y se persisten entre reinicios.
 
 ## 🚀 Uso
 
