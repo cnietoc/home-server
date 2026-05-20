@@ -75,7 +75,7 @@ def _build_startup_message(not_ready: list[str]) -> str:
         lines.append(f"📦 Stacks ({len(enabled)}): {' · '.join(enabled)}")
 
     if not_ready:
-        lines.append(f"⚠️ Not ready after 5min: {' · '.join(not_ready)}")
+        lines.append(f"⚠️ Not ready after 10min: {' · '.join(not_ready)}")
 
     sysinfo = _get_system_info()
     parts = []
@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"   ✓ {job['name']} ({job['id']}) - {job['trigger']}")
 
     async def _notify_when_ready():
-        not_ready = await _wait_for_stacks_ready(timeout_s=300, poll_s=3)
+        not_ready = await _wait_for_stacks_ready(timeout_s=600, poll_s=3)
         notify("🚀 HMS started", _build_startup_message(not_ready))
 
     asyncio.create_task(_notify_when_ready())
