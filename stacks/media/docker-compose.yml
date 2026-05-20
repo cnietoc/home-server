@@ -55,6 +55,7 @@ services:
     image: ghcr.io/hotio/qbittorrent:latest
     container_name: ${STACK_PREFIX}-qbittorrent
     restart: unless-stopped
+    stop_grace_period: 120s
     networks:
       - hms-network
       - media_internal
