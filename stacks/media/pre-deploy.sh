@@ -45,6 +45,14 @@ else
     echo "    {} # No hardware acceleration for Tdarr" >> "$OVERRIDE_FILE"
 fi
 
+# Remove stale qBittorrent lockfile left by unclean shutdowns (e.g. hard power-off)
+QBIT_LOCK="${STACK_DATA}/config/qbittorrent/config/lockfile"
+QBIT_SOCK="${STACK_DATA}/config/qbittorrent/config/ipc-socket"
+if [[ -f "$QBIT_LOCK" ]]; then
+    echo "🧹 Removing stale qBittorrent lockfile"
+    rm -f "$QBIT_LOCK" "$QBIT_SOCK"
+fi
+
 echo "✅ Hardware configuration generated: $OVERRIDE_FILE"
 echo "📋 Applied configuration:"
 if [[ "${ENABLE_INTEL_QSV}" == "true" ]]; then
