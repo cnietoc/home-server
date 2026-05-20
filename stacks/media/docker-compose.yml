@@ -43,6 +43,12 @@ services:
       traefik.http.routers.jellyfin.tls.certresolver: "cloudflare"
       traefik.http.services.jellyfin.loadbalancer.server.port: "8096"
       hms.description: "🎬 Servidor de medios Jellyfin"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   # qBittorrent - Cliente BitTorrent
   qbittorrent:
@@ -73,6 +79,12 @@ services:
       traefik.http.routers.qbittorrent.middlewares: "tinyauth@docker"
       traefik.http.services.qbittorrent.loadbalancer.server.port: "8080"
       hms.description: "⬇️ Cliente BitTorrent"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/v2/app/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # Radarr - Gestor de películas
   radarr:
@@ -100,9 +112,17 @@ services:
       traefik.http.routers.radarr.middlewares: "tinyauth@docker"
       traefik.http.services.radarr.loadbalancer.server.port: "7878"
       hms.description: "🎥 Gestor de películas Radarr"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7878/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
-      - qbittorrent
-      - prowlarr
+      qbittorrent:
+        condition: service_healthy
+      prowlarr:
+        condition: service_healthy
 
   # Sonarr - Gestor de series
   sonarr:
@@ -130,9 +150,17 @@ services:
       traefik.http.routers.sonarr.middlewares: "tinyauth@docker"
       traefik.http.services.sonarr.loadbalancer.server.port: "8989"
       hms.description: "📺 Gestor de series Sonarr"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8989/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
-      - qbittorrent
-      - prowlarr
+      qbittorrent:
+        condition: service_healthy
+      prowlarr:
+        condition: service_healthy
 
   # Prowlarr - Indexador (recomendado sobre Jackett)
   prowlarr:
@@ -158,7 +186,17 @@ services:
       traefik.http.routers.prowlarr.middlewares: "tinyauth@docker"
       traefik.http.services.prowlarr.loadbalancer.server.port: "9696"
       hms.description: "🔍 Indexador Prowlarr"
-
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9696/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+      jackett:
+        condition: service_healthy
 
   # Tdarr - Transcodificador de video
   tdarr:
@@ -196,6 +234,12 @@ services:
       traefik.http.services.tdarr.loadbalancer.server.port: "8265"
       hms.description: "🔄 Transcodificador Tdarr"
     # Hardware acceleration configurado automáticamente via pre-deploy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8265/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   # Jackett - Agregador de trackers complementario a Prowlarr
   jackett:
@@ -222,8 +266,17 @@ services:
       traefik.http.routers.jackett.middlewares: "tinyauth@docker"
       traefik.http.services.jackett.loadbalancer.server.port: "9117"
       hms.description: "🔍 Agregador de trackers Jackett"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9117/UI/Dashboard"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
 
-  # Flaresolverr - Resuelve CloudFlare challenges para Prowlarr
+  # Flaresolverr - Resuelve CloudFlare challenges para Prowlarr/Jackett
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: ${STACK_PREFIX}-flaresolverr
@@ -238,4 +291,9 @@ services:
       - CAPTCHA_SOLVER=none
       - TZ=${TZ}
     # No necesita proxy inverso (solo para uso interno)
-
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8191/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
