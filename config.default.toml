@@ -39,7 +39,7 @@ plugin      = "system:backup"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "startup", delay = "1m"        },  # 1 minute after startup
+    { type = "startup", delay = "3m"        },  # 3 minute after startup
     { type = "cron",    cron  = "0 3 * * *" },  # daily at 03:00
 ]
 
@@ -66,7 +66,7 @@ plugin      = "system:update-stacks"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "startup",  delay    = "5m" },
+    { type = "startup",  delay    = "8m" },
     { type = "interval", interval = "4h" },
 ]
 
