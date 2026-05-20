@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
@@ -235,7 +236,12 @@ def _get_scheduler() -> BackgroundScheduler:
     if _scheduler is None:
         _scheduler = BackgroundScheduler(
             daemon=True,
-            max_instances=1,
+            executors={"default": ThreadPoolExecutor(max_workers=1)},
+            job_defaults={
+                "max_instances": 1,
+                "coalesce": True,
+                "misfire_grace_time": None,
+            },
         )
         _load_jobs(_scheduler)
         logger.info("📝 Scheduler configured with jobs")
