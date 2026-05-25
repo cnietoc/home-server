@@ -140,6 +140,11 @@ material_yield         = "1.5"                # +50% material yield when farming
 craft_rate             = "2.0"                # crafting 2x faster
 refinement_rate        = "2.0"                # refining 2x faster
 day_duration           = "720"                # day/night cycle duration in seconds (default: 1080)
+drop_table_general        = "1.5"             # +50% drops from regular enemies
+drop_table_missions       = "1.5"             # +50% drops from servant missions
+drop_table_stygian_shards = "1.5"             # +50% Stygian Shards from Rift Incursions
+inventory_stacks          = "2.0"             # 2x max stack sizes
+blood_essence_yield       = "1.5"             # +50% blood essence from kills/draining
 
 [vrising.backups]
 exclude = ["/server/"]

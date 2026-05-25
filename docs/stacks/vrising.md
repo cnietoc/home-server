@@ -51,14 +51,21 @@ El servidor arranca con un preset de dificultad base y encima se aplican overrid
 [vrising]
 game_settings_preset = "StandardPvE"  # Preset base (StandardPvE, HardcorePvE, StandardPvP…)
 
-# QoL overrides (se aplican sobre el preset)
+# QoL overrides — castillo y progresión
 teleport_bound_items = "0"      # 0 = puedes teleportarte con recursos
 castle_decay_rate    = "0.1"    # decay de castillos muy reducido
 blood_essence_drain  = "0.5"    # drenaje de esencia del corazón reducido a la mitad
-material_yield       = "1.5"    # +50% materiales al farmear
+material_yield       = "1.5"    # +50% materiales al picar/talar nodos
 craft_rate           = "2.0"    # crafteo 2x más rápido
 refinement_rate      = "2.0"    # refinado 2x más rápido
 day_duration         = "720"    # duración del ciclo día/noche en segundos (defecto: 1080)
+
+# QoL overrides — drops y farmeo
+drop_table_general        = "1.5"  # +50% drops generales de enemigos
+drop_table_missions       = "1.5"  # +50% botín de misiones de sirvientes
+drop_table_stygian_shards = "1.5"  # +50% Stygian Shards en Rift Incursions
+inventory_stacks          = "2.0"  # pilas 2x más grandes
+blood_essence_yield       = "1.5"  # +50% esencia al matar/exprimir corazones
 ```
 
 > **Presets disponibles**: `StandardPvE`, `HardcorePvE`, `StandardPvP`, `HardcorePvP`, `SoloPvP`. Consulta el PDF de referencia en `stacks/vrising/` para el listado completo de valores por preset.

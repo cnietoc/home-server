@@ -57,6 +57,12 @@ services:
       - GAME_SETTINGS_CraftRateModifier=${CRAFT_RATE}
       - GAME_SETTINGS_RefinementRateModifier=${REFINEMENT_RATE}
       - GAME_SETTINGS_GameTimeModifiers__DayDurationInSeconds=${DAY_DURATION}
+      # QoL overrides — drops y farmeo
+      - GAME_SETTINGS_DropTableModifier_General=${DROP_TABLE_GENERAL}
+      - GAME_SETTINGS_DropTableModifier_Missions=${DROP_TABLE_MISSIONS}
+      - GAME_SETTINGS_DropTableModifier_StygianShards=${DROP_TABLE_STYGIAN_SHARDS}
+      - GAME_SETTINGS_InventoryStacksModifier=${INVENTORY_STACKS}
+      - GAME_SETTINGS_BloodEssenceYieldModifier=${BLOOD_ESSENCE_YIELD}
     volumes:
       - ${STACK_DATA}/server:/mnt/vrising/server
       - ${STACK_DATA}/persistentdata:/mnt/vrising/persistentdata
