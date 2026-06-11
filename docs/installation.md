@@ -147,14 +147,11 @@ google_client_secret = "tu-client-secret"
 # Lista de emails autorizados (separados por comas)
 oauth_whitelist = "tu-email@gmail.com"
 
-[infra.watchtower]
-# URL de notificaciones (Discord, Telegram, Slack, etc.)
-notification_url = "discord://webhook-token@webhook-id"
 ```
 
 #### 3. Notificaciones del Daemon HMS (Opcional) 🔔
 
-El daemon HMS puede enviarte notificaciones (arranque, parada, jobs fallidos) a través de cualquier servicio soportado por [Apprise](https://github.com/caronc/apprise):
+El daemon HMS puede enviarte notificaciones (arranque, parada, jobs fallidos, stacks caídos, disco lleno) a través de cualquier servicio soportado por [Apprise](https://github.com/caronc/apprise):
 
 ```toml
 [global]
@@ -166,8 +163,6 @@ notification_url = "tgram://BOT_TOKEN/CHAT_ID"
 ```
 
 Si `notification_url` está vacío o no definido, las notificaciones están desactivadas.
-
-> **Nota**: Esta es la URL de notificaciones del **daemon HMS** (backups, errores de jobs). La URL de `[infra.watchtower]` es independiente y controla las notificaciones de actualizaciones de contenedores Docker.
 
 #### 4. Configuración Opcional (Ya tiene valores por defecto) 🔧
 
@@ -213,7 +208,7 @@ Opciones de backup configurables en `[global.backups]`:
    - `https://auth.{tu-dominio}/auth`
 6. Copiar **Client ID** y **Client Secret**
 
-#### Webhook de Discord (Watchtower)
+#### Webhook de Discord (notificaciones)
 
 1. Ir a tu servidor Discord → Configuración del canal → Integraciones
 2. Crear webhook
@@ -246,9 +241,6 @@ dns_api_token = "abc123xyz789token"
 google_client_id = "123456789-abc.apps.googleusercontent.com"
 google_client_secret = "GOCSPX-abcdef123456"
 oauth_whitelist = "mi-email@gmail.com"
-
-[infra.watchtower]
-notification_url = "discord://token@id"
 
 # ... el resto de secciones vienen de config.default.toml
 ```

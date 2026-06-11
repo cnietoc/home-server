@@ -40,7 +40,5 @@ services:
       traefik.http.routers.home-admin.middlewares: "tinyauth@docker"
       traefik.http.routers.home-admin.service: "home"
       traefik.http.services.home.loadbalancer.server.port: "3000"
-      # Excluir de Watchtower (imagen construida localmente)
-      com.centurylinklabs.watchtower.enable: "false"
       hms.description: "🏠 Home Server Dashboard"
       hms.public: "true"

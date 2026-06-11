@@ -10,7 +10,7 @@ Un **stack** es un grupo de servicios Docker relacionados que se despliegan junt
 
 | Stack | Estado | Descripción | Servicios |
 |-------|--------|-------------|-----------|
-| **infra** | ✅ Estable | Infraestructura base | Traefik, TinyAuth, Watchtower |
+| **infra** | ✅ Estable | Infraestructura base | Traefik, TinyAuth, Beszel |
 | **media** | ✅ Estable | Multimedia | Jellyfin, Radarr, Sonarr |
 | **necesse** | ✅ Estable | Servidor juego | Necesse |
 | **corekeeper** | ✅ Estable | Servidor juego | Core Keeper |

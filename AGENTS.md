@@ -49,7 +49,7 @@ Each stack lives in `stacks/<name>/` and contains:
 - Optional `pre-deploy.sh` or `pre-deploy.py` — runs before `docker compose up`
 - Data is persisted to `data/<name>/` (bind-mounted, not named volumes)
 
-All stacks join the external `hms-network` managed by the mandatory `infra` stack (Traefik + TinyAuth + Watchtower).
+All stacks join the external `hms-network` managed by the mandatory `infra` stack (Traefik + TinyAuth + Beszel).
 
 ### Daemon
 
