@@ -32,9 +32,8 @@ services:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     command:
-      # API y Dashboard
+      # API y Dashboard (solo vía router api@internal, autenticado con TinyAuth)
       - --api.dashboard=true
-      - --api.insecure=true
 
       # Entrypoints
       - --entrypoints.web.address=:80
@@ -42,7 +41,7 @@ services:
 
       # Providers
       - --providers.docker=true
-      - --providers.docker.network=proxy
+      - --providers.docker.network=hms-network
       - --providers.docker.exposedbydefault=false
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
