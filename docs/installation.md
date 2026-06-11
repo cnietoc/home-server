@@ -287,8 +287,28 @@ hms logs infra -f
 
 **Servicios incluidos en infra:**
 - 🌐 **Traefik**: Proxy inverso y SSL automático (`https://traefik.{tu-dominio}`)
-- 🔄 **Watchtower**: Actualizaciones automáticas de contenedores
 - 🔐 **TinyAuth**: Autenticación OAuth (`https://auth.{tu-dominio}`)
+- 📊 **Beszel**: Monitor de recursos del servidor y contenedores (`https://monitor.{tu-dominio}`)
+
+#### Configurar Beszel (primer arranque)
+
+Beszel necesita un paso manual la primera vez:
+
+1. Abre `https://monitor.{tu-dominio}` y crea la cuenta de administrador.
+2. Pulsa **Add system** → activa el toggle de **universal token**.
+3. Copia la **public key** y el **token** que muestra el diálogo en `config.toml`:
+
+   ```toml
+   [infra.beszel]
+   key   = "ssh-ed25519 AAAA..."
+   token = "el-token-universal"
+   ```
+
+4. Vuelve a desplegar infra: `hms infra up`. El agente se registrará solo
+   y el sistema aparecerá en verde en el dashboard.
+
+Hasta completar estos pasos el contenedor `beszel-agent` reiniciará en bucle
+quejándose de la KEY vacía — es esperado e inofensivo.
 
 ### Paso 6: Desplegar Stacks Adicionales
 

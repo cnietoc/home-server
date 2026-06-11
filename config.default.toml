@@ -21,8 +21,12 @@ google_client_id     = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
 oauth_whitelist      = "__REQUIRED__"
 
+[infra.beszel]
+key   = ""   # public key del hub — se obtiene en la UI tras el primer arranque
+token = ""   # universal token del hub — idem
+
 [infra.backups]
-exclude = ["*.log"]
+exclude = ["*.log", "/beszel/socket/"]
 
 [monitoring]
 disk_threshold_percent = 85   # alert when data volume usage >= this %

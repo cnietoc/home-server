@@ -7,8 +7,8 @@ Stack fundamental que proporciona servicios centrales para el sistema.
 | Propiedad | Valor |
 |-----------|-------|
 | **Estado** | ✅ Estable |
-| **Servicios** | 3 servicios (Traefik, TinyAuth, cAdvisor) |
-| **Puertos Expuestos** | 80 (HTTP), 443 (HTTPS), 8080 (Traefik Dashboard) |
+| **Servicios** | 4 servicios (Traefik, TinyAuth, Beszel hub + agente) |
+| **Puertos Expuestos** | 80 (HTTP), 443 (HTTPS) |
 | **Almacenamiento** | ~1GB (logs, certificados, config) |
 
 ## 🔧 Servicios Incluidos
@@ -20,12 +20,13 @@ Proxy reverso con generación automática de certificados SSL
 - **Protegido**: ✅ Sí (tinyauth)
 - **Función**: Routing de peticiones, generación automática de certificados SSL con Let's Encrypt vía DNS Challenge (Cloudflare), balanceo de carga
 
-### 3. cAdvisor - Monitorización de Contenedores
-Monitor de métricas en tiempo real para todos los contenedores Docker
+### 3. Beszel - Monitorización del Servidor
+Monitor ligero de recursos del host y de todos los contenedores Docker
 
 - **URL**: `https://monitor.{DOMAIN}`
-- **Protegido**: ✅ Sí (tinyauth)
-- **Función**: Métricas por contenedor (CPU, memoria, red, disco), historial de 2 minutos, endpoint Prometheus en `/metrics`
+- **Protegido**: ✅ Sí (tinyauth + login propio de Beszel)
+- **Función**: Métricas históricas de CPU, memoria, red y disco por contenedor y del host; alertas configurables. Consta de dos servicios: el **hub** (interfaz web, puerto 8090 interno) y el **agente** (lee el socket de Docker en solo lectura y se comunica con el hub por un socket Unix compartido).
+- **Primer arranque**: requiere copiar KEY y TOKEN del hub a `[infra.beszel]` en `config.toml` — ver el flujo en [docs/installation.md](../installation.md).
 
 ### 2. TinyAuth - Autenticación Centralizada
 Servicio de autenticación OAuth2 para proteger aplicaciones
@@ -68,8 +69,10 @@ data/infra/
 │       └── access.log       # Log de accesos
 └── tinyauth/
     └── database.sqlite      # Base de datos usuarios/sesiones
-
-# cAdvisor no persiste datos — todo en memoria (ventana de 2 minutos)
+└── beszel/
+    ├── data/                # Base de datos del hub (métricas, usuarios)
+    ├── agent/               # Fingerprint del agente
+    └── socket/              # Socket Unix hub↔agente (excluido de backups)
 ```
 
 ## 🎯 Workflow Típico
@@ -90,7 +93,7 @@ data/infra/
 
 4. **HMS daemon gestiona las actualizaciones**:
    - `hms update infra` descarga nuevas imágenes y recrea los containers
-   - El job `update-infra` lo ejecuta automáticamente cada día a las 4 AM
+   - El job `update-infra` lo ejecuta automáticamente al arrancar y cada 24h
    - Puede causar un breve corte en el proxy durante la recreación
 
 ## 🔐 Certificados SSL
