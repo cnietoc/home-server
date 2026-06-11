@@ -253,6 +253,34 @@ notification_url = "discord://token@id"
 # ... el resto de secciones vienen de config.default.toml
 ```
 
+### Rotación de logs de Docker (recomendado)
+
+Por defecto Docker no rota los logs de los contenedores y pueden crecer sin
+límite. En un servidor pequeño conviene limitarlos globalmente. Crea o edita
+`/etc/docker/daemon.json` en el host:
+
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+```
+
+Y reinicia el demonio de Docker:
+
+```bash
+sudo systemctl restart docker
+```
+
+> **Nota**: el límite se aplica a contenedores **creados a partir de ese
+> momento**. Los existentes lo adoptan la próxima vez que se recrean
+> (p. ej. con `hms <stack> update` o `hms <stack> up` tras un cambio).
+> Los logs de fichero de Traefik (`data/infra/traefik/logs/`) son aparte;
+> si crecen demasiado pueden borrarse sin riesgo con el stack parado.
+
 ### Paso 4: Iniciar el Sistema HMS
 
 ```bash
