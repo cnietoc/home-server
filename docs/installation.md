@@ -178,6 +178,7 @@ El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Port-forwarding automático vía UPnP (puertos declarados en `x-hms.public_ports`)
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
+- ✅ Vigilancia de salud de stacks cada 5 minutos con aviso por Apprise (`[jobs.health-watch]`)
 
 Para el port-forwarding automático solo necesitas tener UPnP habilitado en tu router. Ver [docs/router-port-forwarding.md](router-port-forwarding.md) para más detalles.
 

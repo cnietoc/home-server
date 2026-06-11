@@ -80,6 +80,15 @@ triggers    = [
     { type = "interval", interval = "4h" },
 ]
 
+[jobs.health-watch]
+description = "Check stack health and notify failures"
+plugin      = "system:health-watch"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "interval", interval = "5m" },
+]
+
 [media]
 enable_intel_qsv = false
 enable_nvidia    = false
