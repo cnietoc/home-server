@@ -5,13 +5,12 @@ Integrates the APScheduler scheduler into the FastAPI lifespan.
 """
 
 import asyncio
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 import os
 
-import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -32,8 +31,8 @@ logger = logging.getLogger(__name__)
 _start_time = time.time()
 _cache = {"dashboard": {"ts": 0.0, "data": None}, "metrics": {"ts": 0.0, "data": None}}
 _CACHE_TTL_SECONDS = int(os.environ.get("HMS_DASHBOARD_TTL", "10"))
-_CADVISOR_URL = os.environ.get("CADVISOR_URL", "http://hms-infra-cadvisor:8080")
 _STACK_PREFIX = "hms-"
+_prev_net_totals: dict = {}  # {container_name: {"rx": int, "tx": int}}
 
 
 async def _wait_for_stacks_ready(timeout_s: int = 300, poll_s: int = 3) -> list[str]:
@@ -154,8 +153,8 @@ async def health() -> JSONResponse:
                     "status": "unhealthy",
                     "scheduler_running": False,
                     "uptime_seconds": uptime,
-                    "message": "Scheduler is not running"
-                }
+                    "message": "Scheduler is not running",
+                },
             )
 
         # Count active jobs
@@ -178,7 +177,7 @@ async def health() -> JSONResponse:
             content={
                 "status": "unhealthy",
                 "error": str(e),
-            }
+            },
         )
 
 
@@ -235,7 +234,9 @@ def _get_system_info() -> dict:
             usage_percent = int(((mem_total - mem_available) / mem_total) * 100)
             info["memory"] = {
                 "usage_percent": usage_percent,
-                "status": "high" if usage_percent > 80 else "medium" if usage_percent > 60 else "low",
+                "status": (
+                    "high" if usage_percent > 80 else "medium" if usage_percent > 60 else "low"
+                ),
             }
     except Exception:
         pass
@@ -287,8 +288,13 @@ def _build_dashboard_data() -> dict:
             services.append(
                 {
                     "name": service,
-                    "description": stack_metadata.get_service_description(stack_name, service) or "",
-                    "public": stack_metadata.is_service_public(stack_name, service) if has_endpoint else False,
+                    "description": stack_metadata.get_service_description(stack_name, service)
+                    or "",
+                    "public": (
+                        stack_metadata.is_service_public(stack_name, service)
+                        if has_endpoint
+                        else False
+                    ),
                     "endpoints": endpoints,
                     "state": counts.get("state", "stopped"),
                     "has_endpoint": has_endpoint,
@@ -340,74 +346,99 @@ async def dashboard() -> JSONResponse:
     return JSONResponse(content=data)
 
 
-def _cadvisor_cpu_percent(stats: list) -> float:
-    if len(stats) < 2:
-        return 0.0
-    s1, s2 = stats[-2], stats[-1]
-    cpu_delta = s2["cpu"]["usage"]["total"] - s1["cpu"]["usage"]["total"]
-    t1 = datetime.fromisoformat(s1["timestamp"].replace("Z", "+00:00"))
-    t2 = datetime.fromisoformat(s2["timestamp"].replace("Z", "+00:00"))
-    time_ns = (t2 - t1).total_seconds() * 1e9
-    if time_ns <= 0:
-        return 0.0
-    return round((cpu_delta / time_ns) * 100, 1)
+def _parse_mem_mb(s: str) -> float:
+    """Parse docker stats memory string like '123MiB', '1.2GiB', '456kB'."""
+    for suffix, factor in [
+        ("GiB", 1024.0),
+        ("MiB", 1.0),
+        ("KiB", 1 / 1024.0),
+        ("GB", 1024.0),
+        ("MB", 1.0),
+        ("kB", 1 / 1024.0),
+        ("B", 1 / 1048576.0),
+    ]:
+        if s.endswith(suffix):
+            try:
+                return round(float(s[: -len(suffix)]) * factor, 1)
+            except ValueError:
+                return 0.0
+    return 0.0
 
 
-def _cadvisor_memory_mb(stats: list) -> float:
-    if not stats:
-        return 0.0
-    return round(stats[-1]["memory"]["usage"] / (1024 * 1024), 1)
+def _parse_bytes(s: str) -> int:
+    """Parse docker stats bytes string like '1.23kB', '4.56MB', '789B'."""
+    for suffix, factor in [("GB", 1e9), ("MB", 1e6), ("kB", 1e3), ("B", 1.0)]:
+        if s.endswith(suffix):
+            try:
+                return int(float(s[: -len(suffix)]) * factor)
+            except ValueError:
+                return 0
+    return 0
 
 
-def _cadvisor_network_bytes(stats: list) -> dict:
-    if len(stats) < 2:
-        return {"rx": 0, "tx": 0}
+async def _fetch_docker_stats() -> dict:
+    """Fetch per-stack CPU/RAM/network metrics from docker stats."""
+    global _prev_net_totals
 
-    def _net_totals(stat: dict) -> tuple[int, int]:
-        net = stat.get("network", {})
-        interfaces = net.get("interfaces", [])
-        if interfaces:
-            rx = sum(i.get("rx_bytes", 0) for i in interfaces)
-            tx = sum(i.get("tx_bytes", 0) for i in interfaces)
-        else:
-            rx = net.get("rx_bytes", 0)
-            tx = net.get("tx_bytes", 0)
-        return rx, tx
-
-    rx1, tx1 = _net_totals(stats[-2])
-    rx2, tx2 = _net_totals(stats[-1])
-    return {"rx": max(0, rx2 - rx1), "tx": max(0, tx2 - tx1)}
-
-
-async def _fetch_cadvisor_metrics() -> dict:
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        resp = await client.get(
-            f"{_CADVISOR_URL}/api/v2.1/stats",
-            params={"type": "docker", "recursive": "true", "count": "2"},
-        )
-        resp.raise_for_status()
-        containers = resp.json()
+    proc = await asyncio.create_subprocess_exec(
+        "docker",
+        "stats",
+        "--no-stream",
+        "--no-trunc",
+        "--format",
+        "{{json .}}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
 
     result: dict = {}
-    for container_info in containers.values():
-        labels = container_info.get("spec", {}).get("labels", {})
-        project = labels.get("com.docker.compose.project", "")
-        if not project.startswith(_STACK_PREFIX):
+    new_net_totals: dict = {}
+
+    for line in stdout.decode().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            s = json.loads(line)
+        except json.JSONDecodeError:
             continue
 
-        stack_name = project[len(_STACK_PREFIX):]
-        stats = container_info.get("stats", [])
+        name = s.get("Name", "")
+        if not name.startswith(_STACK_PREFIX):
+            continue
+
+        rest = name[len(_STACK_PREFIX) :]
+        stack_name = rest.split("-")[0] if "-" in rest else rest
+
+        cpu_str = s.get("CPUPerc", "0%").rstrip("%")
+        try:
+            cpu = float(cpu_str)
+        except ValueError:
+            cpu = 0.0
+
+        mem_mb = _parse_mem_mb(s.get("MemUsage", "0MiB / 0MiB").split("/")[0].strip())
+
+        net_str = s.get("NetIO", "0B / 0B")
+        net_parts = net_str.split("/")
+        rx_total = _parse_bytes(net_parts[0].strip()) if net_parts else 0
+        tx_total = _parse_bytes(net_parts[1].strip()) if len(net_parts) > 1 else 0
+
+        new_net_totals[name] = {"rx": rx_total, "tx": tx_total}
+        prev = _prev_net_totals.get(name, {"rx": rx_total, "tx": tx_total})
+        net_rx = max(0, rx_total - prev["rx"])
+        net_tx = max(0, tx_total - prev["tx"])
 
         if stack_name not in result:
             result[stack_name] = {"cpu_percent": 0.0, "memory_mb": 0.0, "net_rx": 0, "net_tx": 0}
 
         entry = result[stack_name]
-        entry["cpu_percent"] = round(entry["cpu_percent"] + _cadvisor_cpu_percent(stats), 1)
-        entry["memory_mb"] = round(entry["memory_mb"] + _cadvisor_memory_mb(stats), 1)
-        net = _cadvisor_network_bytes(stats)
-        entry["net_rx"] += net["rx"]
-        entry["net_tx"] += net["tx"]
+        entry["cpu_percent"] = round(entry["cpu_percent"] + cpu, 1)
+        entry["memory_mb"] = round(entry["memory_mb"] + mem_mb, 1)
+        entry["net_rx"] += net_rx
+        entry["net_tx"] += net_tx
 
+    _prev_net_totals = new_net_totals
     return result
 
 
@@ -419,10 +450,10 @@ async def metrics() -> JSONResponse:
         return JSONResponse(content=cached["data"])
 
     try:
-        data = await _fetch_cadvisor_metrics()
+        data = await _fetch_docker_stats()
     except Exception as e:
-        logger.warning(f"cAdvisor unavailable: {e}")
-        return JSONResponse(status_code=503, content={"error": "cAdvisor unavailable"})
+        logger.warning(f"docker stats unavailable: {e}")
+        return JSONResponse(status_code=503, content={"error": "metrics unavailable"})
 
     _cache["metrics"] = {"ts": now, "data": data}
     return JSONResponse(content=data)
@@ -467,7 +498,7 @@ async def reload_jobs() -> JSONResponse:
             content={
                 "status": "error",
                 "message": str(e),
-            }
+            },
         )
 
 
