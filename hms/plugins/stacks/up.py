@@ -56,7 +56,7 @@ DESCRIPTION:
 
         current_status = docker_manager.get_stack_status(stack_name)
 
-        if current_status in ['stopped', 'not-found']:
+        if current_status in ["stopped", "not-found"]:
             ui.info(f"🟢 Starting stack '{stack_name}'...")
             result = docker_manager.stack_up(stack_name)
         else:

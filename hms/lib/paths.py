@@ -1,4 +1,5 @@
 """Common path helpers for HMS."""
+
 import os
 from pathlib import Path
 

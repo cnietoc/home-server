@@ -145,7 +145,9 @@ class StackMetadata:
         value = self._extract_label_value(labels, label)
         return str(value) if value is not None else ""
 
-    def _get_service_labels(self, stack_name: str, service: str, label_pattern: str) -> dict[str, str]:
+    def _get_service_labels(
+        self, stack_name: str, service: str, label_pattern: str
+    ) -> dict[str, str]:
         """
         Get all labels matching a pattern (supports wildcards with *).
         Example: "traefik.http.routers.*.rule" matches "traefik.http.routers.tinyauth.rule"
@@ -203,7 +205,9 @@ class StackMetadata:
         if explicit:
             return explicit.lower() == "true"
 
-        traefik_middlewares = self._get_service_labels(stack_name, service, "traefik.http.routers.*.middlewares")
+        traefik_middlewares = self._get_service_labels(
+            stack_name, service, "traefik.http.routers.*.middlewares"
+        )
         for label_key, middleware in traefik_middlewares.items():
             if "tinyauth@docker" in middleware.lower():
                 return False
@@ -285,15 +289,17 @@ class StackMetadata:
                 logger.warning(f"Stack '{stack_name}': unknown protocol '{protocol}', skipping")
                 continue
 
-            result.append(PortMapping(
-                stack=stack_name,
-                port=port,
-                protocol=protocol,  # type: ignore[arg-type]
-                description=description,
-            ))
+            result.append(
+                PortMapping(
+                    stack=stack_name,
+                    port=port,
+                    protocol=protocol,  # type: ignore[arg-type]
+                    description=description,
+                )
+            )
         return result
 
-    def _flatten(self, d: dict, parent_key: str = '') -> dict[str, str]:
+    def _flatten(self, d: dict, parent_key: str = "") -> dict[str, str]:
         """
         Flatten a hierarchical dictionary into a flat dictionary with keys joined by separator.
 
@@ -332,7 +338,7 @@ class StackMetadata:
             "STACK_PREFIX": f"hms-{stack_name}",
             "STACK_DATA": get_host_data_dir(stack_name),
             "STACK_DIR": get_host_stack_dir(stack_name),
-            "HMS_STACK_DATA": get_data_root() / stack_name
+            "HMS_STACK_DATA": get_data_root() / stack_name,
         }
 
         # 2. Global variables from config.toml (flattened)

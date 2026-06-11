@@ -64,7 +64,7 @@ def _is_excluded(rel: str, is_dir: bool, patterns: List[str]) -> bool:
 
 
 def _fmt_size(b: int) -> str:
-    for unit, threshold in (("GB", 1024 ** 3), ("MB", 1024 ** 2), ("KB", 1024)):
+    for unit, threshold in (("GB", 1024**3), ("MB", 1024**2), ("KB", 1024)):
         if b >= threshold:
             return f"{b / threshold:.1f} {unit}"
     return f"{b} B"
@@ -179,12 +179,23 @@ CONFIGURATION:
             if pat and not any(c in pat for c in "*?["):
                 docker_exclude_args.extend(["--exclude", f"data/{stack_name}/{pat}"])
 
-        cmd = [
-            "docker", "run", "--rm",
-            "-v", f"{host_data_root}:/data:ro",
-            "alpine",
-            "tar", "cf", "-", "-C", "/",
-        ] + docker_exclude_args + [f"data/{stack_name}"]
+        cmd = (
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{host_data_root}:/data:ro",
+                "alpine",
+                "tar",
+                "cf",
+                "-",
+                "-C",
+                "/",
+            ]
+            + docker_exclude_args
+            + [f"data/{stack_name}"]
+        )
 
         logger.debug(f"   Docker backup: {' '.join(cmd)}")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -196,7 +207,11 @@ CONFIGURATION:
         try:
             with tarfile.open(fileobj=proc.stdout, mode="r|") as src_tar:
                 for member in src_tar:
-                    rel = member.name[len(stack_prefix):] if member.name.startswith(stack_prefix) else ""
+                    rel = (
+                        member.name[len(stack_prefix) :]
+                        if member.name.startswith(stack_prefix)
+                        else ""
+                    )
                     if rel and _is_excluded(rel, member.isdir(), exclude_patterns):
                         continue  # tarfile streaming auto-advances past skipped data
                     f = src_tar.extractfile(member)
@@ -241,10 +256,18 @@ CONFIGURATION:
                     count += 1
 
         cmd = [
-            "docker", "run", "--rm", "-i",
-            "-v", f"{host_data_root}:/data",
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "-v",
+            f"{host_data_root}:/data",
             "alpine",
-            "tar", "xf", "-", "-C", "/",
+            "tar",
+            "xf",
+            "-",
+            "-C",
+            "/",
         ]
 
         logger.debug(f"   Docker restore: {' '.join(cmd)}")
@@ -259,7 +282,9 @@ CONFIGURATION:
 
     # ─── Python extraction (config.toml only) ───────────────────────────
 
-    def _extract_member_to(self, tar: tarfile.TarFile, member: tarfile.TarInfo, target_path: Path) -> None:
+    def _extract_member_to(
+        self, tar: tarfile.TarFile, member: tarfile.TarInfo, target_path: Path
+    ) -> None:
         """Extract a tar member into target_path preserving permissions."""
         f = tar.extractfile(member)
         if f is not None:
@@ -342,6 +367,7 @@ CONFIGURATION:
             result = self._restore_backup(backup_path, dry_run)
             if result != 0 and not dry_run:
                 from hms.lib.notify import send as notify
+
                 notify("❌ HMS: restore failed", f"Backup: {backup_file}")
             return result
         except Exception:
@@ -349,6 +375,7 @@ CONFIGURATION:
             ui.err("Error during restore")
             if not dry_run:
                 from hms.lib.notify import send as notify
+
                 notify("❌ HMS: restore failed", f"Backup: {backup_file}")
             return 1
 
@@ -360,23 +387,18 @@ CONFIGURATION:
         with tarfile.open(backup_path, "r:gz") as tar:
             members = tar.getmembers()
             has_config = any(m.name == "config.toml" for m in members)
-            has_infra = any(m.name.startswith("data/infra/") for m in members)
-            has_stack_data = any(
-                m.name.startswith("data/") and not m.name.startswith("data/infra/")
-                for m in members
-            )
 
             # require data/STACK/... (3 parts) to avoid empty string from bare "data/" entry
-            stack_targets = sorted({
-                m.name.split("/", 2)[1]
-                for m in members
-                if m.name.startswith("data/") and len(m.name.split("/", 2)) > 2
-            } - {""})
+            stack_targets = sorted(
+                {
+                    m.name.split("/", 2)[1]
+                    for m in members
+                    if m.name.startswith("data/") and len(m.name.split("/", 2)) > 2
+                }
+                - {""}
+            )
 
-            data_members = [
-                m for m in members
-                if m.name.startswith("data/") and m.name != "data/"
-            ]
+            data_members = [m for m in members if m.name.startswith("data/") and m.name != "data/"]
             config_member = next((m for m in members if m.name == "config.toml"), None)
 
             if dry_run:
@@ -411,7 +433,9 @@ CONFIGURATION:
                 # Restore data via Docker (handles root-owned files)
                 if data_members:
                     ui.info("\n🐳 Restoring data via Docker...")
-                    restored_count = self._restore_data_via_docker(tar, data_members, host_data_root)
+                    restored_count = self._restore_data_via_docker(
+                        tar, data_members, host_data_root
+                    )
                     ui.info(f"   ✅ {restored_count} files restored")
 
                 if config_member:
@@ -434,6 +458,7 @@ CONFIGURATION:
     def _min_backup_interval_h(self) -> float:
         """Minimum hours between backups of the same stack, from config (default 12h)."""
         from hms.lib.interval import parse_interval
+
         backup_config = config_manager.get_global_backup_config()
         interval_str = backup_config.get("min_interval", "12h")
         seconds = parse_interval(str(interval_str))
@@ -545,7 +570,8 @@ CONFIGURATION:
 
             if not hms_only:
                 stacks_to_backup = (
-                    [specific_stack] if specific_stack
+                    [specific_stack]
+                    if specific_stack
                     else [s for s in stack_metadata.list_stacks() if s != "infra"]
                 )
 
@@ -565,12 +591,16 @@ CONFIGURATION:
 
                     last_backup = self._last_backup_path(stack_name)
                     if last_backup is not None and not force:
-                        hours = (datetime.now() - datetime.fromtimestamp(last_backup.stat().st_mtime)).total_seconds() / 3600
+                        hours = (
+                            datetime.now() - datetime.fromtimestamp(last_backup.stat().st_mtime)
+                        ).total_seconds() / 3600
                         if hours < min_h:
-                            ui.info(f"   ⏭️  Skipping (last backup {hours:.1f}h ago, minimum {min_h:.0f}h)")
+                            ui.info(
+                                f"   ⏭️  Skipping (last backup {hours:.1f}h ago, minimum {min_h:.0f}h)"
+                            )
                             continue
                         if not self._data_changed_since_backup(stack_name, last_backup):
-                            ui.info(f"   ⏭️  Skipping (no changes since last backup)")
+                            ui.info("   ⏭️  Skipping (no changes since last backup)")
                             continue
 
                     if dry_run:
@@ -629,7 +659,9 @@ CONFIGURATION:
                 exclude_patterns = backup_config.get("exclude", [])
 
                 if (self.data_root / "infra").exists():
-                    dir_stats = self._backup_dir_via_docker(host_data_root, "infra", exclude_patterns, tar)
+                    dir_stats = self._backup_dir_via_docker(
+                        host_data_root, "infra", exclude_patterns, tar
+                    )
                     stats["files"] += dir_stats["files"]
                     stats["bytes"] += dir_stats["bytes"]
                     stats["top_files"].extend(dir_stats["top_files"])
@@ -669,7 +701,9 @@ CONFIGURATION:
             stats: dict = {"files": 0, "bytes": 0, "top_files": []}
 
             with tarfile.open(backup_file, "w:gz") as tar:
-                stats = self._backup_dir_via_docker(host_data_root, stack_name, exclude_patterns, tar)
+                stats = self._backup_dir_via_docker(
+                    host_data_root, stack_name, exclude_patterns, tar
+                )
                 self._add_manifest_to_tar(tar, self._create_manifest(stack_name, exclude_patterns))
 
             stats["compressed_bytes"] = backup_file.stat().st_size
@@ -686,7 +720,9 @@ CONFIGURATION:
         top_files = stats.get("top_files", [])
 
         ui.ok(f"Backup of '{name}' completed: {name}_{timestamp}.tar.gz")
-        ui.info(f"   {files} file(s)  ·  {_fmt_size(raw)} uncompressed  →  {_fmt_size(compressed)} on disk")
+        ui.info(
+            f"   {files} file(s)  ·  {_fmt_size(raw)} uncompressed  →  {_fmt_size(compressed)} on disk"
+        )
         if top_files:
             ui.info("   Largest files:")
             for size, fname in top_files:
@@ -704,6 +740,7 @@ Exclusion patterns: {exclude_patterns if exclude_patterns else 'none'}
 
     def _add_manifest_to_tar(self, tar: tarfile.TarFile, manifest_content: str):
         import io
+
         manifest_bytes = manifest_content.encode("utf-8")
         tarinfo = tarfile.TarInfo(name=".backup-manifest.txt")
         tarinfo.size = len(manifest_bytes)

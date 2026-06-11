@@ -29,7 +29,7 @@ class DockerComposeManager:
         if not stderr:
             return
 
-        lines = stderr.strip().split('\n')
+        lines = stderr.strip().split("\n")
 
         # Group warnings and errors
         warnings = []
@@ -42,12 +42,12 @@ class DockerComposeManager:
                 continue
 
             # Detect warnings about undefined variables
-            if 'WARN' in line and 'variable is not set' in line:
+            if "WARN" in line and "variable is not set" in line:
                 # Extract the variable name
                 if 'The "' in line:
                     try:
                         # Format: msg="The \"VARIABLE_NAME\" variable is not set..."
-                        parts = line.split('The ')
+                        parts = line.split("The ")
                         if len(parts) > 1:
                             var_part = parts[1]
                             # Look for " variable
@@ -78,8 +78,10 @@ class DockerComposeManager:
             for error in errors:
                 # Strip timestamps from the error
                 clean_error = error
-                if 'time=' in clean_error:
-                    clean_error = ' '.join([part for part in clean_error.split() if not part.startswith('time=')])
+                if "time=" in clean_error:
+                    clean_error = " ".join(
+                        [part for part in clean_error.split() if not part.startswith("time=")]
+                    )
                 logger.error(f"   {clean_error}")
 
         # Display other important lines
@@ -106,11 +108,13 @@ class DockerComposeManager:
             script_to_run = predeploy_sh
             command = ["bash", str(predeploy_sh)]
             from hms.lib import ui as _ui
+
             _ui.info(f"🔧 Running pre-deploy.sh for stack '{stack_name}'...")
         elif predeploy_py.exists():
             script_to_run = predeploy_py
             command = ["python", str(predeploy_py)]
             from hms.lib import ui as _ui
+
             _ui.info(f"🔧 Running pre-deploy.py for stack '{stack_name}'...")
 
         if not script_to_run:
@@ -124,22 +128,23 @@ class DockerComposeManager:
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=120  # 2 minutos timeout para pre-deploy
+                timeout=120,  # 2 minutos timeout para pre-deploy
             )
 
             if result.returncode == 0:
-                logger.debug(f"Pre-deploy script completed successfully")
+                logger.debug("Pre-deploy script completed successfully")
                 if result.stdout:
                     # Display stdout from the script
-                    for line in result.stdout.strip().split('\n'):
+                    for line in result.stdout.strip().split("\n"):
                         if line.strip():
                             logger.info(f"   {line}")
             else:
                 from hms.lib import ui as _ui
+
                 _ui.err(f"Pre-deploy script failed for '{stack_name}' (exit {result.returncode})")
                 logger.error("pre-deploy failed for '%s' (exit %d)", stack_name, result.returncode)
                 if result.stderr:
-                    for line in result.stderr.strip().split('\n'):
+                    for line in result.stderr.strip().split("\n"):
                         if line.strip():
                             logger.error("   %s", line)
 
@@ -147,6 +152,7 @@ class DockerComposeManager:
 
         except subprocess.TimeoutExpired:
             from hms.lib import ui as _ui
+
             _ui.err(f"Pre-deploy script timed out for '{stack_name}'")
             logger.error("pre-deploy timeout for '%s'", stack_name)
             return 1
@@ -188,16 +194,14 @@ class DockerComposeManager:
 
         try:
             import os
+
             env = os.environ.copy()
             env_vars = stack_metadata.get_stack_vars(stack_name)
             if env_vars:
                 env.update(env_vars)
 
             result, output = self._exec(
-                ["docker", "compose", "ps", "--format", "json"],
-                stack_name,
-                env,
-                hidden=True
+                ["docker", "compose", "ps", "--format", "json"], stack_name, env, hidden=True
             )
 
             # Parse JSON output
@@ -206,7 +210,7 @@ class DockerComposeManager:
 
             # May be a list of JSON objects, one per line
             containers = []
-            for line in output.split('\n'):
+            for line in output.split("\n"):
                 if line.strip():
                     try:
                         containers.append(json.loads(line))
@@ -341,7 +345,9 @@ class DockerComposeManager:
 
         return services
 
-    def _exec(self, command: list, stack_name: str, env: Optional[dict], hidden: bool = False) -> Tuple[int, str]:
+    def _exec(
+        self, command: list, stack_name: str, env: Optional[dict], hidden: bool = False
+    ) -> Tuple[int, str]:
         """
         Executes a docker compose command in the stack directory.
 
@@ -364,7 +370,7 @@ class DockerComposeManager:
                     env=env,
                     stdout=slave,
                     stderr=slave,
-                    close_fds=True
+                    close_fds=True,
                 )
             finally:
                 os.close(slave)
@@ -385,10 +391,14 @@ class DockerComposeManager:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
-                logger.error(f"Timeout executing command {' '.join(command)} for stack '{stack_name}'")
+                logger.error(
+                    f"Timeout executing command {' '.join(command)} for stack '{stack_name}'"
+                )
                 return 1, b"".join(output_buffer).decode(errors="replace")
             except Exception:
-                logger.exception(f"Error executing command {' '.join(command)} for stack '{stack_name}'")
+                logger.exception(
+                    f"Error executing command {' '.join(command)} for stack '{stack_name}'"
+                )
                 return 1, b"".join(output_buffer).decode(errors="replace")
         finally:
             os.close(master)
@@ -413,6 +423,7 @@ class DockerComposeManager:
         try:
             # Prepare environment
             import os
+
             env = os.environ.copy()
             env_vars = stack_metadata.get_stack_vars(stack_name)
             if env_vars:
@@ -428,9 +439,7 @@ class DockerComposeManager:
             logger.debug(f"Running: docker compose up -d in {stack_dir}")
 
             result, output = self._exec(
-                ["docker", "compose", "up", "-d", "--build"],
-                stack_name,
-                env
+                ["docker", "compose", "up", "-d", "--build"], stack_name, env
             )
 
             self._format_docker_error(output)
@@ -464,10 +473,7 @@ class DockerComposeManager:
                 env.update(env_vars)
 
             result, output = self._exec(
-                ["docker", "compose", "down", "--remove-orphans"],
-                stack_name,
-                env=env,
-                hidden=True
+                ["docker", "compose", "down", "--remove-orphans"], stack_name, env=env, hidden=True
             )
 
             self._format_docker_error(output)
@@ -481,10 +487,7 @@ class DockerComposeManager:
     def _get_stack_image_ids(self, stack_name: str, env: dict) -> dict:
         """Returns {image: id} for images defined in the stack's compose file."""
         _, images_output = self._exec(
-            ["docker", "compose", "config", "--images"],
-            stack_name,
-            env,
-            hidden=True
+            ["docker", "compose", "config", "--images"], stack_name, env, hidden=True
         )
         ids = {}
         for image in (line.strip() for line in images_output.splitlines() if line.strip()):
@@ -492,7 +495,7 @@ class DockerComposeManager:
                 ["docker", "image", "inspect", "--format", "{{.Id}}", image],
                 stack_name,
                 env,
-                hidden=True
+                hidden=True,
             )
             ids[image] = inspect_output.strip()
         return ids
@@ -517,11 +520,7 @@ class DockerComposeManager:
 
             ids_before = self._get_stack_image_ids(stack_name, env)
 
-            result, output = self._exec(
-                ["docker", "compose", "pull"],
-                stack_name,
-                env
-            )
+            result, output = self._exec(["docker", "compose", "pull"], stack_name, env)
 
             self._format_docker_error(output)
 
@@ -564,12 +563,7 @@ class DockerComposeManager:
 
             logger.debug(f"Running: {' '.join(command)} in {stack_dir}")
 
-            result, output = self._exec(
-                command,
-                stack_name,
-                env=env,
-                hidden=False
-            )
+            result, output = self._exec(command, stack_name, env=env, hidden=False)
 
             return result
 
@@ -577,8 +571,9 @@ class DockerComposeManager:
             logger.error(f"Error retrieving logs for stack '{stack_name}': {e}")
             return 1
 
-
-    def wait_for_healthy(self, stack_name: str, timeout: int = 120, poll_interval: float = 3.0) -> bool:
+    def wait_for_healthy(
+        self, stack_name: str, timeout: int = 120, poll_interval: float = 3.0
+    ) -> bool:
         """
         Wait until all containers with healthchecks are healthy.
         Returns True if healthy (or no healthchecks defined), False on timeout or unhealthy.

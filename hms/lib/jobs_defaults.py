@@ -29,4 +29,3 @@ DEFAULT_JOBS: Dict[str, Dict[str, Any]] = {
 def get_default_jobs() -> Dict[str, Dict[str, Any]]:
     """Return a deep copy of the default jobs to avoid accidental mutations."""
     return deepcopy(DEFAULT_JOBS)
-

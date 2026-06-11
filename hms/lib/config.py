@@ -31,10 +31,7 @@ _SECRET_KEYS = {"token", "secret", "password", "api_key", "api_token", "key", "p
 def _redact(d: Any) -> Any:
     """Return a copy of d with values of sensitive keys replaced by '***'."""
     if isinstance(d, dict):
-        return {
-            k: "***" if k.lower() in _SECRET_KEYS else _redact(v)
-            for k, v in d.items()
-        }
+        return {k: "***" if k.lower() in _SECRET_KEYS else _redact(v) for k, v in d.items()}
     if isinstance(d, list):
         return [_redact(i) for i in d]
     return d
@@ -51,7 +48,7 @@ class JobTrigger:
         return {
             "interval": self.config.get("interval"),
             "cron": self.config.get("cron"),
-            "startup": self.config.get("delay")
+            "startup": self.config.get("delay"),
         }.get(self.type)
 
 
@@ -96,6 +93,7 @@ class TomlConfigManager:
         os.environ["TZ"] = str(tz)
         try:
             import time
+
             time.tzset()  # Apply the timezone change
         except Exception as e:
             logger.warning(f"Could not change timezone: {e}")
@@ -113,7 +111,8 @@ class TomlConfigManager:
                 logger.debug(f"UID/GID changed to: {puid}:{pgid}")
             elif current_uid != puid or current_gid != pgid:
                 logger.debug(
-                    f"Cannot change UID/GID (not root). Current: {current_uid}:{current_gid}, Desired: {puid}:{pgid}")
+                    f"Cannot change UID/GID (not root). Current: {current_uid}:{current_gid}, Desired: {puid}:{pgid}"
+                )
         except AttributeError:
             # getuid/setuid not available on Windows
             logger.debug("UID/GID change not available on this platform")
@@ -177,9 +176,9 @@ class TomlConfigManager:
         """Merges two dictionaries, with user_config taking priority."""
         for key, value in user_config.items():
             if (
-                    key in default_config
-                    and isinstance(default_config[key], dict)
-                    and isinstance(value, dict)
+                key in default_config
+                and isinstance(default_config[key], dict)
+                and isinstance(value, dict)
             ):
                 default_config[key] = self._merge_dicts(default_config[key], user_config[key])
             else:
@@ -192,7 +191,9 @@ class TomlConfigManager:
         with self._config_path.open("w", encoding="utf-8") as f:
             f.write(toml_content)
 
-    def _find_missing_required_keys(self, default_config: Dict, user_config: Dict, prefix: str = "") -> List[str]:
+    def _find_missing_required_keys(
+        self, default_config: Dict, user_config: Dict, prefix: str = ""
+    ) -> List[str]:
         """
         Finds keys marked as required in default_config that are missing from user_config.
 
@@ -208,17 +209,15 @@ class TomlConfigManager:
                 # Recursively check sub-dictionaries
                 missing_keys.extend(
                     self._find_missing_required_keys(
-                        value,
-                        user_config.get(key, {}),
-                        prefix=full_key
+                        value, user_config.get(key, {}), prefix=full_key
                     )
                 )
             else:
                 # Check if the key is required and missing from user_config
                 if (
-                        isinstance(value, str)
-                        and value.__eq__("__REQUIRED__")
-                        and key not in user_config
+                    isinstance(value, str)
+                    and value.__eq__("__REQUIRED__")
+                    and key not in user_config
                 ):
                     missing_keys.append(full_key)
 
@@ -257,9 +256,7 @@ class TomlConfigManager:
             full_key = f"{prefix}.{key}" if prefix else key
             if isinstance(value, dict):
                 # Recursively check sub-dictionaries
-                still_required.extend(
-                    self._find_still_required_keys(value, prefix=full_key)
-                )
+                still_required.extend(self._find_still_required_keys(value, prefix=full_key))
             else:
                 # Check if the key is still __REQUIRED__
                 if isinstance(value, str) and value == "__REQUIRED__":
@@ -312,28 +309,20 @@ class TomlConfigManager:
 
         prefix = stack_name
         missing_keys = self._find_missing_required_keys(
-            stack_default_config,
-            stack_user_config,
-            prefix=prefix
+            stack_default_config, stack_user_config, prefix=prefix
         )
 
         if missing_keys:
             if stack_name not in user_config:
                 user_config[stack_name] = {}
 
-            self._add_missing_keys_to_config(
-                missing_keys,
-                user_config
-            )
+            self._add_missing_keys_to_config(missing_keys, user_config)
             self._save_config(user_config)
 
         # Detect keys that are still required after the additions
         updated_config = self._load_toml_file(self._config_path)
         updated_stack_config = updated_config.get(stack_name, {})
-        still_required_keys = self._find_still_required_keys(
-            updated_stack_config,
-            prefix=prefix
-        )
+        still_required_keys = self._find_still_required_keys(updated_stack_config, prefix=prefix)
 
         return still_required_keys
 

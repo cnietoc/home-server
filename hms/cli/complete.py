@@ -1,4 +1,5 @@
 """Fast completion handler for HMS CLI."""
+
 from typing import List
 
 
@@ -15,7 +16,7 @@ def get_completions(words: List[str], current_index: int) -> List[str]:
     plugin_loader = get_plugin_loader()
 
     # Words already confirmed before the current position (excludes "hms")
-    typed = words[1:current_index - 1]
+    typed = words[1 : current_index - 1]
 
     stack_actions = plugin_loader.discover_stacks()
     global_plugins = plugin_loader.discover_globals()

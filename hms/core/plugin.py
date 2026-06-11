@@ -2,6 +2,7 @@
 Base plugin class for HMS plugin system.
 All plugins inherit from this class.
 """
+
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -13,12 +14,15 @@ from hms.lib.config import config_manager
 
 class EmptyStackBehavior(Enum):
     """Enum for behavior when no stacks are specified."""
-    ERROR = 'error'  # Return error
-    ALL = 'all'  # Run on all stacks
-    ALL_INCLUDED_INFRA = 'all-including-infra'  # Run on all stacks including infra
-    ENABLED = 'enabled'  # Run on enabled stacks only
+
+    ERROR = "error"  # Return error
+    ALL = "all"  # Run on all stacks
+    ALL_INCLUDED_INFRA = "all-including-infra"  # Run on all stacks including infra
+    ENABLED = "enabled"  # Run on enabled stacks only
+
 
 logger = logging.getLogger(__name__)
+
 
 class BasePlugin(ABC):
     """
@@ -102,12 +106,13 @@ class StackPlugin(BasePlugin):
         :return:
         """
         if self.get_empty_stack_behavior() == EmptyStackBehavior.ERROR:
-            self.logger.error("No stacks specified and plugin is configured to error on empty stack list.")
+            self.logger.error(
+                "No stacks specified and plugin is configured to error on empty stack list."
+            )
             return 1
         elif self.get_empty_stack_behavior() == EmptyStackBehavior.ENABLED:
             enabled_stacks = [
-                stack for stack in self.available_stacks
-                if config_manager.is_stack_enabled(stack)
+                stack for stack in self.available_stacks if config_manager.is_stack_enabled(stack)
             ]
             if not enabled_stacks:
                 self.logger.info("No enabled stacks found.")
@@ -116,10 +121,7 @@ class StackPlugin(BasePlugin):
         elif self.get_empty_stack_behavior() == EmptyStackBehavior.ALL_INCLUDED_INFRA:
             return self.run_stacks(self.available_stacks, plugin_args)
         else:  # EmptyStackBehavior.ALL
-            stacks = [
-                stack for stack in self.available_stacks
-                if stack != "infra"
-            ]
+            stacks = [stack for stack in self.available_stacks if stack != "infra"]
             return self.run_stacks(stacks, plugin_args)
 
     @abstractmethod
@@ -150,4 +152,5 @@ class GlobalPlugin(BasePlugin):
     Base class for global plugins.
     Plugins that don't operate on stacks (backup, config, show, system).
     """
+
     pass

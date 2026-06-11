@@ -65,8 +65,8 @@ class CLIDispatcher:
         remaining = []
 
         for arg in args:
-            if arg in ['-h', '--help']:
-                flags['help'] = True
+            if arg in ["-h", "--help"]:
+                flags["help"] = True
                 remaining.append(arg)
             else:
                 remaining.append(arg)
@@ -100,7 +100,7 @@ class CLIDispatcher:
                 return None
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            return getattr(module, 'COMMAND_ORDER', None)
+            return getattr(module, "COMMAND_ORDER", None)
         except Exception as e:
             logger.debug(f"Could not load order from {module_path}: {e}")
             return None
@@ -118,7 +118,7 @@ class CLIDispatcher:
         # Parse global flags
         args, flags = self.parse_args(args)
 
-        if not args or flags.get('help'):
+        if not args or flags.get("help"):
             self.print_help()
             return 0
 
@@ -147,6 +147,7 @@ class CLIDispatcher:
             return 130
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             logger.error(f"Error: {e}")
             return 1
@@ -166,7 +167,9 @@ class CLIDispatcher:
 
         # Validate action exists
         if action not in stack_plugins:
-            ordered_actions = self._sort_with_order(list(stack_plugins.keys()), self._get_stack_action_order())
+            ordered_actions = self._sort_with_order(
+                list(stack_plugins.keys()), self._get_stack_action_order()
+            )
             logger.error(f"Unknown action: {action}")
             logger.info(f"Available actions: {', '.join(ordered_actions)}")
             return 1
@@ -188,7 +191,9 @@ class CLIDispatcher:
 
         return exit_code
 
-    def _handle_global_command(self, args: List[str], global_plugins: dict, global_order: Optional[List[str]]) -> int:
+    def _handle_global_command(
+        self, args: List[str], global_plugins: dict, global_order: Optional[List[str]]
+    ) -> int:
         """Handle global command."""
         # Parse: <command> [subcommand] [args]
         command = args[0]
@@ -230,7 +235,6 @@ class CLIDispatcher:
         if not plugin:
             logger.error(f"Failed to load plugin for: {command} {subcommand}")
             return 1
-
 
         return plugin.run(plugin_args)
 
@@ -297,11 +301,15 @@ EXAMPLES:
 
     def _get_stack_action_order(self) -> Optional[List[str]]:
         """Load COMMAND_ORDER from plugins/stacks/__init__.py for stack actions."""
-        return self._load_order(self.hms_root / "plugins" / "stacks" / "__init__.py", "hms.plugins.stacks")
+        return self._load_order(
+            self.hms_root / "plugins" / "stacks" / "__init__.py", "hms.plugins.stacks"
+        )
 
     def _get_global_command_order(self) -> Optional[List[str]]:
         """Load COMMAND_ORDER from plugins/common/__init__.py for global commands."""
-        return self._load_order(self.hms_root / "plugins" / "common" / "__init__.py", "hms.plugins.common")
+        return self._load_order(
+            self.hms_root / "plugins" / "common" / "__init__.py", "hms.plugins.common"
+        )
 
     def print_help(self) -> None:
         """Print general help text."""
@@ -343,12 +351,14 @@ GLOBAL COMMANDS:
 
             print(f"  {command}:")
             subcommand_order = self._get_subcommand_order(command)
-            for subcommand_name in self._sort_with_order(list(subcommands.keys()), subcommand_order):
+            for subcommand_name in self._sort_with_order(
+                list(subcommands.keys()), subcommand_order
+            ):
                 plugin = self.load_plugin(subcommands[subcommand_name])
                 description = plugin.get_description() if plugin else "(no description available)"
                 print(f"    {subcommand_name:<12}  {description}")
 
-        print(f"""
+        print("""
 OPTIONS:
   -h, --help      Show this help
 
@@ -356,29 +366,35 @@ EXAMPLES:
 """)
 
         # Generate examples dynamically
-        first_stack = available_stacks[0] if available_stacks else 'STACK'
+        first_stack = available_stacks[0] if available_stacks else "STACK"
         ordered_actions = self._sort_with_order(list(stack_plugins.keys()), stack_order)
-        first_action = ordered_actions[0] if ordered_actions else 'ACTION'
+        first_action = ordered_actions[0] if ordered_actions else "ACTION"
 
         sample_global = "hms COMMAND subcommand"
         if global_plugins:
             ordered_commands = self._sort_with_order(list(global_plugins.keys()), global_order)
-            first_command = ordered_commands[0] if ordered_commands else 'COMMAND'
+            first_command = ordered_commands[0] if ordered_commands else "COMMAND"
             first_entry = global_plugins[first_command]
             if isinstance(first_entry, str):
                 sample_global = f"hms {first_command}"
             else:
                 subcommand_order = self._get_subcommand_order(first_command)
                 ordered_subs = self._sort_with_order(list(first_entry.keys()), subcommand_order)
-                sample_subcommand = ordered_subs[0] if ordered_subs else 'subcommand'
+                sample_subcommand = ordered_subs[0] if ordered_subs else "subcommand"
                 sample_global = f"hms {first_command} {sample_subcommand}"
 
         if available_stacks:
-            print(f"  hms {first_action} {first_stack}                     # {first_action.capitalize()} {first_stack}")
+            print(
+                f"  hms {first_action} {first_stack}                     # {first_action.capitalize()} {first_stack}"
+            )
             if len(available_stacks) > 1:
                 second_stack = available_stacks[1]
-                print(f"  hms {first_action} {first_stack},{second_stack}               # {first_action.capitalize()} multiple stacks")
-            print(f"  hms {first_action}                              # {first_action.capitalize()} all stacks")
+                print(
+                    f"  hms {first_action} {first_stack},{second_stack}               # {first_action.capitalize()} multiple stacks"
+                )
+            print(
+                f"  hms {first_action}                              # {first_action.capitalize()} all stacks"
+            )
         else:
             print("  (no stacks available)")
 

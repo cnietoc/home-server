@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import time
 import yaml
 import requests
@@ -33,8 +32,7 @@ class SecretsManager:
         return self._get_cached(
             key=f"stack:{stack_name}",
             loader=lambda: self._download_and_parse(
-                f"{self._remote_base}/stacks/{stack_name}.yml",
-                default={}
+                f"{self._remote_base}/stacks/{stack_name}.yml", default={}
             ),
         )
 
@@ -92,12 +90,11 @@ class SecretsManager:
         app = ConfidentialClientApplication(
             client_id=self._onedrive_config["client_id"],
             client_credential=self._onedrive_config["client_secret"],
-            authority=f"https://login.microsoftonline.com/{self._onedrive_config['tenant_id']}"
+            authority=f"https://login.microsoftonline.com/{self._onedrive_config['tenant_id']}",
         )
 
         result = app.acquire_token_by_refresh_token(
-            self._onedrive_config["refresh_token"],
-            scopes=["https://graph.microsoft.com/.default"]
+            self._onedrive_config["refresh_token"], scopes=["https://graph.microsoft.com/.default"]
         )
 
         if "access_token" not in result:
@@ -128,6 +125,3 @@ class SecretsManager:
             return resp.text
         except requests.RequestException as e:
             raise RuntimeError(f"Download failed: {e}")
-
-
-

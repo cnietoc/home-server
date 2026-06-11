@@ -36,23 +36,23 @@ def parse_interval(interval_str: str) -> Optional[int]:
     interval_str_normalized = interval_str.replace(" ", "")
 
     # Pattern to find numbers followed by a unit
-    pattern = r'(\d+)([smhd])'
+    pattern = r"(\d+)([smhd])"
     matches = re.findall(pattern, interval_str_normalized)
 
     if not matches:
         return None
 
     # Verify that the full duration was parsed (no extra characters)
-    reconstructed = ''.join(f"{num}{unit}" for num, unit in matches)
+    reconstructed = "".join(f"{num}{unit}" for num, unit in matches)
     if reconstructed != interval_str_normalized:
         return None
 
     total_seconds = 0
     unit_map = {
-        's': 1,
-        'm': 60,
-        'h': 3600,
-        'd': 86400,
+        "s": 1,
+        "m": 60,
+        "h": 3600,
+        "d": 86400,
     }
 
     for num_str, unit in matches:
@@ -82,10 +82,10 @@ def format_interval(seconds: int) -> str:
         return "0s"
 
     units = [
-        ('d', 86400),
-        ('h', 3600),
-        ('m', 60),
-        ('s', 1),
+        ("d", 86400),
+        ("h", 3600),
+        ("m", 60),
+        ("s", 1),
     ]
 
     parts = []
@@ -97,5 +97,4 @@ def format_interval(seconds: int) -> str:
             remaining %= unit_seconds
             parts.append(f"{count}{unit_name}")
 
-    return ' '.join(parts) if parts else "0s"
-
+    return " ".join(parts) if parts else "0s"

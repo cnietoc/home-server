@@ -85,9 +85,14 @@ DESCRIPTION:
             enabled = config_manager.is_stack_enabled(stack_name)
 
             if not enabled:
-                logger.debug("⏭️  Stack '%s' is disabled, checking if needs to be stopped...", stack_name)
+                logger.debug(
+                    "⏭️  Stack '%s' is disabled, checking if needs to be stopped...", stack_name
+                )
             else:
-                logger.debug("⏭️  Stack '%s' is enabled, checking if needs to be started or reloaded...", stack_name)
+                logger.debug(
+                    "⏭️  Stack '%s' is enabled, checking if needs to be started or reloaded...",
+                    stack_name,
+                )
                 missing_config = config_manager.check_missing_stack_config(stack_name)
                 if missing_config:
                     ui.err(f"Cannot start '{stack_name}' stack. Missing required configuration:")
@@ -105,10 +110,10 @@ DESCRIPTION:
         enabled = config_manager.is_stack_enabled(stack_name)
         current_status = docker_manager.get_stack_status(stack_name)
         if enabled:
-            if current_status in ['stopped', 'not-found']:
+            if current_status in ["stopped", "not-found"]:
                 ui.info(f"🔵 Starting stack '{stack_name}'...")
                 result = docker_manager.stack_up(stack_name)
-            elif current_status in ['running', 'partial']:
+            elif current_status in ["running", "partial"]:
                 ui.info(f"🔄 Stack '{stack_name}' is already running, reloading config...")
                 result = docker_manager.stack_up(stack_name)
             else:
@@ -128,16 +133,18 @@ DESCRIPTION:
                 logger.warning("Healthcheck failed/timeout for '%s'", stack_name)
 
             from hms.lib.router import apply_port_forwards_for_stack
+
             apply_port_forwards_for_stack(stack_name)
 
         else:
-            if current_status in ['running', 'partial']:
+            if current_status in ["running", "partial"]:
                 ui.info(f"🔴 Stopping stack '{stack_name}'...")
                 result = docker_manager.stack_down(stack_name)
 
                 if result == 0:
                     ui.ok(f"Stack '{stack_name}' stopped successfully")
                     from hms.lib.router import remove_port_forwards_for_stack
+
                     remove_port_forwards_for_stack(stack_name)
                 else:
                     ui.err(f"Failed to stop stack '{stack_name}'")
