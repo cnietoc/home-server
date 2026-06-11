@@ -69,8 +69,8 @@ plugin      = "system:update-stacks"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "startup",  delay    = "8m" },
-    { type = "interval", interval = "4h" },
+    { type = "startup",  delay    = "8m"  },
+    { type = "interval", interval = "24h" },
 ]
 
 [jobs.update-infra]
@@ -79,8 +79,8 @@ plugin      = "update"
 enabled     = true
 args        = ["infra"]
 triggers    = [
-    { type = "startup",  delay    = "2m" },
-    { type = "interval", interval = "4h" },
+    { type = "startup",  delay    = "2m"  },
+    { type = "interval", interval = "24h" },
 ]
 
 [jobs.health-watch]

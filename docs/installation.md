@@ -174,7 +174,7 @@ Si `notification_url` está vacío o no definido, las notificaciones están desa
 El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Backups automáticos diarios (3 AM)
 - ✅ Actualización de DNS cada 30 minutos
-- ✅ Actualizaciones automáticas de contenedores (cada 12 horas)
+- ✅ Actualizaciones automáticas de contenedores (al arrancar y cada 24 horas)
 - ✅ Port-forwarding automático vía UPnP (puertos declarados en `x-hms.public_ports`)
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
