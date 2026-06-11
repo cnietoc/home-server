@@ -179,6 +179,7 @@ El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
 - ✅ Vigilancia de salud de stacks cada 5 minutos con aviso por Apprise (`[jobs.health-watch]`)
+- ✅ Aviso por Apprise cuando el disco supera el umbral (`[monitoring] disk_threshold_percent = 85`)
 
 Para el port-forwarding automático solo necesitas tener UPnP habilitado en tu router. Ver [docs/router-port-forwarding.md](router-port-forwarding.md) para más detalles.
 

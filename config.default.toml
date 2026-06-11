@@ -24,6 +24,9 @@ oauth_whitelist      = "__REQUIRED__"
 [infra.backups]
 exclude = ["*.log"]
 
+[monitoring]
+disk_threshold_percent = 85   # alert when data volume usage >= this %
+
 [jobs.update-dns]
 description = "Update DNS records in Cloudflare"
 plugin      = "system:update-dns"
@@ -87,6 +90,16 @@ enabled     = true
 args        = []
 triggers    = [
     { type = "interval", interval = "5m" },
+]
+
+[jobs.disk-watch]
+description = "Check disk usage and notify above threshold"
+plugin      = "system:disk-watch"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "startup",  delay    = "5m"  },
+    { type = "interval", interval = "30m" },
 ]
 
 [media]

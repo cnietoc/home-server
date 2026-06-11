@@ -33,6 +33,10 @@ notification_url = "__REQUIRED__"
 # lease_duration = "3600"          # segundos
 # exclude_stacks = []              # p.ej. ["infra"] para gestionar Traefik a mano
 
+# Monitorización del daemon HMS (health-watch / disk-watch)
+[monitoring]
+# disk_threshold_percent = 85   # avisar cuando el disco de data/ supere este %
+
 [necesse]
 password = "__REQUIRED__"
 
