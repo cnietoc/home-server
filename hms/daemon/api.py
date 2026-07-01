@@ -5,6 +5,7 @@ Integrates the APScheduler scheduler into the FastAPI lifespan.
 """
 
 import asyncio
+import gc
 import json
 import logging
 import time
@@ -102,6 +103,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("⏱️  Starting scheduler...")
     start_scheduler()
+    gc.freeze()  # exclude startup objects from future GC passes
 
     # Show configured jobs
     jobs = get_jobs_status()

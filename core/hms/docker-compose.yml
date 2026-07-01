@@ -16,6 +16,12 @@ services:
         - PGID=${PGID}
     container_name: hms
     restart: unless-stopped
+    environment:
+      # Cap glibc malloc arenas (default is 8 x nproc = 32 on this 4-CPU host).
+      # The daemon runs ~4 threads; uncapped arenas inflate RSS retention.
+      - MALLOC_ARENA_MAX=2
+      # Return freed heap to the OS sooner, lowering steady-state RSS after peaks.
+      - MALLOC_TRIM_THRESHOLD_=131072
     networks:
       - hms-network
     group_add:
