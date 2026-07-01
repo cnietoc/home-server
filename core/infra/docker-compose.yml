@@ -129,8 +129,8 @@ services:
     cap_add:
       - SYS_RAWIO # S.M.A.R.T. data (SATA/SAS)
       - SYS_ADMIN # S.M.A.R.T. data (NVMe)
-    devices:
-      - /dev:/dev
+    # `devices:` (mapeo de discos físicos) se añade dinámicamente por
+    # pre-deploy.sh en docker-compose.override.yml — ver ese fichero.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${STACK_DATA}/beszel/socket:/beszel_socket
