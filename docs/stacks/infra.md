@@ -7,7 +7,7 @@ Stack fundamental que proporciona servicios centrales para el sistema.
 | Propiedad | Valor |
 |-----------|-------|
 | **Estado** | ✅ Estable |
-| **Servicios** | 4 servicios (Traefik, TinyAuth, Beszel hub + agente) |
+| **Servicios** | 5 servicios (Traefik, TinyAuth, Beszel hub + agente, Error Pages) |
 | **Puertos Expuestos** | 80 (HTTP), 443 (HTTPS) |
 | **Almacenamiento** | ~1GB (logs, certificados, config) |
 
@@ -35,6 +35,12 @@ Servicio de autenticación OAuth2 para proteger aplicaciones
 - **URL**: `https://auth.{DOMAIN}`
 - **Protegido**: ❌ No (servicio de autenticación)
 - **Función**: Autenticación vía Google OAuth2, whitelist de usuarios, protección de servicios mediante forward auth
+
+### 4. Error Pages - Página 404 personalizada
+Página de error temática para dominios sin ningún router coincidente
+
+- **Protegido**: N/A (no expone URL propia)
+- **Función**: Router `HostRegexp` con prioridad mínima (1) que actúa como "catch-all": si una petición llega a un subdominio sin `Host()` específico, cae en este router y el middleware `errors` devuelve la plantilla correspondiente al código HTTP (imagen `ghcr.io/tarampampam/error-pages`, tema configurable vía `TEMPLATE_NAME`). No afecta a los routers de las demás stacks, que siempre tienen prioridad más alta.
 
 ## 📋 Configuración Requerida
 

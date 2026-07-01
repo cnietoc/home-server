@@ -120,6 +120,35 @@ services:
       - "traefik.http.routers.beszel.middlewares=tinyauth@docker"
       - "hms.description=📊 Monitor del servidor (Beszel)"
 
+  error-pages:
+    image: ghcr.io/tarampampam/error-pages:latest
+    container_name: ${STACK_PREFIX}-error-pages
+    restart: unless-stopped
+    networks:
+      - hms-network
+    environment:
+      - TZ=${TZ}
+      - TEMPLATE_NAME=shuffle
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hms-network"
+      # Router "catch-all": prioridad mínima para que cualquier Host() específico gane siempre
+      - "traefik.http.routers.error-pages-router.rule=HostRegexp(`.+`)"
+      - "traefik.http.routers.error-pages-router.priority=1"
+      - "traefik.http.routers.error-pages-router.entrypoints=websecure"
+      - "traefik.http.routers.error-pages-router.tls=true"
+      - "traefik.http.routers.error-pages-router.tls.certresolver=cloudflare"
+      - "traefik.http.routers.error-pages-router.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.error-pages-router.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.routers.error-pages-router.service=error-pages-service"
+      - "traefik.http.routers.error-pages-router.middlewares=error-pages-middleware@docker"
+      - "traefik.http.services.error-pages-service.loadbalancer.server.port=8080"
+      # Middleware de errores: solo se usa desde el router catch-all de arriba
+      - "traefik.http.middlewares.error-pages-middleware.errors.status=400-599"
+      - "traefik.http.middlewares.error-pages-middleware.errors.service=error-pages-service"
+      - "traefik.http.middlewares.error-pages-middleware.errors.query=/{status}"
+      - "hms.description=🚫 Páginas de error personalizadas"
+
   beszel-agent:
     image: henrygd/beszel-agent:alpine
     container_name: ${STACK_PREFIX}-beszel-agent
