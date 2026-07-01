@@ -315,8 +315,13 @@ hms logs infra -f
 Beszel necesita un paso manual la primera vez:
 
 1. Abre `https://monitor.{tu-dominio}` y crea la cuenta de administrador.
-2. Pulsa **Add system** → activa el toggle de **universal token**.
-3. Copia la **public key** y el **token** que muestra el diálogo en `config.toml`:
+2. Ve a **Configuración → Tokens y huellas digitales** y activa el **Token universal**. Copia ese token.
+3. Pulsa **+ Add System**: ese diálogo muestra la **Public Key** completa (línea `ssh-ed25519 AAAA...` con su comentario). Cópiala también.
+
+   Alternativa sin usar la UI: la clave pública está en
+   `data/infra/beszel/data/id_ed25519.pub` una vez el hub ha arrancado al menos una vez.
+
+4. Copia ambos valores en `config.toml`:
 
    ```toml
    [infra.beszel]
@@ -324,7 +329,7 @@ Beszel necesita un paso manual la primera vez:
    token = "el-token-universal"
    ```
 
-4. Vuelve a desplegar infra: `hms infra up`. El agente se registrará solo
+5. Vuelve a desplegar infra: `hms infra up`. El agente se registrará solo
    y el sistema aparecerá en verde en el dashboard.
 
 Hasta completar estos pasos el contenedor `beszel-agent` reiniciará en bucle

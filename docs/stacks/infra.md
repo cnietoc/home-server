@@ -27,6 +27,7 @@ Monitor ligero de recursos del host y de todos los contenedores Docker
 - **Protegido**: ✅ Sí (tinyauth + login propio de Beszel)
 - **Función**: Métricas históricas de CPU, memoria, red y disco por contenedor y del host; alertas configurables. Consta de dos servicios: el **hub** (interfaz web, puerto 8090 interno) y el **agente** (lee el socket de Docker en solo lectura y se comunica con el hub por un socket Unix compartido).
 - **Primer arranque**: requiere copiar KEY y TOKEN del hub a `[infra.beszel]` en `config.toml` — ver el flujo en [docs/installation.md](../installation.md).
+- **S.M.A.R.T.**: el agente usa la imagen `alpine` (incluye `smartctl`), monta `/dev` completo y añade las capabilities `SYS_RAWIO`/`SYS_ADMIN` para leer la salud de los discos. Esto no añade privilegio real más allá del que ya otorga el socket de Docker montado (equivalente a acceso root sobre el host).
 
 ### 2. TinyAuth - Autenticación Centralizada
 Servicio de autenticación OAuth2 para proteger aplicaciones

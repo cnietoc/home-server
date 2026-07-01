@@ -121,11 +121,16 @@ services:
       - "hms.description=📊 Monitor del servidor (Beszel)"
 
   beszel-agent:
-    image: henrygd/beszel-agent:latest
+    image: henrygd/beszel-agent:alpine
     container_name: ${STACK_PREFIX}-beszel-agent
     restart: unless-stopped
     networks:
       - hms-network
+    cap_add:
+      - SYS_RAWIO # S.M.A.R.T. data (SATA/SAS)
+      - SYS_ADMIN # S.M.A.R.T. data (NVMe)
+    devices:
+      - /dev:/dev
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${STACK_DATA}/beszel/socket:/beszel_socket
