@@ -19,8 +19,13 @@ google_client_id     = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
 oauth_whitelist      = "__REQUIRED__"
 
-[infra.watchtower]
-notification_url = "__REQUIRED__"
+# Beszel (monitor de servidor): tras el primer `hms infra up`, entra en
+# https://monitor.{tu-dominio}, crea la cuenta admin, pulsa "Add system"
+# con el toggle de universal token activado, y copia aquí KEY y TOKEN.
+# Después vuelve a ejecutar `hms infra up`.
+[infra.beszel]
+key   = ""
+token = ""
 
 # Port-forwarding automático en el router via UPnP IGD o NAT-PMP.
 # Requiere que UPnP esté habilitado en el router (ASUS: WAN → Enable UPnP).
@@ -32,6 +37,10 @@ notification_url = "__REQUIRED__"
 # gateway_ip     = "192.168.1.1"   # IP del router; vacío = autodetección por SSDP
 # lease_duration = "3600"          # segundos
 # exclude_stacks = []              # p.ej. ["infra"] para gestionar Traefik a mano
+
+# Monitorización del daemon HMS (health-watch / disk-watch)
+[monitoring]
+# disk_threshold_percent = 85   # avisar cuando el disco de data/ supere este %
 
 [necesse]
 password = "__REQUIRED__"

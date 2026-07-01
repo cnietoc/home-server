@@ -48,7 +48,9 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
     try:
         raw = subprocess.run(
             ["docker", "inspect", DAEMON_CONTAINER],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout
     except subprocess.CalledProcessError as e:
         raise HostRunnerError(
@@ -68,15 +70,24 @@ def run_hms_in_host_network(cli_args: list[str]) -> int:
     cmd_label = cli_args[1] if len(cli_args) > 1 else cli_args[0] if cli_args else "host"
     name = f"hms-{cmd_label}-{os.urandom(2).hex()}"
     cmd = [
-        "docker", "run", "--rm", "--network=host",
-        "--name", name,
+        "docker",
+        "run",
+        "--rm",
+        "--network=host",
+        "--name",
+        name,
         *(["--user", user] if user else []),
         *[arg for g in group_add for arg in ("--group-add", str(g))],
         *volume_args,
-        "-e", f"{HOST_RUNNER_ENV}=1",
-        "-e", "HMS_LOG_TAG=host",
+        "-e",
+        f"{HOST_RUNNER_ENV}=1",
+        "-e",
+        "HMS_LOG_TAG=host",
         image,
-        "python", "-m", "hms", *cli_args,
+        "python",
+        "-m",
+        "hms",
+        *cli_args,
     ]
     logger.debug("host-runner spawn: %s", " ".join(cmd))
     return subprocess.run(cmd).returncode

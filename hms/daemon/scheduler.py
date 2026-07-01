@@ -128,7 +128,9 @@ def _run_plugin(job_id: str, plugin_spec: str, args: list = None) -> int:
         duration = time.time() - start
 
         if result != 0:
-            logger.warning(f"⚠️  Job {job_id} failed ({plugin_spec}) in {format_interval(int(duration))}")
+            logger.warning(
+                f"⚠️  Job {job_id} failed ({plugin_spec}) in {format_interval(int(duration))}"
+            )
             notify("❌ HMS: job failed", f"{job_id}\nPlugin: {plugin_spec}")
         else:
             logger.info(f"✅ Job {job_id} ok ({plugin_spec}) in {format_interval(int(duration))}")
@@ -145,7 +147,11 @@ def _load_jobs(scheduler: BackgroundScheduler):
 
     current_jobs = scheduler.get_jobs()
 
-    logger.debug("Currently %d job(s) in the scheduler: %s", len(current_jobs), [job.id for job in current_jobs])
+    logger.debug(
+        "Currently %d job(s) in the scheduler: %s",
+        len(current_jobs),
+        [job.id for job in current_jobs],
+    )
     global _is_startup
 
     for job_definition in job_definitions:
@@ -172,20 +178,24 @@ def _load_jobs(scheduler: BackgroundScheduler):
             skip = False
             if not trigger.value:
                 logger.warning(
-                    f"❌ Invalid trigger for job {job_definition.name}: type '{trigger.type}' has no value: {trigger.config}")
+                    f"❌ Invalid trigger for job {job_definition.name}: type '{trigger.type}' has no value: {trigger.config}"
+                )
                 continue
             if trigger.type == "startup":
                 seconds = parse_interval(trigger.value)
                 job_id = f"{job_definition.name}-on-startup-{seconds}s"
                 trigger = DateTrigger(run_date=datetime.fromtimestamp(time.time() + seconds))
                 if not _is_startup:
-                    logger.debug("⏭️ Skipping startup trigger for job %s on reload", job_definition.name)
+                    logger.debug(
+                        "⏭️ Skipping startup trigger for job %s on reload", job_definition.name
+                    )
                     skip = True
             elif trigger.type == "interval":
                 seconds = parse_interval(trigger.value)
                 if seconds is None:
                     logger.warning(
-                        f"❌ Invalid trigger for job {job_definition.name}: invalid interval: {trigger.value}")
+                        f"❌ Invalid trigger for job {job_definition.name}: invalid interval: {trigger.value}"
+                    )
                     continue
                 job_id = f"{job_definition.name}-interval-{seconds}s"
                 trigger = IntervalTrigger(seconds=seconds)
@@ -197,7 +207,9 @@ def _load_jobs(scheduler: BackgroundScheduler):
                     logger.warning(f"❌ Invalid trigger for job {job_definition.name}: {e}")
                     continue
             else:
-                logger.warning(f"❌ Invalid trigger for job {job_definition.name}: unknown type: {type}")
+                logger.warning(
+                    f"❌ Invalid trigger for job {job_definition.name}: unknown type: {type}"
+                )
                 continue
             if not skip:
                 scheduler.add_job(
@@ -206,13 +218,15 @@ def _load_jobs(scheduler: BackgroundScheduler):
                     trigger=trigger,
                     id=job_id,
                     name=job_definition.description,
-                    replace_existing=True
+                    replace_existing=True,
                 )
                 logger.info(f"✅ Job {job_id} registrado: {trigger}")
 
             current_jobs = [job for job in current_jobs if job.id != job_id]
 
-    logger.debug("Remaining %d undefined job(s): %s", len(current_jobs), [job.id for job in current_jobs])
+    logger.debug(
+        "Remaining %d undefined job(s): %s", len(current_jobs), [job.id for job in current_jobs]
+    )
 
     # Remove jobs that are no longer in the configuration
     for job in current_jobs:
@@ -283,7 +297,11 @@ def get_jobs_status() -> list:
             "id": job.id,
             "name": job.name,
             "trigger": str(job.trigger),
-            "next_run": str(job.next_run_time) if hasattr(job, 'next_run_time') and job.next_run_time else "never",
+            "next_run": (
+                str(job.next_run_time)
+                if hasattr(job, "next_run_time") and job.next_run_time
+                else "never"
+            ),
         }
         for job in scheduler.get_jobs()
     ]

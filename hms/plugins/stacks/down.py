@@ -48,7 +48,7 @@ DESCRIPTION:
 
         current_status = docker_manager.get_stack_status(stack_name)
 
-        if current_status in ['running', 'partial']:
+        if current_status in ["running", "partial"]:
             ui.info(f"🔴 Stopping stack '{stack_name}'...")
             result = docker_manager.stack_down(stack_name)
 

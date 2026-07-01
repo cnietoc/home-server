@@ -147,14 +147,11 @@ google_client_secret = "tu-client-secret"
 # Lista de emails autorizados (separados por comas)
 oauth_whitelist = "tu-email@gmail.com"
 
-[infra.watchtower]
-# URL de notificaciones (Discord, Telegram, Slack, etc.)
-notification_url = "discord://webhook-token@webhook-id"
 ```
 
 #### 3. Notificaciones del Daemon HMS (Opcional) 🔔
 
-El daemon HMS puede enviarte notificaciones (arranque, parada, jobs fallidos) a través de cualquier servicio soportado por [Apprise](https://github.com/caronc/apprise):
+El daemon HMS puede enviarte notificaciones (arranque, parada, jobs fallidos, stacks caídos, disco lleno) a través de cualquier servicio soportado por [Apprise](https://github.com/caronc/apprise):
 
 ```toml
 [global]
@@ -167,17 +164,17 @@ notification_url = "tgram://BOT_TOKEN/CHAT_ID"
 
 Si `notification_url` está vacío o no definido, las notificaciones están desactivadas.
 
-> **Nota**: Esta es la URL de notificaciones del **daemon HMS** (backups, errores de jobs). La URL de `[infra.watchtower]` es independiente y controla las notificaciones de actualizaciones de contenedores Docker.
-
 #### 4. Configuración Opcional (Ya tiene valores por defecto) 🔧
 
 El archivo `config.default.toml` ya incluye configuración por defecto para:
 - ✅ Backups automáticos diarios (3 AM)
 - ✅ Actualización de DNS cada 30 minutos
-- ✅ Actualizaciones automáticas de contenedores (cada 12 horas)
+- ✅ Actualizaciones automáticas de contenedores (al arrancar y cada 24 horas)
 - ✅ Port-forwarding automático vía UPnP (puertos declarados en `x-hms.public_ports`)
 - ✅ Exclusiones de backup para stacks media/home
 - ✅ Aceleración hardware desactivada (media)
+- ✅ Vigilancia de salud de stacks cada 5 minutos con aviso por Apprise (`[jobs.health-watch]`)
+- ✅ Aviso por Apprise cuando el disco supera el umbral (`[monitoring] disk_threshold_percent = 85`)
 
 Para el port-forwarding automático solo necesitas tener UPnP habilitado en tu router. Ver [docs/router-port-forwarding.md](router-port-forwarding.md) para más detalles.
 
@@ -211,7 +208,7 @@ Opciones de backup configurables en `[global.backups]`:
    - `https://auth.{tu-dominio}/auth`
 6. Copiar **Client ID** y **Client Secret**
 
-#### Webhook de Discord (Watchtower)
+#### Webhook de Discord (notificaciones)
 
 1. Ir a tu servidor Discord → Configuración del canal → Integraciones
 2. Crear webhook
@@ -245,11 +242,36 @@ google_client_id = "123456789-abc.apps.googleusercontent.com"
 google_client_secret = "GOCSPX-abcdef123456"
 oauth_whitelist = "mi-email@gmail.com"
 
-[infra.watchtower]
-notification_url = "discord://token@id"
-
 # ... el resto de secciones vienen de config.default.toml
 ```
+
+### Rotación de logs de Docker (recomendado)
+
+Por defecto Docker no rota los logs de los contenedores y pueden crecer sin
+límite. En un servidor pequeño conviene limitarlos globalmente. Crea o edita
+`/etc/docker/daemon.json` en el host:
+
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+```
+
+Y reinicia el demonio de Docker:
+
+```bash
+sudo systemctl restart docker
+```
+
+> **Nota**: el límite se aplica a contenedores **creados a partir de ese
+> momento**. Los existentes lo adoptan la próxima vez que se recrean
+> (p. ej. con `hms <stack> update` o `hms <stack> up` tras un cambio).
+> Los logs de fichero de Traefik (`data/infra/traefik/logs/`) son aparte;
+> si crecen demasiado pueden borrarse sin riesgo con el stack parado.
 
 ### Paso 4: Iniciar el Sistema HMS
 
@@ -285,8 +307,33 @@ hms logs infra -f
 
 **Servicios incluidos en infra:**
 - 🌐 **Traefik**: Proxy inverso y SSL automático (`https://traefik.{tu-dominio}`)
-- 🔄 **Watchtower**: Actualizaciones automáticas de contenedores
 - 🔐 **TinyAuth**: Autenticación OAuth (`https://auth.{tu-dominio}`)
+- 📊 **Beszel**: Monitor de recursos del servidor y contenedores (`https://monitor.{tu-dominio}`)
+
+#### Configurar Beszel (primer arranque)
+
+Beszel necesita un paso manual la primera vez:
+
+1. Abre `https://monitor.{tu-dominio}` y crea la cuenta de administrador.
+2. Ve a **Configuración → Tokens y huellas digitales** y activa el **Token universal**. Copia ese token.
+3. Pulsa **+ Add System**: ese diálogo muestra la **Public Key** completa (línea `ssh-ed25519 AAAA...` con su comentario). Cópiala también.
+
+   Alternativa sin usar la UI: la clave pública está en
+   `data/infra/beszel/data/id_ed25519.pub` una vez el hub ha arrancado al menos una vez.
+
+4. Copia ambos valores en `config.toml`:
+
+   ```toml
+   [infra.beszel]
+   key   = "ssh-ed25519 AAAA..."
+   token = "el-token-universal"
+   ```
+
+5. Vuelve a desplegar infra: `hms infra up`. El agente se registrará solo
+   y el sistema aparecerá en verde en el dashboard.
+
+Hasta completar estos pasos el contenedor `beszel-agent` reiniciará en bucle
+quejándose de la KEY vacía — es esperado e inofensivo.
 
 ### Paso 6: Desplegar Stacks Adicionales
 

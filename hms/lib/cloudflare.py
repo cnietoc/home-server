@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class CloudflareError(Exception):
     """Base exception for Cloudflare errors."""
+
     pass
 
 
@@ -47,9 +48,7 @@ class CloudflareClient:
             CloudflareError: If the token or domain are invalid
         """
         if not requests:
-            raise CloudflareError(
-                "requests library not installed. Run: pip install requests"
-            )
+            raise CloudflareError("requests library not installed. Run: pip install requests")
 
         if not api_token or not isinstance(api_token, str):
             raise CloudflareError("Invalid API token")
@@ -61,10 +60,12 @@ class CloudflareClient:
         self.base_domain = base_domain
         self._zone_id: Optional[str] = None
         self._session = requests.Session()
-        self._session.headers.update({
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+            }
+        )
 
     def get_public_ip(self) -> str:
         """
@@ -130,9 +131,7 @@ class CloudflareClient:
 
             results = data.get("result", [])
             if not results:
-                raise CloudflareError(
-                    f"Domain {self.base_domain} not found in Cloudflare"
-                )
+                raise CloudflareError(f"Domain {self.base_domain} not found in Cloudflare")
 
             self._zone_id = results[0]["id"]
             logger.debug(f"✅ Zone ID obtained: {self._zone_id}")
@@ -179,13 +178,13 @@ class CloudflareClient:
             raise CloudflareError(f"Error retrieving records: {e}")
 
     def update_record(
-            self,
-            record_name: str,
-            ip: str,
-            ttl: int = 300,
-            proxied: bool = False,
-            dry_run: bool = False,
-            force: bool = False,
+        self,
+        record_name: str,
+        ip: str,
+        ttl: int = 300,
+        proxied: bool = False,
+        dry_run: bool = False,
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         Create or update a DNS record.
@@ -214,11 +213,15 @@ class CloudflareClient:
 
         # Get existing record
         try:
-            existing_records = self._session.get(
-                f"{self.CLOUDFLARE_API_BASE}/zones/{zone_id}/dns_records",
-                params={"type": "A", "name": full_name},
-                timeout=self.HTTP_TIMEOUT,
-            ).json().get("result", [])
+            existing_records = (
+                self._session.get(
+                    f"{self.CLOUDFLARE_API_BASE}/zones/{zone_id}/dns_records",
+                    params={"type": "A", "name": full_name},
+                    timeout=self.HTTP_TIMEOUT,
+                )
+                .json()
+                .get("result", [])
+            )
 
             existing_record = existing_records[0] if existing_records else None
         except Exception as e:
@@ -279,13 +282,13 @@ class CloudflareClient:
             )
 
     def _update_dns_record(
-            self,
-            zone_id: str,
-            record_id: str,
-            full_name: str,
-            ip: str,
-            ttl: int,
-            proxied: bool,
+        self,
+        zone_id: str,
+        record_id: str,
+        full_name: str,
+        ip: str,
+        ttl: int,
+        proxied: bool,
     ) -> Dict[str, Any]:
         """Update an existing DNS record."""
         try:
@@ -320,12 +323,12 @@ class CloudflareClient:
             raise CloudflareError(f"Error updating record: {e}")
 
     def _create_dns_record(
-            self,
-            zone_id: str,
-            full_name: str,
-            ip: str,
-            ttl: int,
-            proxied: bool,
+        self,
+        zone_id: str,
+        full_name: str,
+        ip: str,
+        ttl: int,
+        proxied: bool,
     ) -> Dict[str, Any]:
         """Create a new DNS record."""
         try:
@@ -401,14 +404,10 @@ def get_cloudflare_client() -> CloudflareClient:
     """
     api_token = config_manager.get_config_value("infra.cloudflare.dns_api_token")
     if not api_token:
-        raise CloudflareError(
-            "API token not configured at infra.cloudflare.dns_api_token"
-        )
+        raise CloudflareError("API token not configured at infra.cloudflare.dns_api_token")
 
     base_domain = config_manager.get_config_value("global.domain")
     if not base_domain:
-        raise CloudflareError(
-            "Base domain not configured at global.domain"
-        )
+        raise CloudflareError("Base domain not configured at global.domain")
 
     return CloudflareClient(api_token, base_domain)

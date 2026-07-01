@@ -32,9 +32,8 @@ services:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     command:
-      # API y Dashboard
+      # API y Dashboard (solo vía router api@internal, autenticado con TinyAuth)
       - --api.dashboard=true
-      - --api.insecure=true
 
       # Entrypoints
       - --entrypoints.web.address=:80
@@ -42,7 +41,7 @@ services:
 
       # Providers
       - --providers.docker=true
-      - --providers.docker.network=proxy
+      - --providers.docker.network=hms-network
       - --providers.docker.exposedbydefault=false
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
@@ -99,37 +98,47 @@ services:
       - "traefik.http.middlewares.tinyauth.forwardauth.maxResponseBodySize=1048576"
       - "hms.description=🔐 Panel de Autenticación"
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: ${STACK_PREFIX}-cadvisor
+  beszel:
+    image: henrygd/beszel:latest
+    container_name: ${STACK_PREFIX}-beszel
     restart: unless-stopped
     networks:
       - hms-network
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
-      - /dev/disk:/dev/disk:ro
-    devices:
-      - /dev/kmsg
-    privileged: true
-    command:
-      - --housekeeping_interval=10s
-      - --global_housekeeping_interval=60s
-      - --docker_only=true
-      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
-      - --allow_dynamic_housekeeping=true
+      - ${STACK_DATA}/beszel/data:/beszel_data
+      - ${STACK_DATA}/beszel/socket:/beszel_socket
     environment:
       - TZ=${TZ}
+      - APP_URL=https://monitor.${DOMAIN}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hms-network"
-      - "traefik.http.routers.cadvisor.rule=Host(`monitor.${DOMAIN}`)"
-      - "traefik.http.routers.cadvisor.tls=true"
-      - "traefik.http.routers.cadvisor.tls.certresolver=cloudflare"
-      - "traefik.http.routers.cadvisor.service=cadvisor"
-      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
-      - "traefik.http.routers.cadvisor.middlewares=tinyauth@docker"
-      - "hms.description=📊 Monitor de contenedores Docker"
+      - "traefik.http.routers.beszel.rule=Host(`monitor.${DOMAIN}`)"
+      - "traefik.http.routers.beszel.tls=true"
+      - "traefik.http.routers.beszel.tls.certresolver=cloudflare"
+      - "traefik.http.services.beszel.loadbalancer.server.port=8090"
+      - "traefik.http.routers.beszel.middlewares=tinyauth@docker"
+      - "hms.description=📊 Monitor del servidor (Beszel)"
+
+  beszel-agent:
+    image: henrygd/beszel-agent:alpine
+    container_name: ${STACK_PREFIX}-beszel-agent
+    restart: unless-stopped
+    networks:
+      - hms-network
+    cap_add:
+      - SYS_RAWIO # S.M.A.R.T. data (SATA/SAS)
+      - SYS_ADMIN # S.M.A.R.T. data (NVMe)
+    # `devices:` (mapeo de discos físicos) se añade dinámicamente por
+    # pre-deploy.sh en docker-compose.override.yml — ver ese fichero.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${STACK_DATA}/beszel/socket:/beszel_socket
+      - ${STACK_DATA}/beszel/agent:/var/lib/beszel-agent
+    environment:
+      - TZ=${TZ}
+      - LISTEN=/beszel_socket/beszel.sock
+      - HUB_URL=http://beszel:8090
+      - TOKEN=${BESZEL_TOKEN}
+      - KEY=${BESZEL_KEY}
 

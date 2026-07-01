@@ -28,5 +28,4 @@ services:
       - ../../stacks:/app/stacks
       - ../../backups:/app/backups
       - /var/run/docker.sock:/var/run/docker.sock
-    labels:
-      com.centurylinklabs.watchtower.enable: "false"
+    labels: {}

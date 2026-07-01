@@ -43,7 +43,9 @@ DESCRIPTION:
         description = stack_metadata.get_description(stack_name) or "No description"
         services = stack_metadata.list_services(stack_name)
         status = docker_manager.get_stack_status(stack_name)
-        status_icon = {"running": "🟢", "stopped": "🔴", "partial": "🟠", "not-found": "⚪️"}.get(status, "⚪️")
+        status_icon = {"running": "🟢", "stopped": "🔴", "partial": "🟠", "not-found": "⚪️"}.get(
+            status, "⚪️"
+        )
 
         lines: List[str] = []
         title = f"{status_icon} Stack: {stack_name}"
@@ -62,11 +64,17 @@ DESCRIPTION:
         if services:
             lines.append("Services:")
             for service in services:
-                service_description = stack_metadata.get_service_description(stack_name, service) or "No description"
+                service_description = (
+                    stack_metadata.get_service_description(stack_name, service) or "No description"
+                )
                 is_service_public = stack_metadata.is_service_public(stack_name, service)
-                service_subdomain = stack_metadata.get_service_subdomain(stack_name, service) or "N/A"
+                service_subdomain = (
+                    stack_metadata.get_service_subdomain(stack_name, service) or "N/A"
+                )
                 visibility = "public" if is_service_public else "private"
-                lines.append(f"  - {service} | {service_description} | {visibility} | domain: {service_subdomain}")
+                lines.append(
+                    f"  - {service} | {service_description} | {visibility} | domain: {service_subdomain}"
+                )
         else:
             lines.append("Services: none")
 

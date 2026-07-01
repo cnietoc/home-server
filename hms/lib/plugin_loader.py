@@ -59,9 +59,11 @@ class PluginLoader:
 
             # Find concrete plugin class
             for name, obj in inspect.getmembers(module):
-                if (inspect.isclass(obj) and
-                    issubclass(obj, BasePlugin) and
-                    obj not in (BasePlugin, StackPlugin, GlobalPlugin)):
+                if (
+                    inspect.isclass(obj)
+                    and issubclass(obj, BasePlugin)
+                    and obj not in (BasePlugin, StackPlugin, GlobalPlugin)
+                ):
                     plugin = obj()
                     self._cache[plugin_path] = plugin
                     return plugin

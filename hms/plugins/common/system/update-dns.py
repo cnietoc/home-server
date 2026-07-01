@@ -207,11 +207,13 @@ RECORDS CREATED/UPDATED:
                 except CloudflareError as e:
                     ui.err(f"Error updating {record_name}: {e}")
                     logger.error("update_record '%s' failed: %s", record_name, e)
-                    results.append({
-                        "status": "error",
-                        "name": record_name,
-                        "message": str(e),
-                    })
+                    results.append(
+                        {
+                            "status": "error",
+                            "name": record_name,
+                            "message": str(e),
+                        }
+                    )
 
             ui.info("")
             ui.info(f"📊 Result: {success_count}/{len(records_to_update)} records processed")
@@ -220,7 +222,7 @@ RECORDS CREATED/UPDATED:
                 message = "DNS updated successfully" if not dry_run else "Changes ready to apply"
                 ui.ok(message)
                 ui.info("")
-                ui.info(f"🌐 Services accessible at:")
+                ui.info("🌐 Services accessible at:")
                 ui.info(f"   https://{target_domain}")
                 ui.info(f"   https://*.{target_domain}")
             else:

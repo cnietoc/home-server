@@ -59,5 +59,3 @@ SUPPORTED OPTIONS:
         except Exception as e:
             ui.err(f"Error retrieving logs for stack '{stack_name}': {e}")
             return 1
-
-

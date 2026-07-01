@@ -5,6 +5,9 @@ data/state.yml
 /config.toml
 .onedrive-path
 
+# Auto-generated host-specific overrides (see core/infra/pre-deploy.sh)
+core/infra/docker-compose.override.yml
+
 # Logs
 logs/*.log
 logs/*.log.*

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Daemon entry point."""
     import os
+
     os.environ["HMS_DAEMON"] = "1"  # ui.* redirects to logger instead of print
 
     # Load configuration and set environment variables

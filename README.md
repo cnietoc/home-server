@@ -137,7 +137,7 @@ hms completions print bash > ~/.bash_completion.d/hms
 | **steam** | 🚧 ArchiSteamFarm (en construcción) |
 | **helloworld** | Stack de ejemplo para desarrollo |
 
-> **ℹ️ Nota**: El stack `infra` (infraestructura base con Traefik, TinyAuth, Watchtower) se levanta automáticamente con `hms start` y es obligatorio para el funcionamiento del sistema.
+> **ℹ️ Nota**: El stack `infra` (infraestructura base con Traefik, TinyAuth, Beszel) se levanta automáticamente con `hms start` y es obligatorio para el funcionamiento del sistema.
 
 Más información: [Documentación de Stacks](docs/stacks/README.md)
 

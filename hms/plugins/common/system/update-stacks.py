@@ -37,7 +37,8 @@ DESCRIPTION:
         from hms.plugins.stacks.update import UpdatePlugin
 
         stacks = [
-            s for s in stack_metadata.list_stacks()
+            s
+            for s in stack_metadata.list_stacks()
             if s != "infra" and config_manager.is_stack_enabled(s)
         ]
 

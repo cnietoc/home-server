@@ -21,8 +21,15 @@ google_client_id     = "__REQUIRED__"
 google_client_secret = "__REQUIRED__"
 oauth_whitelist      = "__REQUIRED__"
 
+[infra.beszel]
+key   = ""   # public key del hub — se obtiene en la UI tras el primer arranque
+token = ""   # universal token del hub — idem
+
 [infra.backups]
-exclude = ["*.log"]
+exclude = ["*.log", "/beszel/socket/"]
+
+[monitoring]
+disk_threshold_percent = 85   # alert when data volume usage >= this %
 
 [jobs.update-dns]
 description = "Update DNS records in Cloudflare"
@@ -66,8 +73,8 @@ plugin      = "system:update-stacks"
 enabled     = true
 args        = []
 triggers    = [
-    { type = "startup",  delay    = "8m" },
-    { type = "interval", interval = "4h" },
+    { type = "startup",  delay    = "8m"  },
+    { type = "interval", interval = "24h" },
 ]
 
 [jobs.update-infra]
@@ -76,8 +83,27 @@ plugin      = "update"
 enabled     = true
 args        = ["infra"]
 triggers    = [
-    { type = "startup",  delay    = "2m" },
-    { type = "interval", interval = "4h" },
+    { type = "startup",  delay    = "2m"  },
+    { type = "interval", interval = "24h" },
+]
+
+[jobs.health-watch]
+description = "Check stack health and notify failures"
+plugin      = "system:health-watch"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "interval", interval = "5m" },
+]
+
+[jobs.disk-watch]
+description = "Check disk usage and notify above threshold"
+plugin      = "system:disk-watch"
+enabled     = true
+args        = []
+triggers    = [
+    { type = "startup",  delay    = "5m"  },
+    { type = "interval", interval = "30m" },
 ]
 
 [media]

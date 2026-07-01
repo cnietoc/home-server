@@ -57,4 +57,3 @@ hms pets down
 hms pets up   # hace docker compose up --build
 ```
 
-> Como la imagen es local, Watchtower está desactivado para este stack (`com.centurylinklabs.watchtower.enable: "false"`).

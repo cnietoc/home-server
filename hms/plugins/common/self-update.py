@@ -37,6 +37,4 @@ NOTE:
 """
 
     def run(self, args: list) -> int:
-        raise NotImplementedError(
-            "This command should be handled by the wrapper in hms/bin/hms"
-        )
+        raise NotImplementedError("This command should be handled by the wrapper in hms/bin/hms")

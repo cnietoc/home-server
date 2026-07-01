@@ -14,10 +14,10 @@ class _SimpleColoredFormatter(logging.Formatter):
     """Simple console formatter: message only, with colour by level (WARNING+)."""
 
     LEVEL_COLOR = {
-        "DEBUG": "\033[36m",      # Cyan
-        "WARNING": "\033[33m",    # Yellow
-        "ERROR": "\033[31m",      # Red
-        "CRITICAL": "\033[35m",   # Magenta
+        "DEBUG": "\033[36m",  # Cyan
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
     }
     RESET = "\033[0m"
 
@@ -33,14 +33,14 @@ class ColoredFormatter(logging.Formatter):
     """ANSI-coloured formatter for console — kept for compatibility (not used in CLI)."""
 
     COLORS = {
-        'DEBUG': '\033[36m',
-        'INFO': '\033[32m',
-        'WARNING': '\033[33m',
-        'ERROR': '\033[31m',
-        'CRITICAL': '\033[35m',
+        "DEBUG": "\033[36m",
+        "INFO": "\033[32m",
+        "WARNING": "\033[33m",
+        "ERROR": "\033[31m",
+        "CRITICAL": "\033[35m",
     }
-    GRAY = '\033[90m'
-    RESET = '\033[0m'
+    GRAY = "\033[90m"
+    RESET = "\033[0m"
 
     def format(self, record):
         record_copy = logging.makeLogRecord(record.__dict__)
@@ -48,8 +48,8 @@ class ColoredFormatter(logging.Formatter):
         if levelname in self.COLORS:
             record_copy.levelname = f"{self.COLORS[levelname]}{levelname}{self.RESET}"
         msg = super().format(record_copy)
-        if ' [' in msg:
-            timestamp, rest = msg.split(' [', 1)
+        if " [" in msg:
+            timestamp, rest = msg.split(" [", 1)
             msg = f"{self.GRAY}{timestamp}{self.RESET} [{rest}"
         return msg
 

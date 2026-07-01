@@ -61,6 +61,7 @@ EXAMPLES:
 
     def run(self, args: List[str]) -> int:
         from hms.lib.host_runner import is_host_runner, run_hms_in_host_network
+
         if not is_host_runner():
             return run_hms_in_host_network(["system", "refresh-port-forwards", *args])
 
@@ -100,6 +101,7 @@ EXAMPLES:
 
         if stack_name:
             from hms.lib.router import _apply_ports_for_stack, _remove_ports_for_stack
+
             if remove:
                 _remove_ports_for_stack(stack_name)
             else:

@@ -46,6 +46,4 @@ NOTE:
         """Execute uninstall command."""
         # This is handled by the wrapper in hms/bin/hms
         # which delegates to commands/uninstall
-        raise NotImplementedError(
-            "This command should be handled by the wrapper in hms/bin/hms"
-        )
+        raise NotImplementedError("This command should be handled by the wrapper in hms/bin/hms")

@@ -1,4 +1,5 @@
 """Plugin to manage HMS shell completions."""
+
 from typing import List
 
 from hms.core.plugin import GlobalPlugin
@@ -63,7 +64,7 @@ NOTE:
 """
 
     def run(self, args: List[str]) -> int:
-        if not args or args[0] in ['-h', '--help']:
+        if not args or args[0] in ["-h", "--help"]:
             print(self.get_help())
             return 0
 
@@ -86,6 +87,7 @@ NOTE:
     @staticmethod
     def _detect_shell() -> str:
         import os
+
         shell = os.environ.get("SHELL", "")
         if "zsh" in shell:
             return "zsh"
